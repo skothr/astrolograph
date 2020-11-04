@@ -1,14 +1,25 @@
 # AstroloGraph
 Node graph-based astrological data viewer
 
-## Install
+NOTE: This software is still in development and features may be missing/buggy/broken. The node interface is currently a bit clunky, and time zone calculations should be double-checked for accuracy.
 
-### Ubuntu
+## Dependencies
+* GLFW3
+  * https://www.glfw.org/
+* GLEW
+  * http://glew.sourceforge.net/
+* Dear ImGui,
+  * https://github.com/ocornut/imgui
+* Swiss Ephemeris
+  * https://www.astro.com/swisseph/swephinfo_e.htm
+
+## Install
+### Linux (tested on Ubuntu 18.04)
 * TODO: VERIFY
 * sudo apt-get update
-* sudo apt-get install libglfw3-dev libglew-dev
+* sudo apt-get install 
+* sudo apt-get install build-essential pkg-config libglfw3-dev libglew-dev libswe-dev
 * make
-* ./astrolograph
 
 ### Windows
 * TODO
@@ -16,4 +27,25 @@ Node graph-based astrological data viewer
 ### Mac
 * TODO
 
-##
+## Run
+* ./astrolograph
+
+# Basic Instructions
+  * TODO: improve
+* The program will start empty. To add a node, right-click on the background and select the type of node.
+* Nodes have inputs(left) and/or outputs(right) that can be connected to other nodes by clicking and dragging.
+
+## Node Types
+
+### Data Sources
+* Time Node (date and time)
+* Time Span Node (start/end time)
+* Location Node (latitude/longitude/altitude)
+### Calculation
+* Chart Node (calculates positions via the Swiss Ephemeris)
+* Progress Node (calculates secondary progressed date)
+### Data/Visualization
+* Chart View Node (view a chart)
+* Chart Compare Node (view comparison between two charts)
+* Chart Data Node (view in-depth positional chart data)
+* Aspect Node (view in-depth aspect data)
