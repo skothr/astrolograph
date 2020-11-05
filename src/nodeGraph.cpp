@@ -1,15 +1,14 @@
 #include "nodeGraph.hpp"
 using namespace astro;
 
-#include <GL/glew.h>
-#include <GLFW/glfw3.h>
+#include "glfwKeys.hpp"
 #include "imgui.h"
 #include "ImGuiFileBrowser.h"
 using namespace imgui_addons;
 
 #include <fstream>
-#include <filesystem>
-namespace fs = std::filesystem;
+#include <experimental/filesystem>
+namespace fs = std::experimental::filesystem;
 
 #include "timeNode.hpp"
 #include "locationNode.hpp"
@@ -21,19 +20,27 @@ namespace fs = std::filesystem;
 #include "aspectNode.hpp"
 
 
-const std::unordered_map<std::string, std::function<Node*()>> NodeGraph::NODE_TYPES = {{"TimeNode",         [](){ return new TimeNode();      }},
-                                                                                       {"LocationNode",     [](){ return new LocationNode();  }},
-                                                                                       {"ChartNode",        [](){ return new ChartNode();     }},
-                                                                                       {"ProgressNode",     [](){ return new ProgressNode();  }},
-                                                                                       {"ChartViewNode",    [](){ return new ChartViewNode(); }},
-                                                                                       {"ChartCompareNode", [](){ return new CompareNode();   }},
-                                                                                       {"ChartDataNode",    [](){ return new ChartDataNode(); }},
-                                                                                       {"AspectNode",       [](){ return new AspectNode();    }},
-                                                                                       {"TimeSpanNode",     [](){ return new TimeSpanNode();  }}, };
+const std::unordered_map<std::string, NodeType> NodeGraph::NODE_TYPES =
+  {{ "TimeNode",         {"TimeNode",         "Time Node",          [](){ return new TimeNode();      }} },
+   { "TimeSpanNode",     {"TimeSpanNode",     "Time Span Node",     [](){ return new TimeSpanNode();  }} },
+   { "LocationNode",     {"LocationNode",     "Location Node",      [](){ return new LocationNode();  }} },
+   { "ChartNode",        {"ChartNode",        "Chart Node",         [](){ return new ChartNode();     }} },
+   { "ProgressNode",     {"ProgressNode",     "Progress Node",      [](){ return new ProgressNode();  }} },
+   { "ChartViewNode",    {"ChartViewNode",    "Chart View Node",    [](){ return new ChartViewNode(); }} },
+   { "ChartCompareNode", {"ChartCompareNode", "Chart Compare Node", [](){ return new CompareNode();   }} },
+   { "ChartDataNode",    {"ChartDataNode",    "Chart Data Node",    [](){ return new ChartDataNode(); }} },
+   { "AspectNode",       {"AspectNode",       "Aspect Node",        [](){ return new AspectNode();    }} }, };
+
+const std::vector<NodeGroup> NodeGraph::NODE_GROUPS =
+  { {"Parameters",    {"TimeNode", "TimeSpanNode", "LocationNode"}},
+    {"Calculation",   {"ChartNode", "ProgressNode"}},
+    {"Visualization", {"ChartViewNode", "ChartCompareNode", "ChartDataNode", "AspectNode"}}, };
+
+
 Node* NodeGraph::makeNode(const std::string &nodeType)
 {
   const auto &iter = NODE_TYPES.find(nodeType);
-  if(iter != NODE_TYPES.end()) { return iter->second(); }
+  if(iter != NODE_TYPES.end()) { return iter->second.get(); }
   else                         { return nullptr; }
 }
 
@@ -55,6 +62,10 @@ NodeGraph::~NodeGraph()
   delete mFileDialog;
 }
 
+void NodeGraph::addNode(const std::string &type)
+{
+  addNode(makeNode(type));
+}
 
 void NodeGraph::addNode(Node *n)
 {
@@ -157,14 +168,7 @@ bool NodeGraph::loadFromFile(const std::string &path)
               ss.str(saveHeader["nodeId"]); ss >> id;
               
               std::cout << " --> ADDING NODE '" << name << "': type=" << type << " | id=" << id << " | pos=" << pos << "\n";
-              
-              Node *newNode = nullptr;
-              for(const auto &iter : NODE_TYPES)
-                {
-                  if(type == iter.first)
-                    { newNode = iter.second(); break; }
-                }
-              
+              Node *newNode = makeNode(type);
               if(newNode)
                 {
                   newNode->fromSaveString(line);
@@ -233,7 +237,7 @@ void NodeGraph::openLoadDialog()
   mOpenLoad = true;
 }
 
-void NodeGraph::draw()
+void NodeGraph::draw(const Vec2i &viewSize)
 {
   // TODO: window selection/highlighting
   
@@ -273,7 +277,7 @@ void NodeGraph::draw()
     {
       fs::path fp = mFileDialog->selected_path;
       if(fp.extension() != ".ags") { fp += ".ags"; } // fix extension
-      saveToFile(fp);
+      saveToFile(fp.string());
       mSaveDialogOpen = false;
     }
   else if(mFileDialog->isClosed)
@@ -284,14 +288,25 @@ void NodeGraph::draw()
     { loadFromFile(mFileDialog->selected_path); }
   
   // right click menu (alternative to keyboard for adding new nodes)
-  if(ImGui::BeginPopupContextVoid("nodeGraph"))
+  if(ImGui::BeginPopupContextVoid("nodeGraphContext"))
     {
-      if(ImGui::BeginMenu("new"))
+      if(ImGui::BeginMenu("New"))
         {
-          for(const auto &iter : NODE_TYPES)
+          for(const auto &gIter : NODE_GROUPS)
             {
-              if(ImGui::MenuItem(iter.first.c_str()))
-                { addNode(iter.second()); }
+              if(ImGui::BeginMenu(gIter.name.c_str()))
+                {
+                  for(const auto &type : gIter.types)
+                    {
+                      auto nIter = NODE_TYPES.find(type);
+                      if(nIter != NODE_TYPES.end())
+                        {
+                          if(ImGui::MenuItem(nIter->second.name.c_str()))
+                            { addNode(nIter->second.get()); }
+                        }
+                    }
+                  ImGui::EndMenu();
+                }
             }
           ImGui::EndMenu();
         }

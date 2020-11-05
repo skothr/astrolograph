@@ -21,11 +21,10 @@ namespace astro
 #define CHART_SIZE_MIN            512.0f     // minimum chart size
 #define CHART_SIZE_MAX            1660.0f    // maximum chart size
 #define OUTER_RING_W              32.0f
-#define CHART_PADDING             0.0f
+#define CHART_PADDING             25.0f
 #define ANGLE_SYMBOL_OFFSET       50.0f      // distance from outer zodiac ring border to draw angle symbols (e.g. ASC)
-  
-#define CHART_OUTER_PADDING       (CHART_PADDING + ANGLE_SYMBOL_OFFSET)      // padding around chart circle
-#define CHART_RING_W              92.0f     // width of zodiac sign ring
+
+#define CHART_RING_W              92.0f      // width of zodiac sign ring
 #define CHART_EARTH_RADIUS        80.0f      // radius of inner reference circle (with house numbers)
 #define CHART_OBJRING_W           38.0f      // radius of ring where objects are shown
 
@@ -77,7 +76,7 @@ namespace astro
       objRingW = CHART_OBJRING_W*sizeRatio;
 
       // radii
-      oRadius = minSize/2.0f - sizeRatio*(CHART_OUTER_PADDING+ANGLE_SYMBOL_OFFSET);
+      oRadius = minSize/2.0f - sizeRatio*(CHART_PADDING + ANGLE_SYMBOL_OFFSET);
       iRadius = oRadius - sizeRatio*CHART_RING_W;
       eRadius = sizeRatio*CHART_EARTH_RADIUS;
       objRadius = iRadius - objRingW;

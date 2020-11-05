@@ -149,7 +149,6 @@ std::vector<DateSave> TimeWidget::loadAll()
 
 void TimeWidget::draw(const std::string &id)
 {
-  //ImGui::BeginChild("dateChild");
   ImGui::BeginGroup();
   {
     // textbox widths
@@ -194,17 +193,17 @@ void TimeWidget::draw(const std::string &id)
       
       ImGui::Text("Year ");
       ImGui::PushItemWidth(yearWidth);
-      ImGui::SameLine(); if(ImGui::InputScalar("##Year",   ImGuiDataType_S16,    &yearVal,   &yearStep,   &yearFastStep, "%d"))
+      ImGui::SameLine(); if(ImGui::InputScalar(("##year"+id).c_str(),   ImGuiDataType_S16,    &yearVal,   &yearStep,   &yearFastStep, "%d"))
                            { mDate.setYear(yearVal); }
       ImGui::PopItemWidth();
       ImGui::Text("Month");
       ImGui::PushItemWidth(monthWidth);
-      ImGui::SameLine(); if(ImGui::InputScalar("##Month",  ImGuiDataType_S8,     &monthVal,  &monthStep,  &monthFastStep, "%d"))
+      ImGui::SameLine(); if(ImGui::InputScalar(("##month"+id).c_str(),  ImGuiDataType_S8,     &monthVal,  &monthStep,  &monthFastStep, "%d"))
                            { mDate.setMonth(monthVal); }
       ImGui::PopItemWidth();
       ImGui::Text("Day  ");
       ImGui::PushItemWidth(dayWidth);
-      ImGui::SameLine(); if(ImGui::InputScalar("##Day", ImGuiDataType_S8,     &dayVal,    &dayStep,    &dayFastStep, "%d"))
+      ImGui::SameLine(); if(ImGui::InputScalar(("##day"+id).c_str(), ImGuiDataType_S8,     &dayVal,    &dayStep,    &dayFastStep, "%d"))
                            { mDate.setDay(dayVal); }
       ImGui::PopItemWidth();
     }
@@ -219,17 +218,17 @@ void TimeWidget::draw(const std::string &id)
             
       ImGui::Text("Hour  ");
       ImGui::PushItemWidth(hourWidth);
-      ImGui::SameLine(); if(ImGui::InputScalar("##Hour",   ImGuiDataType_S8,     &hourVal,   &hourStep,   &hourFastStep, "%d"))
+      ImGui::SameLine(); if(ImGui::InputScalar(("##hour"+id).c_str(),   ImGuiDataType_S8,     &hourVal,   &hourStep,   &hourFastStep, "%d"))
                            { mDate.setHour(hourVal); }
       ImGui::PopItemWidth();
       ImGui::Text("Minute");
       ImGui::PushItemWidth(minuteWidth);
-      ImGui::SameLine(); if(ImGui::InputScalar("##Minute", ImGuiDataType_S8,     &minuteVal, &minuteStep, &minuteFastStep, "%d"))
+      ImGui::SameLine(); if(ImGui::InputScalar(("##minute"+id).c_str(), ImGuiDataType_S8,     &minuteVal, &minuteStep, &minuteFastStep, "%d"))
                            { mDate.setMinute(minuteVal); }
       ImGui::PopItemWidth();
       ImGui::Text("Second");
       ImGui::PushItemWidth(secondWidth);
-      ImGui::SameLine(); if(ImGui::InputScalar("##Second", ImGuiDataType_Double, &secondVal, &secondStep, &secondFastStep, "%2.2f"))
+      ImGui::SameLine(); if(ImGui::InputScalar(("##second"+id).c_str(), ImGuiDataType_Double, &secondVal, &secondStep, &secondFastStep, "%2.2f"))
                            { mDate.setSecond(secondVal); }
       ImGui::PopItemWidth();
     }
@@ -254,7 +253,7 @@ void TimeWidget::draw(const std::string &id)
     ImGui::TextUnformatted("UTC");
     ImGui::PushItemWidth(tzWidth);
     ImGui::SameLine();
-    ImGui::InputDouble("##tzOffset", &tzVal, tzStep, tzFastStep, "%2.2f");
+    ImGui::InputDouble(("##tzOffset"+id).c_str(), &tzVal, tzStep, tzFastStep, "%2.2f");
     mDate.setTzOffset(tzVal);
     ImGui::PopItemWidth();
 
@@ -262,13 +261,13 @@ void TimeWidget::draw(const std::string &id)
     ImGui::Spacing();
     
     // load button
-    ImGui::Button("Load##date");
-    if(ImGui::BeginPopupContextItem(("loadPopup"+id).c_str(), ImGuiMouseButton_Left))
+    ImGui::Button(("Load##date"+id).c_str());
+    if(ImGui::BeginPopupContextItem(("loadPopup##"+id).c_str(), ImGuiMouseButton_Left))
       {
         std::vector<DateSave> loaded = loadAll();
         for(auto &dt : loaded)
           {
-            if(ImGui::MenuItem(dt.name.c_str()))
+            if(ImGui::MenuItem((dt.name+"##"+id).c_str()))
               {
                 sprintf(mName, "%s", dt.name.c_str());
                 mDate = dt.date;
@@ -281,20 +280,20 @@ void TimeWidget::draw(const std::string &id)
     
     // save button
     ImGui::SameLine();
-    ImGui::Button("Save##date");
+    ImGui::Button(("Save##date"+id).c_str());
 
     // save menu
-    if(ImGui::BeginPopupContextItem(("savePopup"+id).c_str(), ImGuiMouseButton_Left))
+    if(ImGui::BeginPopupContextItem(("savePopup##"+id).c_str(), ImGuiMouseButton_Left))
       {
         // text input for new save
         ImGui::Text("New");
         ImGui::SameLine();
-        ImGui::InputText("##saveInput", mSaveName, DATE_NAME_BUFLEN);
+        ImGui::InputText(("##saveInput"+id).c_str(), mSaveName, DATE_NAME_BUFLEN);
         ImGuiIO& io = ImGui::GetIO();
             
         bool enter = ImGui::IsKeyPressed(io.KeyMap[ImGuiKey_Enter]);
         ImGui::SameLine();
-        enter |= ImGui::Button("Save##date2");
+        enter |= ImGui::Button(("Save##date2"+id).c_str());
         if(enter)
           {
             if(!save(std::string(mSaveName)))
@@ -316,7 +315,7 @@ void TimeWidget::draw(const std::string &id)
           {
             // delete button (X)
             ImGui::PushStyleColor(ImGuiCol_Button, ImVec4(0,0,0,0));
-            if(ImGui::Button(("X##"+dt.name).c_str()))
+            if(ImGui::Button(("X##"+dt.name+id).c_str()))
               {
                 std::cout << "Removing date '" << dt.name << "'!\n";
                 remove(dt.name);
@@ -327,7 +326,7 @@ void TimeWidget::draw(const std::string &id)
             
             // overwrite
             ImGui::SameLine();
-            if(ImGui::MenuItem(dt.name.c_str()))
+            if(ImGui::MenuItem((dt.name+"##"+id).c_str()))
               {
                 if(!save(dt.name))
                   { std::cout << "Failed to save date '" << dt.name << "'!\n"; }
@@ -347,17 +346,16 @@ void TimeWidget::draw(const std::string &id)
     if(!std::string(mName).empty())
       {
         ImGui::SameLine();
-        if(ImGui::Button("Reload##date"))
+        if(ImGui::Button(("Reload##date"+id).c_str()))
           { mDate = mSavedDate; }
       }
     ImGui::SameLine(280);
-    if(ImGui::Button("Now##date"))
+    if(ImGui::Button(("Now##date"+id).c_str()))
       { mDate = DateTime::now(); }
     
     
     ImGui::Spacing();
   }
-  //ImGui::EndChild();
   ImGui::EndGroup();
   mDate.fix();
 }

@@ -33,7 +33,7 @@
 #define GL_MAJOR 4 // OpenGL 4.4
 #define GL_MINOR 4
 
-astro::NodeGraph *graph = nullptr;
+astro::NodeGraph *graph = new astro::NodeGraph();
 bool closing = false; // set to true when program is being closed
 bool saving = false;  // set to true when user saving project before close
 bool noSave = false;  // set to true if unsaved changes should be discarded
@@ -52,28 +52,19 @@ void windowCloseCallback(GLFWwindow *window)
       closing = true;
     }
   else
-    {
-      std::cout << "No unsaved changes!\n";
-    }
+    { std::cout << "No unsaved changes!\n"; }
 }
 
-// struct KeyShortcut
-// {
-//   int key;
-//   std::string keys;
-// };
+struct KeyShortcut
+{
+  int mods;
+  int key;
+  std::function<void()> action;
+};
+
 
 int main(int argc, char* argv[])
 {
-  // // tz test
-  // auto t = date::make_zoned(date::current_zone(), std::chrono::system_clock::now());
-  // std::cout << "TZ CURRENT TIMEZONE: " << t << "\n";
-
-  // // astro::Location::getTimezoneCurl(astro::Location(NYSE_LAT, NYSE_LON, NYSE_ALT));
-  // astro::Location test(NYSE_LAT, NYSE_LON, NYSE_ALT);
-  // std::cout << "*TZ OFFSET (TODAY): " << test.getTimezoneOffset(astro::DateTime(2020, 11, 1, 11, 24, 0.0)) << "\n";
-  // std::cout << "*TZ OFFSET (YESTERDAY): " << test.getTimezoneOffset(astro::DateTime(2020, 10, 1, 11, 24, 0.0)) << "\n";
-  
   // set up window
   glfwSetErrorCallback(glfw_error_callback);
   if(!glfwInit())
@@ -82,13 +73,13 @@ int main(int argc, char* argv[])
   // decide GL+GLSL versions
 #ifdef __APPLE__
   // GL 3.2 + GLSL 150
-  const char* glsl_version = "#version 440";
-  glfwWindowHint(GLFW_CONTEXT_VERSION_MAJOR, GL_MAJOR);
-  glfwWindowHint(GLFW_CONTEXT_VERSION_MINOR, GL_MINOR);
+  const char* glsl_version = "#version 150";
+  glfwWindowHint(GLFW_CONTEXT_VERSION_MAJOR, 3);
+  glfwWindowHint(GLFW_CONTEXT_VERSION_MINOR, 2);
   glfwWindowHint(GLFW_OPENGL_PROFILE, GLFW_OPENGL_CORE_PROFILE);  // 3.2+ only
   glfwWindowHint(GLFW_OPENGL_FORWARD_COMPAT, GL_TRUE);            // Required on Mac
 #else
-  // GL 4.4 + GLSL 130
+  // GL 4.4 + GLSL 440
   const char* glsl_version = "#version 440";
   glfwWindowHint(GLFW_CONTEXT_VERSION_MAJOR, GL_MAJOR);
   glfwWindowHint(GLFW_CONTEXT_VERSION_MINOR, GL_MINOR);
@@ -131,9 +122,34 @@ int main(int argc, char* argv[])
   bool showDemo     = false;
   ImVec4 clearColor = ImVec4(0.05f, 0.05f, 0.05f, 1.0f);
 
-  graph = new astro::NodeGraph();
+  // keyboard shortcut definitions
+  const std::vector<KeyShortcut> shortcuts =
+    { //// System/Files
+      { GLFW_MOD_CONTROL,                GLFW_KEY_N, [](){ graph->clear(); } },            // CTRL+N       --> new file
+      { GLFW_MOD_CONTROL,                GLFW_KEY_O, [](){ graph->openLoadDialog(); } },   // CTRL+O       --> open file
+      { GLFW_MOD_CONTROL,                GLFW_KEY_S, [](){ graph->openSaveDialog(); } },   // CTRL+S       --> save file
+      { GLFW_MOD_CONTROL|GLFW_MOD_SHIFT, GLFW_KEY_S, [](){ graph->openSaveAsDialog(); } }, // CTRL+SHIFT+S --> save file as (rename)
+      { GLFW_MOD_CONTROL|GLFW_MOD_ALT,   GLFW_KEY_Q, [&closing](){ closing = true; } },    // CTRL+ALT+Q   --> quit program
+      //// Graph Control
+      // { GLFW_MOD_CONTROL, GLFW_KEY_X, [](){ graph->cut(); } },                          // CTRL+X       --> cut
+      // { GLFW_MOD_CONTROL, GLFW_KEY_C, [](){ graph->copy(); } },                         // CTRL+C       --> copy
+      // { GLFW_MOD_CONTROL, GLFW_KEY_V, [](){ graph->paste(); } },                        // CTRL+V       --> paste
+      //// Node Creation (CTRL+ALT+[key])
+      { 0, GLFW_KEY_T, [](){ graph->addNode("TimeNode"); } },        // T --> new Time Node
+      { 0, GLFW_KEY_S, [](){ graph->addNode("TimeSpanNode"); } },    // S --> new Time Span Node
+      { 0, GLFW_KEY_L, [](){ graph->addNode("LocationNode"); } },    // L --> new Location Node
+      { 0, GLFW_KEY_C, [](){ graph->addNode("ChartNode"); } },       // C --> new Chart Node
+      { 0, GLFW_KEY_P, [](){ graph->addNode("ProgressNode"); } },    // P --> new Progress Node
+      { 0, GLFW_KEY_V, [](){ graph->addNode("ChartViewNode"); } },   // V --> new Chart View Node
+      { 0, GLFW_KEY_X, [](){ graph->addNode("ChartCompareNode");} }, // X --> new Chart Compare Node
+      { 0, GLFW_KEY_D, [](){ graph->addNode("ChartDataNode"); } },   // D --> new Chart Data Node
+      { 0, GLFW_KEY_A, [](){ graph->addNode("AspectNode"); } },      // A --> new Aspect Node
+      //// Debug
+      { GLFW_MOD_ALT, GLFW_KEY_D, [&showDemo](){ showDemo = !showDemo; } }, // ALT+D --> open ImGui demo window
+    };
  
   // main loop
+  Vec2i frameSize(WINDOW_W, WINDOW_H); // size of current frame
   while(!glfwWindowShouldClose(window))
     {
       // handle events
@@ -145,28 +161,22 @@ int main(int argc, char* argv[])
       ImGui::NewFrame();
 
       // get GLFW window size
-      int windowW, windowH;
-      glfwGetFramebufferSize(window, &windowW, &windowH);
+      glfwGetFramebufferSize(window, &frameSize.x, &frameSize.y);
 
       //// KEY SHORTCUTS ////
       ImGuiIO& io = ImGui::GetIO();
-      if(io.KeyCtrl && io.KeyAlt && ImGui::IsKeyPressed(GLFW_KEY_Q)) // (CTRL+ALT+Q) -- EXIT
-        { closing = true; }
-      // add nodes (TODO: remove or refine shortcuts)
-      if(io.KeyCtrl && ImGui::IsKeyPressed(GLFW_KEY_N)) // (CTRL+N) -- CREATE NEW CHART VIEW
-        { graph->addNode(new astro::ChartNode()); }
-      if(io.KeyCtrl && ImGui::IsKeyPressed(GLFW_KEY_M)) // (CTRL+M) -- CREATE NEW CHART DATA VIEW
-        { graph->addNode(new astro::ChartDataNode()); }
-      if(io.KeyCtrl && ImGui::IsKeyPressed(GLFW_KEY_D)) // (CTRL+D) -- CREATE NEW DATE NODE
-        { graph->addNode(new astro::TimeNode()); }
-      if(io.KeyCtrl && ImGui::IsKeyPressed(GLFW_KEY_L)) // (CTRL+L) -- CREATE NEW LOCATION NODE
-        { graph->addNode(new astro::LocationNode()); }
-      // debug/demo
-      if(ImGui::IsKeyPressed(GLFW_KEY_D) && io.KeyAlt)  // (ALT+D)  -- SHOW IMGUI DEMO WINDOW
-        { showDemo = !showDemo; }
-      
-      // show demo window if toggled
-      if(showDemo) { ImGui::ShowDemoWindow(&showDemo); }
+      int mods = ((io.KeyCtrl  ? GLFW_MOD_CONTROL : 0) |
+                  (io.KeyAlt   ? GLFW_MOD_ALT     : 0) |
+                  (io.KeyShift ? GLFW_MOD_SHIFT   : 0) |
+                  (io.KeySuper ? GLFW_MOD_SUPER   : 0));
+      for(auto s : shortcuts)
+        {
+          if(ImGui::IsKeyPressed(s.key))
+            {
+              if(mods == s.mods)
+                { s.action(); }
+            }
+        }
       
       // menu bar
       if(ImGui::BeginMainMenuBar())
@@ -187,25 +197,32 @@ int main(int argc, char* argv[])
               // if(ImGui::MenuItem("Paste")) { std::cout << "PASTE -- TODO\n"; }
               if(ImGui::BeginMenu("Add Node"))
                 {
-                  if(ImGui::MenuItem("Time Node"))
-                    { graph->addNode(new astro::TimeNode()); }
-                  if(ImGui::MenuItem("Location Node"))
-                    { graph->addNode(new astro::LocationNode()); }
-                  if(ImGui::MenuItem("Chart Node"))
-                    { graph->addNode(new astro::ChartNode()); }
-                  if(ImGui::MenuItem("Chart Data Node"))
-                    { graph->addNode(new astro::ChartDataNode()); }
-                  if(ImGui::MenuItem("Aspect Node"))
-                    { graph->addNode(new astro::AspectNode()); }
-                  ImGui::EndMenu();
+                  for(const auto &gIter : astro::NodeGraph::NODE_GROUPS)
+                    {
+                      if(ImGui::BeginMenu(gIter.name.c_str()))
+                        {
+                          for(const auto &type : gIter.types)
+                            {
+                              auto nIter = astro::NodeGraph::NODE_TYPES.find(type);
+                              if(nIter != astro::NodeGraph::NODE_TYPES.end())
+                                {
+                                  if(ImGui::MenuItem(nIter->second.name.c_str()))
+                                    { graph->addNode(nIter->second.get()); }
+                                }
+                            }
+                          ImGui::EndMenu(); // gIter.name
+                        }
+                    }
+                  ImGui::EndMenu(); // Add Node
                 }
-              ImGui::EndMenu();
+              ImGui::EndMenu(); // Edit
             }
           ImGui::EndMainMenuBar();
         }
-      graph->draw();
-
-      // unsaved changes popup
+      
+      graph->draw(frameSize);
+      
+      // unsaved changes popup (TODO: improve/fix)
       if(closing && !saving)
         { ImGui::OpenPopup("Unsaved Changes"); }
       if(ImGui::BeginPopupModal("Unsaved Changes", NULL, ImGuiWindowFlags_NoMove))
@@ -247,9 +264,14 @@ int main(int argc, char* argv[])
       else if(closing && (!graph->unsavedChanges() || noSave)) // close window
         { glfwSetWindowShouldClose(window, GLFW_TRUE); }
 
-      // Rendering
+      
+      // show demo window if toggled
+      if(showDemo) { ImGui::ShowDemoWindow(&showDemo); }
+
+      
+      //// RENDERING ////
       ImGui::Render();
-      glViewport(0, 0, windowW, windowH);
+      glViewport(0, 0, frameSize.x, frameSize.y);
       glClearColor(clearColor.x, clearColor.y, clearColor.z, clearColor.w);
       glClear(GL_COLOR_BUFFER_BIT);
       ImGui_ImplOpenGL3_RenderDrawData(ImGui::GetDrawData());

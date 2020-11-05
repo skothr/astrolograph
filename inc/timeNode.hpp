@@ -53,11 +53,11 @@ namespace astro
   {
   private:
     static const std::vector<std::string> SPEED_UNITS;
-    static const std::vector<double> SPEED_MULTS;
+    static const std::vector<double>      SPEED_MULTS;
 
     TimeWidget mStartWidget;
     TimeWidget mEndWidget;
-    DateTime mDate; // current date (between start/end)
+    DateTime   mDate; // current date (between start/end)
 
     TICK_CLOCK::time_point mTLast; // time of last frame
     bool   mPlay   = false;  // if true, date will be moving from start date to end date

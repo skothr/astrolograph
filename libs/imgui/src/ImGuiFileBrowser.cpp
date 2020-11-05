@@ -1132,7 +1132,7 @@ namespace imgui_addons
 
     //Windows Exclusive function
     #ifdef OSWIN
-    bool ImGuiFileBrowser::loadWindowsDrives()
+    bool ImGuiFileBrowser::loadWindowsDrives(const std::string &initialPath)
     {
         DWORD len = GetLogicalDriveStringsA(0,nullptr);
         char* drives = new char[len];

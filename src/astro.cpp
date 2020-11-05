@@ -6,6 +6,7 @@ using namespace astro;
 #define STB_IMAGE_IMPLEMENTATION
 #include "stb_image.h"
 
+#include <GL/glew.h>
 #include <GLFW/glfw3.h>
 #include "imgui_impl_glfw.h"
 

@@ -39,8 +39,7 @@ bool ConnectorBase::connect(ConnectorBase *other)
 
 void ConnectorBase::disconnect(ConnectorBase *other)
 {
-  // if(!other || other == this || type() != other->type()) { return; }
-  
+  if(!other || other == this) { return; }
   for(int i = 0; i < mConnected.size(); i++)
     {
       ConnectorBase *con = mConnected[i];
@@ -72,15 +71,22 @@ void ConnectorBase::disconnectAll()
           for(int j = 0; j < con->mConnected.size(); j++)
             {
               if(con->mConnected[j] == mThisPtr)
-                {
-                  con->mConnected.erase(con->mConnected.begin() + j);
-                  j--;
-                }
+                { con->mConnected.erase(con->mConnected.begin() + j--); }
             }
         }
     }
   mConnected.clear();
 }
+
+void ConnectorBase::reset(bool rs)
+{
+  mNeedReset = rs;
+  if(rs && (mDirection & CONNECTOR_INPUT))
+    { for(auto con : mConnected) { con->reset(rs); } }
+  else if(!rs && (mDirection & CONNECTOR_OUTPUT))
+    { for(auto con : mConnected) { con->reset(rs); } }
+}
+    
 
 void ConnectorBase::draw()
 {
@@ -162,23 +168,58 @@ void ConnectorBase::drawConnections()
   Vec4f dotColor        = Vec4f(connectorColor.x*0.4f, connectorColor.y*0.4f, connectorColor.z*0.4f, 1.0f); // color when fully connected
 
   ImDrawList *fg_draw = ImGui::GetForegroundDrawList();
+  ImDrawList *bg_draw = ImGui::GetBackgroundDrawList();
   ImDrawList *win_draw = ImGui::GetWindowDrawList();
-  
-  if(mDirection == CONNECTOR_OUTPUT)
-    { // connected
-      for(auto con : mConnected)
-        {
-          fg_draw->AddLine(screenPos, con->screenPos, ImColor(connectedColor), 3.0f);
-        }
-    }
-  // connecting (draw line to mouse)
-  if(isConnecting())
-    { fg_draw->AddLine(screenPos, ImGui::GetMousePos(), ImColor(connectingColor), 1.0f); }
+
+  ImGui::PushClipRect(Vec2f(0,0), Vec2f(4000,4000), false);
+  {
+    if(mDirection == CONNECTOR_OUTPUT)
+      { // connected
+        for(auto con : mConnected)
+          {
+            win_draw->AddLine(screenPos, con->screenPos, ImColor(connectedColor), 3.0f);
+            win_draw->AddLine(screenPos, con->screenPos, ImColor(connectedColor), 3.0f);
+          }
+      }
+    // connecting (draw line to mouse)
+    if(isConnecting())
+      {
+        win_draw->AddLine(screenPos, ImGui::GetMousePos(), ImColor(connectingColor), 1.0f);
+        win_draw->AddLine(screenPos, ImGui::GetMousePos(), ImColor(connectingColor), 1.0f);
+      }
+  }
+  ImGui::PopClipRect();
 }
 
 
 int Node::NEXT_ID = 0;
 std::unordered_set<int> Node::ACTIVE_IDS;
+
+
+Node::Node(const std::vector<ConnectorBase*> &inputs_, const std::vector<ConnectorBase*> &outputs_, const std::string &name, NodeParams *params)
+  : mInputs(inputs_), mOutputs(outputs_), mParams(params)
+{
+  if(!mParams) { mParams = new NodeParams(); }
+  mParams->name = name;
+  for(int i = 0; i < mInputs.size(); i++)  { mInputs[i]->setParent(this, i);  mInputs[i]->setDirection(CONNECTOR_INPUT); }
+  for(int i = 0; i < mOutputs.size(); i++) { mOutputs[i]->setParent(this, i); mOutputs[i]->setDirection(CONNECTOR_OUTPUT); }
+
+  if(mParams->id < 0)
+    {
+      while(ACTIVE_IDS.count(NEXT_ID) > 0) { NEXT_ID++; } // no id overlap
+      mParams->id = NEXT_ID++;
+      ACTIVE_IDS.emplace(mParams->id);
+    }
+}
+
+Node::~Node()
+{
+  for(auto c : mInputs)  { delete c; }
+  for(auto c : mOutputs) { delete c; }
+  ACTIVE_IDS.erase(mParams->id);
+  // if(mParams->id == NEXT_ID-1) { NEXT_ID--; }
+  delete mParams;
+}
 
 bool Node::draw()
 {
@@ -211,7 +252,7 @@ bool Node::draw()
       ImGui::SameLine();
       drawOutputs();
       
-      if(mParams->pos != mNextPos)
+      if(pos() != mNextPos)
         { ImGui::SetWindowPos(mNextPos); }
       if(!mFirstFrame)
         {
@@ -224,8 +265,8 @@ bool Node::draw()
       
       mSelected = ImGui::IsWindowFocused(ImGuiFocusedFlags_RootWindow | ImGuiFocusedFlags_ChildWindows);
       //mSize = ImGui::GetWindowSize();
-      mParams->pos = ImGui::GetWindowPos();
-      mNextPos = mParams->pos;
+      mParams->rect.setPos(ImGui::GetWindowPos());
+      mNextPos = pos();
     }
   ImGui::End();
   ImGui::PopStyleVar();
@@ -270,7 +311,9 @@ bool Node::drawInputs()
   }
   ImGui::EndChild();
   // reset cursor for drawing node body
-  ImGui::SetCursorPos(Vec2f(cursorPos.x+2.0f*CONNECTOR_PADDING.x+CONNECTOR_SIZE.x, contentMin.y));
+  cursorPos = Vec2f(cursorPos.x + CONNECTOR_PADDING.x*2.0f + CONNECTOR_SIZE.x, contentMin.y);
+  ImGui::SetCursorPos(cursorPos);
+  return true;
 }
 
 bool Node::drawOutputs()
@@ -311,4 +354,96 @@ bool Node::drawOutputs()
   // reset cursor
   ImGui::SetCursorPos(Vec2f(cursorPos.x, contentMin.y));
   return true;
+}
+
+
+std::map<std::string, std::string> Node::getSaveHeader(const std::string &saveStr)
+{
+  std::map<std::string, std::string> header;
+  std::istringstream ss(saveStr);
+  std::string temp;
+  ss >> temp;
+  ss.ignore(2, '{');
+  std::string name = "";
+  std::string value = "";
+  do
+    {
+      ss >> name;
+      ss.ignore(2, ':');
+      ss >> std::quoted(value);
+      ss.ignore(2, ',');
+
+      if(name == "nodeType" || name == "nodeName" || name == "nodeId" || name == "nodePos")
+        { header.emplace(name, value); }
+    } while(!name.empty() && name != "\n" && name.find("}") == std::string::npos && value.find("}") == std::string::npos);
+      
+  return header;
+}
+    
+std::string Node::toSaveString() const
+{
+  std::map<std::string, std::string> params;
+  params.emplace("nodeType", type());
+  params.emplace("nodeName", mParams->name);
+  params.emplace("nodeId",   std::to_string(id()));
+  params.emplace("nodePos",  mParams->rect.p1.toString());
+  getSaveParams(params);
+      
+  std::ostringstream ss;
+  ss << "NODE { ";// << type() << ": " << std::quoted(mParams->name) << " " << id() << " " << mParams->pos;
+  for(auto &p : params)
+    { ss << p.first << " : " << std::quoted(p.second) << ", "; }
+  ss << "}";
+  return ss.str();
+}
+
+// returns remaining string after base class parameters
+std::string Node::fromSaveString(const std::string &saveStr)
+{
+  // convert string to params
+  std::map<std::string, std::string> params;
+  std::istringstream ss(saveStr);
+  std::string temp, nodeType;
+  ss >> temp; // "NODE {"
+  ss.ignore(2, '{');
+  std::string name, value;
+  do
+    {
+      ss >> name;
+      ss.ignore(2, ':');
+      ss >> std::quoted(value);
+      ss.ignore(2, ',');
+      if(!name.empty() && name != "\n" && name.find("}") == std::string::npos && value.find("}") == std::string::npos)
+        {
+          std::cout << "     -->  READ PARAM '" << name << "' : '" << value << "'\n";
+          params.emplace(name, value);
+        }
+    } while(!name.empty() && name != "\n" && name.find("}") == std::string::npos && value.find("}") == std::string::npos);
+      
+  // erase current id
+  if(mParams->id >= 0)
+    { ACTIVE_IDS.erase(mParams->id); }
+
+  // load stored values
+  ss.str(params["nodeType"]); ss.clear();
+  ss >> nodeType;
+  ss.str(params["nodeName"]); ss.clear();
+  ss >> mParams->name;
+  ss.str(params["nodeId"]); ss.clear();
+  ss >> mParams->id;
+  mNextPos.fromString(params["nodePos"]);
+
+  setSaveParams(params);
+      
+  // check active id
+  if(ACTIVE_IDS.count(mParams->id) > 0)
+    { std::cout << "WARNING: Overlapping Node ID! (fromSaveString()) --> " << mParams->id << "\n"; }
+  ACTIVE_IDS.emplace(mParams->id);
+  // while(ACTIVE_IDS.count(NEXT_ID) > 0) { NEXT_ID++; } // no id overlap
+      
+  // std::stringstream tmp; tmp << ss.rdbuf();
+  // std::string remaining = tmp.str();
+      
+  // return remaining;
+  return "";
 }

@@ -126,18 +126,19 @@ void ChartView::renderHouses(Chart *chart, const ViewParams &params, ImDrawList 
       Vec2f v(cos(angle), -sin(angle));
       Vec2f pe = cc + params.eRadius*v;
       Vec2f pi = cc + params.iRadius*v;
+      Vec2f pobj = cc + params.objRadius*v;
       Vec2f pa = cc + (params.oRadius + numOffset - ocRadius)*v;
-      draw_list->AddLine(pe, pa, ImColor(Vec4f(0.7f, 0.7f, 0.7f, 0.5f)), 1.5f);
+      draw_list->AddLine(pobj, pa, ImColor(Vec4f(0.7f, 0.7f, 0.7f, 0.5f)), 1.5f);
       // painter->drawLine(LineDesc{pe, pi, 1.5f, Vec4f(0.25f, 0.25f, 0.25f, 1.0f)}); //, Vec4f(1.0f, 1.0f, 1.0f, 1.0f), 2);
 
-      // inner house number text
+      // inner house number text (NOTE: removed)
       float tAngle = screenAngle(chart, (angle1 + houseSize/2.0f)); // center angle of house
       Vec2f tSize = ImGui::CalcTextSize(std::to_string(i).c_str());
       Vec2f tp = cc + (params.eRadius+numOffset)*Vec2f(cos(tAngle), -sin(tAngle)) - tSize/2.0f;
       std::stringstream ss; ss << i;
       
-      ImGui::SetCursorScreenPos(tp);
-      ImGui::TextColored(Vec4f(0.7f, 0.7f, 0.7f, 0.7f), ss.str().c_str());
+      // ImGui::SetCursorScreenPos(tp);
+      // ImGui::TextColored(Vec4f(0.7f, 0.7f, 0.7f, 0.7f), ss.str().c_str());
 
       // outer house number text
       tAngle = screenAngle(chart, angle1); // angle of house cusp
@@ -242,7 +243,7 @@ void ChartView::renderAngles(Chart *chart, const ViewParams &params, ImDrawList 
       // draw axis line (ascendent tinted red)
       Vec4f lineColor = (a == ANGLE_ASC ? Vec4f(1.0f, 0.4f, 0.4f, 0.4f) : Vec4f(1.0f, 1.0f, 1.0f, 0.4f));
       float lineWidth = (a == ANGLE_ASC ? 5.0f : 3.0f);
-      draw_list->AddLine(cc, cc+(params.oRadius+CHART_HOUSE_NUM_OFFSET - CHART_HOUSE_CIRCLE_RADIUS)*v, ImColor(lineColor), lineWidth);
+      draw_list->AddLine(cc+(params.objRadius)*v, cc+(params.oRadius+CHART_HOUSE_NUM_OFFSET - CHART_HOUSE_CIRCLE_RADIUS)*v, ImColor(lineColor), lineWidth);
     }
 }
 

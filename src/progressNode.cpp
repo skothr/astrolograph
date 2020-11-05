@@ -1,7 +1,7 @@
 #include "progressNode.hpp"
 using namespace astro;
 
-#include <GLFW/glfw3.h>
+#include "glfwKeys.hpp"
 #include "imgui.h"
 #include "tools.hpp"
 

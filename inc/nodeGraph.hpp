@@ -6,6 +6,7 @@
 #include "vector.hpp"
 
 #include <string>
+#include <vector>
 #include <unordered_map>
 #include <functional>
 
@@ -17,12 +18,22 @@ namespace imgui_addons { class ImGuiFileBrowser; }
 
 namespace astro
 {
+
+  struct NodeType
+  {
+    std::string            typeName; // string returned by <NodeDerived>::type()>
+    std::string            name;     // display name for node type
+    std::function<Node*()> get;      // function to create node
+  };
+  struct NodeGroup
+  {
+    std::string name;               // group name
+    std::vector<std::string> types; // names of types within group
+  };
+
   class NodeGraph
   {
   private:
-    static const std::unordered_map<std::string, std::function<Node*()>> NODE_TYPES;
-    static Node* makeNode(const std::string &nodeType);
-    
     std::unordered_map<int, Node*> mNodes; // maps ID to pointer
     Vec2f mCenter = Vec2f(0,0); // graph-space point to be centered in view
 
@@ -40,13 +51,18 @@ namespace astro
     bool loadFromFile(const std::string &path);
     
   public:
+    static const std::unordered_map<std::string, NodeType> NODE_TYPES;
+    static const std::vector<NodeGroup>                    NODE_GROUPS;
+    static Node* makeNode(const std::string &nodeType);
+    
     NodeGraph();
     ~NodeGraph();
 
     void addNode(Node *n);
+    void addNode(const std::string &type);
     void clear();
     
-    void draw();
+    void draw(const Vec2i &viewSize);
 
     bool isSaving() const { return mOpenSave; }
     bool unsavedChanges() const { return mChangedSinceSave; }

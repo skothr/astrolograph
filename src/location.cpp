@@ -18,6 +18,7 @@ Location& Location::operator=(const Location &other)
   altitude   = other.altitude;
   timezoneId = other.timezoneId;
   utcOffset  = other.utcOffset;
+  return *this;
 }
 
 bool Location::valid() const

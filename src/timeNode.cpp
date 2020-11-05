@@ -44,7 +44,7 @@ bool TimeNode::onDraw()
 
 
 const std::vector<std::string> TimeSpanNode::SPEED_UNITS = {{"secs", "mins", "hours", "days", "years"}};
-const std::vector<double> TimeSpanNode::SPEED_MULTS = {{1.0f, 60.0, 60.0*60.0, 60.0*60.0*24.0, 60.0*60.0*24.0*365.0}};
+const std::vector<double>      TimeSpanNode::SPEED_MULTS = {{1.0f, 60.0, 60.0*60.0, 60.0*60.0*24.0, 60.0*60.0*24.0*365.0}};
 
 TimeSpanNode::TimeSpanNode()
   : TimeSpanNode(DateTime::now(), DateTime::now())
@@ -78,18 +78,41 @@ bool TimeSpanNode::onDraw()
       ImGui::EndCombo();
     }
   ImGui::SameLine(); ImGui::TextUnformatted("per second");
-  
+
+  // play button
   if(ImGui::Button((mPlay ? "Pause" : "Play")))
     {
+      if(mDate >= mEndWidget.get())
+        { mDate = mStartWidget.get(); }
+      
       mPlay = !mPlay;
       mTLast = TICK_CLOCK::now();
     }
+  // arrow buttons
+  ImGui::PushButtonRepeat(true);
+  {
+    ImGui::SameLine();
+    if(ImGui::Button("<"))
+      {
+        mPlay  = false;
+        mDate.setSecond(mDate.second() - mSpeed*SPEED_MULTS[mUnitIndex]);
+        mDate.fix();
+      }
+    ImGui::SameLine();
+    if(ImGui::Button(">"))
+      {
+        mPlay  = false;
+        mDate.setSecond(mDate.second() + mSpeed*SPEED_MULTS[mUnitIndex]);
+        mDate.fix();
+      }
+  }
+  ImGui::PopButtonRepeat();
+  // reset button
   ImGui::SameLine();
   if(ImGui::Button("Reset"))
     {
-      mPlay = false;
-      mTLast = TICK_CLOCK::now();
-      mDate = mStartWidget.get();
+      mPlay  = false;
+      mDate  = mStartWidget.get();
     }
 
   if(mPlay)
@@ -99,28 +122,29 @@ bool TimeSpanNode::onDraw()
       double dt = (double)tDiff.count() / 1000000.0; // time since last frame in seconds
       
       double speedSeconds = mSpeed * SPEED_MULTS[mUnitIndex]; // convert speed from days/realSecond to seconds/realSecond
-
-      std::cout << "SPAN STEPPING " << speedSeconds*dt << " SECONDS...\n";
-      mDate += DateTime(0,0,0,0,0, speedSeconds*dt);
-
-      if(mDate >= mEndWidget.get())
-        {
-          mDate = mEndWidget.get();
-          mPlay = false;
-        }
-      else if(mDate <= mStartWidget.get())
-        {
-          mDate = mStartWidget.get();
-          mPlay = false;
-        }
+      mDate.setSecond(mDate.second() + speedSeconds*dt);
+      mDate.fix();
       mTLast = tNow;
     }
+  // clamp date to range
+  if(mDate >= mEndWidget.get())
+    {
+      mDate = mEndWidget.get();
+      if(mSpeed > 0.0)
+        { mPlay = false; }
+    }
+  else if(mDate <= mStartWidget.get())
+    {
+      mDate = mStartWidget.get();
+      if(mSpeed < 0.0)
+        { mPlay = false; }
+    }
 
-  ImGui::Spacing(); //ImGui::Separator();
+  ImGui::Spacing(); ImGui::Separator(); ImGui::Spacing();
   ImGui::TextUnformatted("Start Date:");
   ImGui::Spacing();
   mStartWidget.draw("start");
-  ImGui::Spacing(); //ImGui::Separator();
+  ImGui::Spacing(); ImGui::Separator(); ImGui::Spacing();
   ImGui::TextUnformatted("End Date:");
   ImGui::Spacing();
   mEndWidget.draw("end");

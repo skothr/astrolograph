@@ -1,7 +1,7 @@
 #include "chartViewNode.hpp"
 using namespace astro;
 
-#include <GLFW/glfw3.h>
+#include "glfwKeys.hpp"
 #include "imgui.h"
 #include "tools.hpp"
 
@@ -100,14 +100,13 @@ bool ChartViewNode::onDraw()
         ImGui::TextColored(ImColor(1.0f, 1.0f, 1.0f, 0.25f), (std::string("UTC")+(tzOffset >= 0 ? "+" : "")+to_string(tzOffset, 1)).c_str());
         
         const DateTime &date  = chart->date();
-        const Location &loc  = chart->location();
-        double julDay = chart->swe().getJulianDayET(date, loc, false);
-        
         ImGui::Text(date.toString().c_str());
         
-        ImGui::SameLine(); ImGui::Text("(jd_ET =");
-        ImGui::SameLine(); ImGui::Text(to_string(julDay).c_str()); ImGui::SameLine(); ImGui::Text(")");
+        // double julDay = chart->swe().getJulianDayET(date, loc, false);
+        // ImGui::SameLine(); ImGui::Text("(jd_ET =");
+        // ImGui::SameLine(); ImGui::Text(to_string(julDay).c_str()); ImGui::SameLine(); ImGui::Text(")");
         
+        const Location &loc  = chart->location();
         ImGui::Text(loc.toString().c_str());
       }
     else // draw empty chart
