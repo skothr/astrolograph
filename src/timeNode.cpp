@@ -3,9 +3,6 @@ using namespace astro;
 
 #include "imgui.h"
 
-// node connector indices
-#define DATENODE_OUTPUT_DATE 0
-
 
 TimeNode::TimeNode()
   : TimeNode(DateTime::now())
@@ -14,15 +11,16 @@ TimeNode::TimeNode()
 TimeNode::TimeNode(const DateTime &dt)
   : Node({}, {new Connector<DateTime>("DateTime Out")}, "Time Node"), mWidget(dt)
 {
-  outputs()[DATENODE_OUTPUT_DATE]->set(&mWidget.get());
+  // setMinSize(Vec2f(512, 512));
+  outputs()[TIMENODE_OUTPUT_DATE]->set(&mWidget.get());
 }
 
 bool TimeNode::onDraw()
 {
-  if(outputs()[DATENODE_OUTPUT_DATE]->needsReset())
+  if(outputs()[TIMENODE_OUTPUT_DATE]->needsReset())
     {
       mWidget.set(mWidget.getSaved());
-      outputs()[DATENODE_OUTPUT_DATE]->reset(false);
+      outputs()[TIMENODE_OUTPUT_DATE]->reset(false);
     }
  
   DateTime dt = mWidget.get(); 
@@ -51,16 +49,29 @@ TimeSpanNode::TimeSpanNode()
 { }
 
 TimeSpanNode::TimeSpanNode(const DateTime &dtStart, const DateTime &dtEnd)
-  : Node({}, {new Connector<DateTime>("DateTime Out")}, "Time Span Node"),
+  : Node({new Connector<DateTime>("Start Time"), new Connector<DateTime>("End Time")}, {new Connector<DateTime>("DateTime Out")}, "Time Span Node"),
     mStartWidget(dtStart), mEndWidget(dtEnd), mDate(dtStart)
 {
-  outputs()[DATENODE_OUTPUT_DATE]->set(&mDate);
+  // setMinSize(Vec2f(512, 512));
+  outputs()[TIMESPANNODE_OUTPUT_DATE]->set(&mDate);
 }
 
 bool TimeSpanNode::onDraw()
 {
+  bool startConnected = false;
+  bool endConnected = false;
   DateTime dtStart = mStartWidget.get();
   DateTime dtEnd   = mEndWidget.get();
+  if(inputs()[TIMESPANNODE_INPUT_STARTDATE]->get<DateTime>())
+    {
+      startConnected = true;
+      dtStart = *inputs()[TIMESPANNODE_INPUT_STARTDATE]->get<DateTime>();
+    }
+  if(inputs()[TIMESPANNODE_INPUT_ENDDATE]->get<DateTime>())
+    {
+      endConnected = true;
+      dtEnd = *inputs()[TIMESPANNODE_INPUT_ENDDATE]->get<DateTime>();
+    }
   ImGui::TextUnformatted(mDate.toString().c_str());
 
   // controls
@@ -82,8 +93,8 @@ bool TimeSpanNode::onDraw()
   // play button
   if(ImGui::Button((mPlay ? "Pause" : "Play")))
     {
-      if(mDate >= mEndWidget.get())
-        { mDate = mStartWidget.get(); }
+      if(mDate >= dtEnd)
+        { mDate = dtStart; }
       
       mPlay = !mPlay;
       mTLast = TICK_CLOCK::now();
@@ -112,7 +123,7 @@ bool TimeSpanNode::onDraw()
   if(ImGui::Button("Reset"))
     {
       mPlay  = false;
-      mDate  = mStartWidget.get();
+      mDate  = dtStart;
     }
 
   if(mPlay)
@@ -127,15 +138,15 @@ bool TimeSpanNode::onDraw()
       mTLast = tNow;
     }
   // clamp date to range
-  if(mDate >= mEndWidget.get())
+  if(mDate >= dtEnd)
     {
-      mDate = mEndWidget.get();
+      mDate = dtEnd;
       if(mSpeed > 0.0)
         { mPlay = false; }
     }
-  else if(mDate <= mStartWidget.get())
+  else if(mDate <= dtStart)
     {
-      mDate = mStartWidget.get();
+      mDate = dtStart;
       if(mSpeed < 0.0)
         { mPlay = false; }
     }
@@ -143,11 +154,22 @@ bool TimeSpanNode::onDraw()
   ImGui::Spacing(); ImGui::Separator(); ImGui::Spacing();
   ImGui::TextUnformatted("Start Date:");
   ImGui::Spacing();
-  mStartWidget.draw("start");
+  if(!startConnected)
+    { mStartWidget.draw("start"); }
+  else
+    {
+      ImGui::Text("  %s", dtStart.toString().c_str());
+    }
+  
   ImGui::Spacing(); ImGui::Separator(); ImGui::Spacing();
   ImGui::TextUnformatted("End Date:");
   ImGui::Spacing();
-  mEndWidget.draw("end");
+  if(!endConnected)
+    { mEndWidget.draw("end"); }
+  else
+    {
+      ImGui::Text("  %s", dtEnd.toString().c_str());
+    }
   
   return true;
 }

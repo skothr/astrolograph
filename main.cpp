@@ -33,6 +33,8 @@
 #define GL_MAJOR 4 // OpenGL 4.4
 #define GL_MINOR 4
 
+#define ENABLE_IMGUI_DEMO true
+
 astro::NodeGraph *graph = new astro::NodeGraph();
 bool closing = false; // set to true when program is being closed
 bool saving = false;  // set to true when user saving project before close
@@ -48,6 +50,7 @@ void windowCloseCallback(GLFWwindow *window)
 {
   if(graph->unsavedChanges())
     {
+      std::cout << "Asking to save changes!\n";
       glfwSetWindowShouldClose(window, GLFW_FALSE);
       closing = true;
     }
@@ -103,12 +106,15 @@ int main(int argc, char* argv[])
   // set up imgui context
   IMGUI_CHECKVERSION();
   ImGui::CreateContext();
-  ImGuiIO& io = ImGui::GetIO(); (void)io;
-  // io.ConfigFlags |= ImGuiConfigFlags_NavEnableKeyboard;     // Enable Keyboard Controls
-  io.IniFilename = NULL; // disable .ini file
-
-  // set dark imgui style
-  ImGui::StyleColorsDark();
+  ImGui::StyleColorsDark(); // dark style
+  
+  // imgui context config
+  ImGuiIO& io = ImGui::GetIO();
+  // io.ConfigFlags |= ImGuiConfigFlags_NavEnableKeyboard; // Enable Keyboard Controls
+  io.IniFilename = NULL;                                 // disable .ini file
+  //io.ConfigFlags |= ImGuiConfigFlags_DockingEnable;      // enable docking
+  //io.ConfigDockingWithShift = true;                      // docking when shift is held
+  io.BackendFlags |= ImGuiBackendFlags_HasMouseCursors;  // (?)
   
   ImGui_ImplGlfw_InitForOpenGL(window, true);
   ImGui_ImplOpenGL3_Init(glsl_version);
@@ -159,24 +165,29 @@ int main(int argc, char* argv[])
       ImGui_ImplOpenGL3_NewFrame();
       ImGui_ImplGlfw_NewFrame();
       ImGui::NewFrame();
-
+      
       // get GLFW window size
       glfwGetFramebufferSize(window, &frameSize.x, &frameSize.y);
 
       //// KEY SHORTCUTS ////
       ImGuiIO& io = ImGui::GetIO();
-      int mods = ((io.KeyCtrl  ? GLFW_MOD_CONTROL : 0) |
-                  (io.KeyAlt   ? GLFW_MOD_ALT     : 0) |
-                  (io.KeyShift ? GLFW_MOD_SHIFT   : 0) |
-                  (io.KeySuper ? GLFW_MOD_SUPER   : 0));
-      for(auto s : shortcuts)
+      if(!io.WantCaptureKeyboard)
         {
-          if(ImGui::IsKeyPressed(s.key))
+          int mods = ((io.KeyCtrl  ? GLFW_MOD_CONTROL : 0) |
+                      (io.KeyAlt   ? GLFW_MOD_ALT     : 0) |
+                      (io.KeyShift ? GLFW_MOD_SHIFT   : 0) |
+                      (io.KeySuper ? GLFW_MOD_SUPER   : 0));
+          for(auto s : shortcuts)
             {
-              if(mods == s.mods)
+              if(mods == s.mods && ImGui::IsKeyPressed(s.key))
                 { s.action(); }
             }
         }
+
+      static const Vec2i framePadding(0,0); //(50,50);
+      graph->setPos(framePadding);
+      graph->setSize(frameSize - 2*framePadding);
+      graph->draw();
       
       // menu bar
       if(ImGui::BeginMainMenuBar())
@@ -220,7 +231,6 @@ int main(int argc, char* argv[])
           ImGui::EndMainMenuBar();
         }
       
-      graph->draw(frameSize);
       
       // unsaved changes popup (TODO: improve/fix)
       if(closing && !saving)
@@ -254,7 +264,13 @@ int main(int argc, char* argv[])
             }
           ImGui::EndPopup();
         }
-      ImGui::EndFrame();
+
+#if ENABLE_IMGUI_DEMO
+      // show demo window if toggled
+      if(showDemo) { ImGui::ShowDemoWindow(&showDemo); }
+#endif
+      
+      ImGui::EndFrame();      
       
       if(closing && saving && graph->unsavedChanges() && !graph->saveOpen()) // save cancelled
         {
@@ -264,11 +280,6 @@ int main(int argc, char* argv[])
       else if(closing && (!graph->unsavedChanges() || noSave)) // close window
         { glfwSetWindowShouldClose(window, GLFW_TRUE); }
 
-      
-      // show demo window if toggled
-      if(showDemo) { ImGui::ShowDemoWindow(&showDemo); }
-
-      
       //// RENDERING ////
       ImGui::Render();
       glViewport(0, 0, frameSize.x, frameSize.y);

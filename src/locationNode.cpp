@@ -16,6 +16,7 @@ LocationNode::LocationNode(const Location &loc)
   : Node({}, {new Connector<Location>("LocationOut")}, "Location Node"), mWidget(loc)
 {
   outputs()[LOCNODE_OUTPUT_LOCATION]->set(&mWidget.get());
+  // setMinSize(Vec2f(512, 512));
 }
 
 

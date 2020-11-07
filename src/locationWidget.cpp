@@ -242,7 +242,7 @@ void LocationWidget::draw()
           }
 
         ImGui::Spacing();
-        ImGui::Separator();
+        //ImGui::Separator();
         
         // display existing locations
         std::vector<LocationSave> loaded = loadAll();
@@ -285,7 +285,7 @@ void LocationWidget::draw()
           { mLocation = mSavedLocation; }
       } 
     ImGui::Spacing();
-    ImGui::Separator();
+    //ImGui::Separator();
     ImGui::Spacing();
     
     // time zone

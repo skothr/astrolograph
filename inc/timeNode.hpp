@@ -10,6 +10,12 @@
 
 namespace astro
 {
+  //// node connector indices ////
+  // inputs
+  // outputs
+#define TIMENODE_OUTPUT_DATE      0
+  ////////////////////////////////
+  
   class TimeNode : public Node
   {
   private:
@@ -48,6 +54,14 @@ namespace astro
   };
 
 #define TICK_CLOCK std::chrono::high_resolution_clock
+  
+  //// node connector indices ////
+  // inputs
+#define TIMESPANNODE_INPUT_STARTDATE 0
+#define TIMESPANNODE_INPUT_ENDDATE   1
+  // outputs
+#define TIMESPANNODE_OUTPUT_DATE     0
+  ////////////////////////////////
 
   class TimeSpanNode : public Node
   {

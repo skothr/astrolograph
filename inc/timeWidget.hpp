@@ -41,7 +41,7 @@ namespace astro
     bool save(const std::string &name);
     bool load(const std::string &name);
     bool remove(const std::string &name);
-    bool reload() { mDate = mSavedDate; }
+    bool reload() { mDate = mSavedDate; return true; }
     std::vector<DateSave> loadAll();
     
     void draw(const std::string &id="");

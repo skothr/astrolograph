@@ -7,7 +7,9 @@ using namespace astro;
 
 ChartViewNode::ChartViewNode()
   : Node(CONNECTOR_INPUTS(), CONNECTOR_OUTPUTS(), "Chart View Node")
-{ }
+{
+  // setMinSize(Vec2f(512, 512));
+}
 
 
 void ChartViewNode::processInput(Chart *chart)
@@ -78,7 +80,7 @@ bool ChartViewNode::onDraw()
 {
   bool changed = false;
   Chart *chart = inputs()[CHARTVIEWNODE_INPUT_CHART]->get<Chart>();
-
+  // 
   outputs()[CHARTVIEWNODE_OUTPUT_CHART]->set(chart);
   
   ImGui::BeginGroup();

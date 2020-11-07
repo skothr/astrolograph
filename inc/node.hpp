@@ -1,6 +1,8 @@
 #ifndef NODE_HPP
 #define NODE_HPP
 
+#include "imgui.h"
+
 #include "astro.hpp"
 #include "rect.hpp"
 #include "typelessMap.hpp"
@@ -24,6 +26,8 @@ namespace astro
       CONNECTOR_OUTPUT // TODO: refine input vs. output (bi-directional?)
     };
 
+  // class ImDrawList;
+  
   class Node;
   template<typename T> class Connector;
   class NodeGraph;
@@ -40,6 +44,9 @@ namespace astro
     bool mConnecting = false;
     ConnectorDir mDirection = CONNECTOR_INVALID;
     bool mNeedReset = false;
+
+    void BeginDraw();
+    void EndDraw();
     
   public:
     Vec2f screenPos;
@@ -72,7 +79,7 @@ namespace astro
     bool needsReset() { return mNeedReset; }
     void reset(bool rs=true);
     void draw();
-    void drawConnections();
+    void drawConnections(ImDrawList *drawList);
   };
   
   // CONNECTOR //
@@ -117,8 +124,12 @@ namespace astro
     bool mState      = true;
     bool mSelected   = false;
     bool mFirstFrame = true;
+    bool mDragging   = false;
+    bool mActive     = false;
+    bool mHover     = false;
+
     
-    Vec2f mNextPos = Vec2f(0,0);  // node window pos
+    // Vec2f mNextPos = Vec2f(0,0);  // node window pos
     Vec2f mMinSize = Vec2f(0,0);  // min size (to be set by child class)
     
     std::vector<ConnectorBase*> mInputs;
@@ -129,6 +140,12 @@ namespace astro
 
     virtual std::map<std::string, std::string>& getSaveParams(std::map<std::string, std::string> &params) const { return params; }
     virtual std::map<std::string, std::string>& setSaveParams(std::map<std::string, std::string> &params)       { return params; }
+
+    bool drawOutputs();
+    bool drawInputs();
+
+    void BeginDraw();
+    void EndDraw();
     
   public:
     static int NEXT_ID;
@@ -153,17 +170,24 @@ namespace astro
     std::vector<ConnectorBase*>& inputs()              { return mInputs;  }
     const std::vector<ConnectorBase*>& inputs() const  { return mInputs;  }
 
+    bool isConnecting() const;
     bool isSelected() const { return mSelected; }
+    void setSelected(bool selected) { mSelected = selected; }
+
+    bool isActive() const { return mActive; }
+    bool isHovered() const { return mHover; }
     
     void setMinSize(const Vec2f &s) { mMinSize = s; }
-    void setNextPos(const Vec2f &p) { mNextPos = p; }
+    // void setNextPos(const Vec2f &p) { mNextPos = p; }
+    void setRect(const Rect2f &r) { mParams->rect = r; }
+    void setPos(const Vec2f &p);
+    void setSize(const Vec2f &s)  { mParams->rect.setSize(s); }
     const Rect2f& rect() const { return mParams->rect; }
     const Vec2f& pos() const   { return mParams->rect.p1; }
     Vec2f size() const         { return mParams->rect.size(); }
-    
-    bool draw();
-    bool drawOutputs();
-    bool drawInputs();
+
+    void drawConnections(ImDrawList *drawList);
+    bool draw(ImDrawList *drawList);
   };
 }
 

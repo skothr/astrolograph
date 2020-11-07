@@ -8,9 +8,9 @@ using namespace astro;
 ChartNode::ChartNode(Chart *chart)
   : Node(CONNECTOR_INPUTS(), CONNECTOR_OUTPUTS(), "Chart Node"), mChart(chart)
 {
-  if(!mChart) { mChart = new Chart(DateTime::now(), Location()); }
-  mChart->update();
+  // setMinSize(Vec2f(512, 512));
   
+  if(!mChart) { mChart = new Chart(DateTime::now(), Location()); }
   outputs()[CHARTNODE_OUTPUT_CHART]->set(mChart);
   
   for(auto &obj : mChart->objects())
@@ -20,6 +20,7 @@ ChartNode::ChartNode(Chart *chart)
       else                      // angles
         { mChart->showObject((ObjType)obj->type, false); }
     }
+  mChart->update();
 }
 
 ChartNode::ChartNode(const DateTime &dt, const Location &loc)
@@ -38,7 +39,7 @@ bool ChartNode::onDraw()
   {
     DateTime *dtIn = inputs()[CHARTNODE_INPUT_DATE]->get<DateTime>();
     Location *locIn = inputs()[CHARTNODE_INPUT_LOCATION]->get<Location>();
-    
+
     if(dtIn && *dtIn != mChart->date())
       {
         if(mChart->changed())
@@ -53,7 +54,7 @@ bool ChartNode::onDraw()
         else
           { mChart->setLocation(*locIn); }
       }
-    //mChart->update(); // UPDATE (should be only one -- TODO: improve?)
+    mChart->update(); // UPDATE (should be only one -- TODO: improve?)
     
     DateTime dt   = mChart->date();
     Location loc  = mChart->location();
@@ -66,7 +67,7 @@ bool ChartNode::onDraw()
   }
   ImGui::EndGroup();
   
-  mChart->update();
+  // mChart->update();
   return true;
 }
 

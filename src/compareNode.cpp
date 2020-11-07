@@ -18,7 +18,7 @@ static std::vector<ConnectorBase*> CONNECTOR_OUTPUTS()
 CompareNode::CompareNode()
   : Node(CONNECTOR_INPUTS(), CONNECTOR_OUTPUTS(), "Compare Node"), mCompare(new ChartCompare())
 {
-  
+  // setMinSize(Vec2f(512, 512));
 }
 
 CompareNode::~CompareNode()
