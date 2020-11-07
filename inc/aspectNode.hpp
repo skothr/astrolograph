@@ -2,13 +2,25 @@
 #define ASPECT_NODE_HPP
 
 #include "astro.hpp"
+#include "chart.hpp"
 #include "node.hpp"
 
 namespace astro
 {
+  //// node connector indices ////
+  // inputs
+#define ASPECTNODE_INPUT_CHART 0
+  // outputs
+  ////////////////////////////////
+
   class AspectNode : public Node
   {
   private:
+    static std::vector<ConnectorBase*> CONNECTOR_INPUTS()
+    { return {new Connector<Chart>("Chart")}; }
+    static std::vector<ConnectorBase*> CONNECTOR_OUTPUTS()
+    { return {}; }
+    
     virtual bool onDraw() override;
     
   public:

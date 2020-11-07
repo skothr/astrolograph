@@ -163,7 +163,6 @@ void LocationWidget::draw()
 
     // latitude input
     ImGui::PushItemWidth(200);
-    ImGui::SameLine();
     ImGui::Text("Latitude  (°)");
     ImGui::SameLine();
     if(ImGui::InputDouble("##Latitude",  &latVal, latStep, latFastStep, "%.12f"))

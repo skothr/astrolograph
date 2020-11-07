@@ -1,28 +1,32 @@
 # AstroloGraph
-Node graph-based astrological data viewer
+Node graph-based astrological data viewer.
 
-NOTE: This software is still in development and features may be missing/buggy/broken. The node interface is currently a bit clunky, and calculations should be double-checked for accuracy (especially time zones).
+![Simple chart setup with date and location inputs](images/simple-example.png?raw=true "Simple Example")
+![More complex setup with progressed chart and comparison](images/complex-example.png?raw=true "More Complex Example")
+
+NOTE: This software is still in development and features may be missing/buggy/broken. Calculations should be double-checked for accuracy (especially time zones).
 
 ## Install
-### Linux (tested on Ubuntu 18.04 | TODO: VERIFY)
+### Linux (tested on Ubuntu 18.04)
 * sudo apt-get update
-* sudo apt-get install build-essential cmake libglfw3-dev libglew-dev libswe-dev
-* ./make-debug.sh
+* sudo apt-get install build-essential cmake libglfw3-dev libglew-dev
+* ./make-release.sh
+  * Alternatively:
+    * mkdir build && cd build && cmake -DCMAKE_BUILD_TYPE=Release ..
 
 ### Windows
-* TODO
+* TODO (Possible process: import into a visual studio cmake project)
 
 ### Mac
 * TODO
 
 # Basic Instructions
-* The program will start empty. To add a node, right-click on the background and select the type of node.
-* Nodes have inputs(left) and/or outputs(right) that can be connected to other nodes by clicking and dragging.
+* Nodes have inputs(left side) and/or outputs(right side) that can be connected to other nodes by clicking and dragging.
+* To add a node, right click on the graph background and select from the menu, or press the associated key (denoted in parentheses below).
 * TODO: Improve Instructions
 * TODO: Add example save files
 
 ## Node Types
-
 ### Data Sources
 * (T) Time Node (date and time)
 * (S) Time Span Node (start/end time)
@@ -51,3 +55,5 @@ NOTE: This software is still in development and features may be missing/buggy/br
 * Date / tz (for timezone calculations)
   * https://github.com/HowardHinnant/date
   
+# Contact
+* skothr@gmail.com.

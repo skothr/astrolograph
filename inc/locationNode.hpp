@@ -7,9 +7,20 @@
 
 namespace astro
 {
+  //// node connector indices ////
+  // inputs
+  // outputs
+#define LOCNODE_OUTPUT_LOCATION       0
+  ////////////////////////////////
+
   class LocationNode : public Node
   {
   private:
+    static std::vector<ConnectorBase*> CONNECTOR_INPUTS()
+    { return {}; }
+    static std::vector<ConnectorBase*> CONNECTOR_OUTPUTS()
+    { return {new Connector<Location>("Location Output")}; }
+    
     LocationWidget mWidget;
     virtual bool onDraw() override;
     

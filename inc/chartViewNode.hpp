@@ -11,16 +11,16 @@ namespace astro
   // inputs
 #define CHARTVIEWNODE_INPUT_CHART        0
   // outputs
-#define CHARTVIEWNODE_OUTPUT_CHART        0
+#define CHARTVIEWNODE_OUTPUT_CHART       0
   ////////////////////////////////
 
   class ChartViewNode : public Node
   {
   private:
     static std::vector<ConnectorBase*> CONNECTOR_INPUTS()
-    { return {new Connector<Chart>("Chart")}; }
+    { return {new Connector<Chart>("Chart Input")}; }
     static std::vector<ConnectorBase*> CONNECTOR_OUTPUTS()
-    { return {new Connector<Chart>("Chart")}; }
+    { return {new Connector<Chart>("Chart Ouput (Copy)")}; }
 
     ChartView mView;
     float mChartWidth = CHART_SIZE_DEFAULT;

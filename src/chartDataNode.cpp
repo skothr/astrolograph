@@ -2,16 +2,10 @@
 using namespace astro;
 
 #include "imgui.h"
+#include "imgui_internal.h" // (for Push/Pop ItemFlag)
 #include "tools.hpp"
 #include "chartView.hpp"
 
-
-#define DATANODE_INPUT_CHART 0
-
-static std::vector<ConnectorBase*> CONNECTOR_INPUTS()
-{ return {new Connector<Chart>("Chart")}; }
-static std::vector<ConnectorBase*> CONNECTOR_OUTPUTS()
-{ return {}; }
 
 ChartDataNode::ChartDataNode()
   : Node(CONNECTOR_INPUTS(), CONNECTOR_OUTPUTS(), "Chart Data Node")
@@ -27,10 +21,17 @@ bool ChartDataNode::onDraw()
   bool changed = false;
   Chart *chart = inputs()[DATANODE_INPUT_CHART]->get<Chart>();
 
-  ImGuiTreeNodeFlags flags = ImGuiTreeNodeFlags_SpanAvailWidth | ImGuiTreeNodeFlags_DefaultOpen | ImGuiTreeNodeFlags_FramePadding;
+  ImGuiTreeNodeFlags flags = (ImGuiTreeNodeFlags_SpanAvailWidth | ImGuiTreeNodeFlags_OpenOnArrow |
+                              ImGuiTreeNodeFlags_DefaultOpen | ImGuiTreeNodeFlags_FramePadding);
   
   ImGui::BeginGroup();
   {
+    // if(!chart)
+    //   { // disable tree nodes
+    //     ImGui::PushItemFlag(ImGuiItemFlags_Disabled, true);
+    //     ImGui::PushStyleVar(ImGuiStyleVar_Alpha, ImGui::GetStyle().Alpha * 0.5f);
+    //   }
+
     // Angle Data
     if(ImGui::CollapsingHeader("Angle Data", nullptr, flags) && chart)
       {
@@ -135,6 +136,13 @@ bool ChartDataNode::onDraw()
       }
     else
       { mObjOpen = false; }
+    
+    // if(!chart)
+    //   {
+    //     ImGui::PopStyleVar();
+    //     ImGui::PopItemFlag();
+    //   }
+  
   }
   ImGui::EndGroup();
   

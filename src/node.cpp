@@ -122,28 +122,17 @@ void ConnectorBase::draw()
 
   // input handling
   bool hover = ImGui::IsItemHovered();
-  if(hover)
-    {
-      ImGui::BeginTooltip();
-      ImGui::Text(mName.c_str());
-      ImGui::EndTooltip();
-
-      //if(!ImGui::GetIO().WantCaptureMouse)
-        {
-          if(ImGui::IsItemClicked(ImGuiMouseButton_Middle))  { disconnectAll(); }   // MIDDLE CLICK -- disconnect all
-          if(ImGui::IsMouseClicked(ImGuiMouseButton_Left))   { beginConnecting(); } // LEFT MOUSE DOWN -- start connecting
-        }
-    }
-  if(ImGui::IsMouseReleased(ImGuiMouseButton_Left)) { endConnecting(); }   // LEFT MOUSE UP -- stop connecting
   
   // drag/drop
   if(ImGui::BeginDragDropSource())
     {
+      std::cout << "DROP SOURCE --> " << ((mDirection == CONNECTOR_INPUT ? "CON_IN" : "CON_OUT")+type()) << "\n";
       ImGui::SetDragDropPayload(((mDirection == CONNECTOR_INPUT ? "CON_IN" : "CON_OUT")+type()).c_str(), &mThisPtr, sizeof(ConnectorBase*));
       ImGui::EndDragDropSource();
     }
   if(ImGui::BeginDragDropTarget())
     {
+      std::cout << "DROP TARGET --> " << ((mDirection == CONNECTOR_INPUT ? "CON_OUT" : "CON_IN")+type()) << "\n";
       const ImGuiPayload* payload = ImGui::AcceptDragDropPayload(((mDirection == CONNECTOR_INPUT ? "CON_OUT" : "CON_IN")+type()).c_str());
       if(payload)
         {
@@ -162,6 +151,20 @@ void ConnectorBase::draw()
         { disconnectAll(); }
       ImGui::EndPopup();
     }
+  
+  if(hover)
+    {
+      ImGui::BeginTooltip();
+      ImGui::Text(mName.c_str());
+      ImGui::EndTooltip();
+
+      //if(!ImGui::GetIO().WantCaptureMouse)
+        {
+          if(ImGui::IsItemClicked(ImGuiMouseButton_Middle))  { disconnectAll(); }   // MIDDLE CLICK -- disconnect all
+          if(ImGui::IsMouseClicked(ImGuiMouseButton_Left))   { beginConnecting(); } // LEFT MOUSE DOWN -- start connecting
+        }
+    }
+  if(ImGui::IsMouseReleased(ImGuiMouseButton_Left)) { endConnecting(); }   // LEFT MOUSE UP -- stop connecting
 }
 
 void ConnectorBase::drawConnections(ImDrawList *drawList)
@@ -177,7 +180,7 @@ void ConnectorBase::drawConnections(ImDrawList *drawList)
   //if(mDirection == CONNECTOR_OUTPUT)
   // connecting (draw line to mouse)
   if(isConnecting())
-    { // use foreground drawlist (
+    { // use foreground drawlist (only while actively connecting, otherwise connections will show above file dialog)
       ImGui::GetForegroundDrawList()->AddLine(screenPos, ImGui::GetMousePos(), ImColor(connectingColor), 1.0f);
       ImGui::GetForegroundDrawList()->AddLine(screenPos, ImGui::GetMousePos(), ImColor(connectingColor), 1.0f);
     }
@@ -242,6 +245,7 @@ void Node::setPos(const Vec2f &p)
 
 void Node::drawConnections(ImDrawList *drawList)
 {
+  // TODO: improve drawing repetition
   BeginDraw();
   // over output child
   ImGui::BeginChild(("nodeOutputs"+std::to_string(id())).c_str());
@@ -249,26 +253,21 @@ void Node::drawConnections(ImDrawList *drawList)
   // draw connection lines over window area
   for(auto con : mOutputs) { con->drawConnections(winDrawList); }
   ImGui::EndChild();
-  
   // over input child
   ImGui::BeginChild(("nodeInputs"+std::to_string(id())).c_str());
   winDrawList = ImGui::GetWindowDrawList();
   for(auto con : mInputs)  { con->drawConnections(winDrawList); }
   ImGui::EndChild();
-  
   // over node window
   ImGui::PushClipRect(rect().p1, rect().p2, false);
   winDrawList = ImGui::GetWindowDrawList();
   for(auto con : mOutputs) { con->drawConnections(winDrawList); }
   for(auto con : mInputs)  { con->drawConnections(winDrawList); }
   ImGui::PopClipRect();
-  
   EndDraw();
-
   // over provided window
   for(auto con : mOutputs) { con->drawConnections(drawList); }
   for(auto con : mInputs)  { con->drawConnections(drawList); }
-  
 }
 
 bool Node::isConnecting() const
@@ -292,8 +291,8 @@ void Node::BeginDraw()
                              ImGuiWindowFlags_NoResize          |
                              ImGuiWindowFlags_NoTitleBar        |
                              ImGuiWindowFlags_NoMove            |
-                             ImGuiWindowFlags_AlwaysAutoResize  |
-                             ImGuiWindowFlags_NoScrollWithMouse 
+                             ImGuiWindowFlags_AlwaysAutoResize  //|
+                             // ImGuiWindowFlags_NoScrollWithMouse 
                              );
   
   ImGui::PushStyleVar(ImGuiStyleVar_WindowPadding, Vec2f(10, 10));
@@ -341,21 +340,29 @@ bool Node::draw(ImDrawList *drawList)
 
     mActive = false;
     mHover = ImGui::IsWindowHovered();
-    drawInputs();
-    mActive |= ImGui::IsItemActive();
-    mHover |= ImGui::IsItemHovered();
 
-    ImGui::SameLine();
+    drawInputs();
+    
+    if(inputs().size() > 0)
+      {
+        mActive |= ImGui::IsItemActive();
+        mHover  |= ImGui::IsItemHovered();
+        ImGui::SameLine();
+      }
+
     ImGui::BeginGroup();
-    if(!onDraw()) { mState = false; }
+    { if(!onDraw()) { mState = false; } }
     ImGui::EndGroup();
     mActive |= ImGui::IsItemActive();
-    mHover |= ImGui::IsItemHovered();
+    mHover  |= ImGui::IsItemHovered();
     
     ImGui::SameLine();
     drawOutputs();
-    mActive |= ImGui::IsItemActive();
-    mHover |= ImGui::IsItemHovered();
+    if(outputs().size() > 0)
+      {
+        mActive |= ImGui::IsItemActive();
+        mHover  |= ImGui::IsItemHovered();
+      }
     
     if(!mFirstFrame)
       { // set window position
@@ -365,8 +372,6 @@ bool Node::draw(ImDrawList *drawList)
       {
         ImGui::SetWindowPos(pos(), ImGuiCond_Once);
       }
-
-    std::cout << "NODE HOVER: " << mHover << " | ACTIVE: " << mActive << "\n";
     
     if((mActive || mHover) && ImGui::IsMouseClicked(ImGuiMouseButton_Left))
       { mGraph->selectNode(this); }
@@ -374,8 +379,7 @@ bool Node::draw(ImDrawList *drawList)
     if(mSelected && ImGui::IsMouseDragging(ImGuiMouseButton_Left) && // !io.WantTextInput &&
        !mActive && !mGraph->isSelecting() && !mGraph->isConnecting())
       {
-        std::cout << "DRAG --> " << Vec2f(ImGui::GetMouseDragDelta(ImGuiMouseButton_Left)) << " | " << (Vec2f(io.MouseClickedPos[ImGuiMouseButton_Left])-Vec2f(ImGui::GetWindowPos())) << "\n";
-        mGraph->moveSelected(Vec2f(ImGui::GetMouseDragDelta(ImGuiMouseButton_Left)));// - Vec2f(io.MouseClickedPos[ImGuiMouseButton_Left]));
+        mGraph->moveSelected(Vec2f(ImGui::GetMouseDragDelta(ImGuiMouseButton_Left)));
         ImGui::ResetMouseDragDelta();
       }
     
@@ -443,7 +447,12 @@ bool Node::drawOutputs()
 
   float offset = 0.0f;
   
-  if(mOutputs.size() == 0) { return false; }
+  if(mOutputs.size() == 0)
+    {
+      ImGui::BeginChild(("nodeOutputs"+std::to_string(id())).c_str(), Vec2f(1,1));
+      ImGui::EndChild();
+      return false;
+    }
   
   ImGui::BeginChild(("nodeOutputs"+std::to_string(id())).c_str(), CONNECTOR_PADDING + Vec2f(CONNECTOR_SIZE.x, (CONNECTOR_PADDING.y+CONNECTOR_SIZE.y)*mOutputs.size()));
   {

@@ -8,9 +8,21 @@
 
 namespace astro
 {
+  //// node connector indices ////
+  // inputs
+#define COMPARENODE_INPUT_CHART_INNER 0
+#define COMPARENODE_INPUT_CHART_OUTER 1
+  // outputs
+  ////////////////////////////////
+  
   class CompareNode : public Node
   {
   private:
+    static std::vector<ConnectorBase*> CONNECTOR_INPUTS()
+    { return {new Connector<Chart>("Inner Chart"), new Connector<Chart>("Outer Chart")}; }
+    static std::vector<ConnectorBase*> CONNECTOR_OUTPUTS()
+    { return {}; }
+
     ChartView mView;
     
     ChartCompare *mCompare = nullptr;

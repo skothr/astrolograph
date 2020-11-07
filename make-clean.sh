@@ -1,3 +1,2 @@
 #!/usr/bin/env bash
-
-rm ./astrolograph && cd build && cmake .. && make clean
+rm -rf astrolograph build

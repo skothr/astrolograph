@@ -23,7 +23,7 @@ namespace astro
     static std::vector<ConnectorBase*> CONNECTOR_INPUTS()
     { return {new Connector<Chart>("Chart"), new Connector<DateTime>("Date"), new Connector<Location>("Location")}; }
     static std::vector<ConnectorBase*> CONNECTOR_OUTPUTS()
-    { return {new Connector<Chart>("Chart")}; }
+    { return {new Connector<Chart>("Progressed Chart")}; }
 
     Chart *mChart = nullptr;
 

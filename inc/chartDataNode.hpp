@@ -7,9 +7,20 @@
 
 namespace astro
 {
+  //// node connector indices ////
+  // inputs
+#define DATANODE_INPUT_CHART 0
+  // outputs
+  ////////////////////////////////
+
   class ChartDataNode : public Node
   {
   private:
+    static std::vector<ConnectorBase*> CONNECTOR_INPUTS()
+    { return {new Connector<Chart>("Chart")}; }
+    static std::vector<ConnectorBase*> CONNECTOR_OUTPUTS()
+    { return {}; }
+    
     // ChartView mWidget;
     // Chart *mChart = nullptr;
 

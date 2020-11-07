@@ -5,14 +5,6 @@ using namespace astro;
 #include "tools.hpp"
 #include "chartView.hpp"
 
-
-#define ASPECTNODE_INPUT_CHART 0
-
-static std::vector<ConnectorBase*> CONNECTOR_INPUTS()
-{ return {new Connector<Chart>("Chart")}; }
-static std::vector<ConnectorBase*> CONNECTOR_OUTPUTS()
-{ return {}; }
-
 AspectNode::AspectNode()
   : Node(CONNECTOR_INPUTS(), CONNECTOR_OUTPUTS(), "Aspect Node")
 {
@@ -123,8 +115,7 @@ bool AspectNode::onDraw()
         
         if(changed) { chart->update(); }
       }
-  }  
-  // ImGui::EndChild();
+  }
   ImGui::EndGroup();
   
   return true;

@@ -1,0 +1,10 @@
+NODE { nodeId : "9", nodeName : "Chart Data Node", nodePos : "<2247, 502>", nodeType : "ChartDataNode", }
+NODE { nodeId : "8", nodeName : "Chart View Node", nodePos : "<947, 339>", nodeType : "ChartViewNode", width : "1195.000000", }
+NODE { nodeId : "7", nodeName : "Chart Node", nodePos : "<537, 130>", nodeType : "ChartNode", }
+NODE { dst : "0", nodeId : "5", nodeName : "Location Node", nodePos : "<137, 328>", nodeType : "LocationNode", savedName : "nyse", }
+NODE { nodeId : "10", nodeName : "Aspect Node", nodePos : "<3137, 341>", nodeType : "AspectNode", }
+NODE { date : "1903 4 22 9 30 0 -5", live : "0", nodeId : "3", nodeName : "Time Node", nodePos : "<137, 125>", nodeType : "TimeNode", savedName : "nyse-natal", }
+CON 8 OUTPUT 0 10 0 9 0
+CON 7 OUTPUT 0 8 0
+CON 5 OUTPUT 0 7 1
+CON 3 OUTPUT 0 7 0

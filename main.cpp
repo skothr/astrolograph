@@ -1,4 +1,5 @@
 // astrolograph -- nodegraph-based tool for viewing astrological data/charts
+#include "version/version.hpp"
 
 #include "imgui.h"
 #include "imgui_impl_glfw.h"
@@ -68,6 +69,56 @@ struct KeyShortcut
 
 int main(int argc, char* argv[])
 {
+  // process command line arguments
+  bool argVersion = false;
+  for(int i = 0; i < argc; i++)
+    {
+      const char *arg = argv[i];
+      int argLen = strlen(arg);
+
+      if(argLen > 2 && arg[0] == '-' && arg[1] == '-')
+        { // long name argument
+          std::string argStr = std::string(&arg[2]);
+          if(argStr == "version")
+            {
+              argVersion = true;
+            }
+          else
+            { // unknown command
+              std::cout << "Error: Unknown command '--" << argStr << "'!\n";
+              return 1;
+            }
+        }
+      else if(argLen > 1 && arg[0] == '-')
+        { // short name argument(s)
+          for(int j = 1; j < argLen; j++)
+            {
+              switch(arg[j])
+                {
+                case 'v':
+                  argVersion = true;
+                  break;
+              
+                default: // unknown command
+                  std::cout << "Error: Unknown command '-" << arg[j] << "'!\n";
+                  return 1;
+                }
+            }
+        }
+    }
+
+  if(argVersion)
+    { // print version and exit
+      std::cout << "\n"
+                << "Astrolograph Version: v" << ASTROLOGRAPH_VERSION_MAJOR << "." << ASTROLOGRAPH_VERSION_MINOR << "\n\n";
+      return 0;
+    }
+  
+  // print project version
+  std::cout << "================================\n"
+            << "Astrolograph (v" << ASTROLOGRAPH_VERSION_MAJOR << "." << ASTROLOGRAPH_VERSION_MINOR << ")\n"
+            << "================================\n\n";
+  
   // set up window
   glfwSetErrorCallback(glfw_error_callback);
   if(!glfwInit())

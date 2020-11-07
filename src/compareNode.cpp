@@ -4,17 +4,6 @@ using namespace astro;
 #include "imgui.h"
 #include "tools.hpp"
 
-//// node connector indices ////
-// inputs
-#define COMPARENODE_INPUT_CHART_INNER 0
-#define COMPARENODE_INPUT_CHART_OUTER 1
-////////////////////////////////
-
-static std::vector<ConnectorBase*> CONNECTOR_INPUTS()
-{ return {new Connector<Chart>("Inner Chart"), new Connector<Chart>("Outer Chart")}; }
-static std::vector<ConnectorBase*> CONNECTOR_OUTPUTS()
-{ return {}; }
-
 CompareNode::CompareNode()
   : Node(CONNECTOR_INPUTS(), CONNECTOR_OUTPUTS(), "Compare Node"), mCompare(new ChartCompare())
 {

@@ -8,6 +8,10 @@
 
 #include "astro.hpp"
 
+// path to ephemeris data
+#define EPHEM_PATH "./libs/swe/ephe"
+
+
 namespace astro
 {
   ///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -57,9 +61,6 @@ namespace astro
       HOUSE_EQUAL         = 'E', // or 'A'?
       HOUSE_WHOLESIGN     = 'W',
     };
-
-#define EPHEM_PATH "./libs/swe"
-  //#define EPHEM_PATH "/usr/share/libswe/ephe" // <-- missing some asteroid files?
   
   class Ephemeris
   {

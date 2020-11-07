@@ -1,26 +1,28 @@
 cmake_minimum_required(VERSION 3.6)
-project(astrolograph)
+# set the project name and version
+project(astrolograph VERSION 0.1)
+configure_file(inc/version/version.hpp.in ../inc/version/version.hpp)
 
-set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -I/usr/include/swe -std=gnu++17 -lstdc++fs -DIMGUI_IMPL_OPENGL_LOADER_GLEW -DHAS_REMOTE_API=0 -DAUTO_DOWNLOAD=0")
-set(CMAKE_EXE_LINKER_FLAGS "${CMAKE_EXE_LINKER_FLAGS} -std=gnu++17 -lstdc++fs -DIMGUI_IMPL_OPENGL_LOADER_GLEW -DHAS_REMOTE_API=0 -DAUTO_DOWNLOAD=0")
-set(CMAKE_EXE_LINKER_FLAGS "${CMAKE_LIBRARY_LINKER_FLAGS} -std=gnu++17 -lstdc++fs -DIMGUI_IMPL_OPENGL_LOADER_GLEW -DHAS_REMOTE_API=0 -DAUTO_DOWNLOAD=0")
+set(TARGET astrolograph)
+set(CMAKE_CXX_FLAGS_DEBUG_INIT "-O0 -g -pg")
+set(CMAKE_CXX_FLAGS_RELEASE_INIT "-O3")
 
-set(CMAKE_VERBOSE_MAKEFILE 1)
-set(APP_VERSION_MAJOR 1)
-set(APP_VERSION_MINOR 0)
-set(APP_TARGET astrolograph)
+set(CMAKE_CXX_FLAGS
+  "${CMAKE_CXX_FLAGS} -std=gnu++17 -DIMGUI_IMPL_OPENGL_LOADER_GLEW -DHAS_REMOTE_API=0 -DAUTO_DOWNLOAD=0")
+set(CMAKE_EXE_LINKER_FLAGS
+  "${CMAKE_EXE_LINKER_FLAGS} -std=gnu++17 -DIMGUI_IMPL_OPENGL_LOADER_GLEW -DHAS_REMOTE_API=0 -DAUTO_DOWNLOAD=0")
+set(CMAKE_LIBRARY_LINKER_FLAGS
+  "${CMAKE_LIBRARY_LINKER_FLAGS} -std=gnu++17 -DIMGUI_IMPL_OPENGL_LOADER_GLEW -DHAS_REMOTE_API=0 -DAUTO_DOWNLOAD=0")
 
 include_directories(
   inc
-  libs
   libs/imgui
+  libs/stb
+  libs/swe/src
   libs/date
-  # libs/date/date
   )
 
 add_subdirectory(libs)
-add_subdirectory(inc)
-add_subdirectory(src)
 add_library(astro STATIC
   src/aspectNode.cpp
   src/astro.cpp
@@ -43,13 +45,11 @@ add_library(astro STATIC
   src/timeWidget.cpp
   )
 
-target_link_libraries(astro imgui datetz stdc++fs)
+target_link_libraries(astro stdc++fs imgui swe datetz)
 
-# include_directories(${PROJECT_SOURCE_DIR})
-
-find_library(LIB_SWE swe)
+# find_library(LIB_SWE swe)
 find_library(LIB_CURL curl)
-find_library(LIB_CURL date)
+# find_library(LIB_CURL date)
 
 # glfw
 find_package(glfw3 REQUIRED)
@@ -75,14 +75,15 @@ include_directories(${GLEW_INCLUDE_DIRS})
 # # nothing now
 # endif (WIN32)
 
-add_executable(${APP_TARGET} main.cpp)
-# target_link_libraries(${APP_TARGET} imgui)
+add_executable(${TARGET} main.cpp)
+# target_link_libraries(${TARGET} imgui)
 target_link_libraries(
-  ${APP_TARGET}
-  imgui
-  datetz
+  ${TARGET}
+  stdc++fs
   astro
+  imgui
   glfw
+  datetz
   ${OPENGL_LIBRARIES}
   ${GLEW_LIBRARIES}
   ${EXTRA_LIBS}

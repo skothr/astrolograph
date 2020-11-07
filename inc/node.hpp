@@ -5,7 +5,6 @@
 
 #include "astro.hpp"
 #include "rect.hpp"
-#include "typelessMap.hpp"
 
 #include <vector>
 #include <iomanip>

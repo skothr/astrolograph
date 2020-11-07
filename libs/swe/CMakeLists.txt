@@ -1,0 +1,29 @@
+cmake_minimum_required(VERSION 3.6)
+include_directories(.)
+add_library(
+  swe STATIC
+  src/swedate.h
+  src/swedll.h
+  src/swehouse.h
+  src/swejpl.h
+  src/swemptab.h
+  src/swenut2000a.h
+  src/sweodef.h
+  src/swepcalc.h
+  src/swephexp.h
+  src/sweph.h
+  src/swephlib.h
+  src/swecl.c
+  src/swedate.c
+  src/swehel.c
+  src/swehouse.c
+  src/swejpl.c
+  src/swemini.c
+  src/swemmoon.c
+  src/swemplan.c
+  src/swepcalc.c
+  src/swepdate.c
+  src/sweph.c
+  src/swephlib.c
+  src/swetest.c
+  )

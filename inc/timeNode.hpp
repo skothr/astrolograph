@@ -19,6 +19,11 @@ namespace astro
   class TimeNode : public Node
   {
   private:
+    static std::vector<ConnectorBase*> CONNECTOR_INPUTS()
+    { return {}; }
+    static std::vector<ConnectorBase*> CONNECTOR_OUTPUTS()
+    { return {new Connector<DateTime>("Time Output")}; }
+    
     TimeWidget mWidget;
     bool mLiveMode = false;
     
@@ -66,6 +71,11 @@ namespace astro
   class TimeSpanNode : public Node
   {
   private:
+    static std::vector<ConnectorBase*> CONNECTOR_INPUTS()
+    { return {new Connector<DateTime>("Start Time"), new Connector<DateTime>("End Time")}; }
+    static std::vector<ConnectorBase*> CONNECTOR_OUTPUTS()
+    { return {new Connector<DateTime>("Time Output")}; }
+    
     static const std::vector<std::string> SPEED_UNITS;
     static const std::vector<double>      SPEED_MULTS;
 
