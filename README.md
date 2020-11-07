@@ -8,11 +8,11 @@ NOTE: This software is still in development and features may be missing/buggy/br
 
 ## Install
 ### Linux (tested on Ubuntu 18.04)
-* sudo apt-get update
-* sudo apt-get install build-essential cmake libglfw3-dev libglew-dev
-* ./make-release.sh
+* `sudo apt-get update`
+* `sudo apt-get install build-essential cmake libglfw3-dev libglew-dev`
+* `./make-release.sh`
   * Alternatively:
-    * mkdir build && cd build && cmake -DCMAKE_BUILD_TYPE=Release ..
+    * `mkdir build && cd build && cmake -DCMAKE_BUILD_TYPE=Release ..`
 
 ### Windows
 * TODO (Possible process: import into a visual studio cmake project)
