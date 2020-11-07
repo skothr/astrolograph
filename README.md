@@ -7,7 +7,6 @@ NOTE: This software is still in development and features may be missing/buggy/br
 ### Linux (tested on Ubuntu 18.04 | TODO: VERIFY)
 * sudo apt-get update
 * sudo apt-get install build-essential cmake libglfw3-dev libglew-dev libswe-dev
-* mkdir build && cd build
 * ./make-debug.sh
 
 ### Windows
