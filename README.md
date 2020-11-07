@@ -6,7 +6,7 @@ Node graph-based astrological data viewer.
 
 NOTE: This software is still in development and features may be missing/buggy/broken. Calculations should be double-checked for accuracy (especially time zones).
 
-## Install
+## Build
 ### Linux (tested on Ubuntu 18.04)
 * `sudo apt-get update`
 * `sudo apt-get install build-essential cmake libglfw3-dev libglew-dev`
