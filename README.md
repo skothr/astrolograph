@@ -21,10 +21,9 @@ NOTE: This software is still in development and features may be missing/buggy/br
 * TODO
 
 # Basic Instructions
+* TODO: Improve Instructions
 * Nodes have inputs(left side) and/or outputs(right side) that can be connected to other nodes by clicking and dragging.
 * To add a node, right click on the graph background and select from the menu, or press the associated key (denoted in parentheses below).
-* TODO: Improve Instructions
-* TODO: Add example save files
 
 ## Node Types
 ### Data Sources
@@ -36,10 +35,33 @@ NOTE: This software is still in development and features may be missing/buggy/br
 * (P) Progress Node (calculates secondary progressed date)
 ### Data/Visualization
 * (V) Chart View Node (view a chart)
+  * Interactive chart display.
+    * Hover over any aspect symbol to show its orb and any objects involved.
+    * Hover over any object to see its placement.
+      * Hold SHIFT to highlight object aspects.
+      * Hold ALT to see inside degrees text for its placement.
+        * Hold CTRL+ALT show inside degrees text (long, with explanation).
+    * Hover over any sign or house to see the objects it contains.
+  * With the mouse over the view, hold a key and scroll the mouse to manually adjust time and location.
+    * TIME: number keys 1-6
+      * 1 --> adjust by year
+      * 2 --> adjust by month
+      * 3 --> adjust by day
+      * 4 --> adjust by hour
+      * 5 --> adjust by minute
+      * 6 --> adjust by second
+    * LOCATION: keys Q/W/E
+      * Q --> adjust latitude
+      * W --> adjust longitude
+      * E --> adjust altitude
+    * By default, each parameter steps by one unit. Modifier keys will apply a multiplier:
+      * SHIFT --> x0.1
+      * CTRL  --> x10
+      * ALT   --> x60
 * (X) Chart Compare Node (view comparison between two charts)
-* (D) Chart Data Node (view in-depth positional chart data)
+* (O) Object Node (view in-depth object data)
 * (A) Aspect Node (view in-depth aspect data)
-
+* (D) Chart Data Node (view raw positional data)
 
 ## Dependencies
 * GLFW3
@@ -54,6 +76,8 @@ NOTE: This software is still in development and features may be missing/buggy/br
   * https://www.astro.com/swisseph/swephinfo_e.htm
 * Date / tz (for timezone calculations)
   * https://github.com/HowardHinnant/date
+* libcurl (to query GeoNames --> getting timezone from coordinates)  
+  * https://curl.se/download.html
   
 # Contact
 * skothr@gmail.com.
