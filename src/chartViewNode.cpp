@@ -38,9 +38,9 @@ void ChartViewNode::processInput(Chart *chart)
     {
       float delta = io.MouseWheel;
       // key multipliers
-      if(io.KeyShift) { delta *= 5.0f;   } // SHIFT --> x5
-      if(io.KeyCtrl)  { delta *= 10.0f;  } // CTRL --> x10
-      if(io.KeyAlt)   { delta *= 100.0f; } // ALT --> x100
+      if(io.KeyShift) { delta *= 0.1f;   } // SHIFT --> x0.1
+      if(io.KeyCtrl)  { delta *= 10.0f;  } // CTRL  --> x10
+      if(io.KeyAlt)   { delta *= 60.0f;  } // ALT   --> x60
       
       DateTime dt  = chart->date();
       Location loc = chart->location();

@@ -7,22 +7,36 @@ set(TARGET astrolograph)
 set(CMAKE_CXX_FLAGS_DEBUG_INIT "-O0 -g -pg")
 set(CMAKE_CXX_FLAGS_RELEASE_INIT "-O3")
 
+set(GLFW_ROOT_DIR "libs/glfw")
+set(GLEW_ROOT_DIR "libs/glew-2.1.0")
+
 set(CMAKE_CXX_FLAGS
-  "${CMAKE_CXX_FLAGS} -std=gnu++17 -DIMGUI_IMPL_OPENGL_LOADER_GLEW -DHAS_REMOTE_API=0 -DAUTO_DOWNLOAD=0")
+  "${CMAKE_CXX_FLAGS} -std=gnu++17 -DCURL_STATICLIB -DGLEW_STATIC -DIMGUI_IMPL_OPENGL_LOADER_GLEW -DHAS_REMOTE_API=0 -DAUTO_DOWNLOAD=0")
 set(CMAKE_EXE_LINKER_FLAGS
-  "${CMAKE_EXE_LINKER_FLAGS} -std=gnu++17 -DIMGUI_IMPL_OPENGL_LOADER_GLEW -DHAS_REMOTE_API=0 -DAUTO_DOWNLOAD=0")
+  "${CMAKE_EXE_LINKER_FLAGS} -std=gnu++17 -DCURL_STATICLIB -DGLEW_STATIC -DIMGUI_IMPL_OPENGL_LOADER_GLEW -DHAS_REMOTE_API=0 -DAUTO_DOWNLOAD=0")
 set(CMAKE_LIBRARY_LINKER_FLAGS
-  "${CMAKE_LIBRARY_LINKER_FLAGS} -std=gnu++17 -DIMGUI_IMPL_OPENGL_LOADER_GLEW -DHAS_REMOTE_API=0 -DAUTO_DOWNLOAD=0")
+  "${CMAKE_LIBRARY_LINKER_FLAGS} -std=gnu++17 -DCURL_STATICLIB -DGLEW_STATIC -DIMGUI_IMPL_OPENGL_LOADER_GLEW -DHAS_REMOTE_API=0 -DAUTO_DOWNLOAD=0")
+
+if (WIN32)
+set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -I/usr/x86_64-w64-mingw32")
+endif (WIN32)
+
+
+# add_definitions(-DCURL_STATICLIB -DGLEW_STATIC -DIMGUI_IMPL_OPENGL_LOADER_GLEW -DHAS_REMOTE_API=0 -DAUTO_DOWNLOAD=0)
+# add_definitions(-DGLEW_STATIC)
+# add_definitions(-DIMGUI_IMPL_OPENGL_LOADER_GLEW -DHAS_REMOTE_API=0 -DAUTO_DOWNLOAD=0)
 
 include_directories(
   inc
   libs/imgui
+  ${GLEW_ROOT_DIR}/include
   libs/stb
   libs/swe/src
   libs/date
   )
 
 add_subdirectory(libs)
+# add_subdirectory(${GLEW_ROOT_DIR}/build/cmake)
 add_library(astro STATIC
   src/aspectNode.cpp
   src/astro.cpp
@@ -44,25 +58,29 @@ add_library(astro STATIC
   src/timeNode.cpp
   src/timeWidget.cpp
   )
-
-target_link_libraries(astro stdc++fs imgui swe datetz)
-
-# find_library(LIB_SWE swe)
 find_library(LIB_CURL curl)
-# find_library(LIB_CURL date)
 
 # glfw
-find_package(glfw3 REQUIRED)
-include_directories(${GLFW_INCLUDE_DIRS})
-link_libraries(${GLFW_LIBRARY_DIRS})
+# find_package(glfw3 REQUIRED)
+# include_directories(${GLFW_INCLUDE_DIRS})
+# link_libraries(${GLFW_LIBRARY_DIRS})
 
 # opengl
 find_package(OpenGL REQUIRED)
 include_directories(${OPENGL_INCLUDE_DIRS})
+link_libraries(${OPENGL_LIBRARY_DIRS})
 
 # glew
-find_package(GLEW REQUIRED)
-include_directories(${GLEW_INCLUDE_DIRS})
+set(GLEW_LIBRARIES glew)
+# find_package(GLEW REQUIRED)
+# include_directories(${GLEW_INCLUDE_DIRS})
+# link_libraries(${GLEW_LIBRARY_DIRS})
+
+# set(GLEW_LIBRARIES GLEWd)
+message(STATUS "GLEW LIBS: ${GLEW_LIBRARIES}")
+message(STATUS "CURL LIBS: ${LIB_CURL}")
+
+target_link_libraries(astro stdc++fs imgui ${GLEW_LIBRARIES} swe datetz curl) # ${LIB_CURL})
 
 # if (APPLE)
 #     find_library(COCOA_LIBRARY Cocoa)
@@ -76,7 +94,6 @@ include_directories(${GLEW_INCLUDE_DIRS})
 # endif (WIN32)
 
 add_executable(${TARGET} main.cpp)
-# target_link_libraries(${TARGET} imgui)
 target_link_libraries(
   ${TARGET}
   stdc++fs
@@ -86,7 +103,7 @@ target_link_libraries(
   datetz
   ${OPENGL_LIBRARIES}
   ${GLEW_LIBRARIES}
-  ${EXTRA_LIBS}
-  ${LIB_SWE}
-  ${LIB_CURL}
+  curl
   )
+  #${LIB_CURL}
+  #)

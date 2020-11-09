@@ -1,2 +1,2 @@
 #!/usr/bin/env bash
-rm -rf astrolograph build
+rm -rf ./build ./astrolograph
