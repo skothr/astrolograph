@@ -55,6 +55,16 @@ namespace astro
     TimeNode();
     TimeNode(const DateTime &dt);
     virtual std::string type() const { return "TimeNode"; }
+    virtual bool copyTo(Node *other) override
+    { // copy settings
+      if(Node::copyTo(other))
+        {
+          // ((TimeNode*)other)->mWidget = mWidget;
+          // ((TimeNode*)other)->mLiveMode = mLiveMode;
+          return true;
+        }
+      else { return false; }
+    }
     
   };
 
@@ -86,7 +96,6 @@ namespace astro
     TICK_CLOCK::time_point mTLast; // time of last frame
     bool   mPlay   = false;  // if true, date will be moving from start date to end date
     double mSpeed  = 1.0;    // in days per real second
-
     int mUnitIndex = 2;      // (default: hours)
     
     virtual bool onDraw() override;
@@ -122,6 +131,20 @@ namespace astro
     TimeSpanNode();
     TimeSpanNode(const DateTime &dtStart, const DateTime &dtEnd);
     virtual std::string type() const { return "TimeSpanNode"; }
+    virtual bool copyTo(Node *other) override
+    { // copy settings
+      if(Node::copyTo(other))
+        {
+          ((TimeSpanNode*)other)->mStartWidget = mStartWidget;
+          ((TimeSpanNode*)other)->mEndWidget   = mEndWidget;
+          ((TimeSpanNode*)other)->mDate        = mDate;
+          ((TimeSpanNode*)other)->mPlay        = mPlay;
+          ((TimeSpanNode*)other)->mSpeed       = mSpeed;
+          ((TimeSpanNode*)other)->mUnitIndex   = mUnitIndex;
+          return true;
+        }
+      else { return false; }
+    }
     
   };
 

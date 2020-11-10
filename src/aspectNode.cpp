@@ -9,6 +9,11 @@ AspectNode::AspectNode()
   : Node(CONNECTOR_INPUTS(), CONNECTOR_OUTPUTS(), "Aspect Node")
 {
   setMinSize(Vec2f(384, 0));
+  for(int a = 0; a < ASPECT_COUNT; a++)
+    {
+      mAspVisible.push_back(true); // start with all aspects visible
+      mAspOrbs.push_back(getAspect((AspectType)a)->orb); // default orbs
+    }
 }
 
 bool AspectNode::onDraw()
@@ -20,14 +25,16 @@ bool AspectNode::onDraw()
   ImGui::BeginGroup();
   {
     // aspect list
+    ImGui::SetNextTreeNodeOpen(mListOpen);
     if(ImGui::CollapsingHeader("aspectList", nullptr, flags) && chart)
       {
-        // count visible aspects
+        mListOpen = true;
+        // update aspect visiblity and count visible aspects
         int visibleCount = 0;
         for(int i = 0; i < chart->aspects().size(); i++)
           {
-            if(chart->getAspectVisible(chart->aspects()[i].type) &&
-              chart->aspects()[i].obj1->visible && chart->aspects()[i].obj2->visible)
+            mAspVisible[i] = chart->getAspectVisible(chart->aspects()[i].type);
+            if(mAspVisible[i] && chart->aspects()[i].obj1->visible && chart->aspects()[i].obj2->visible)
               { visibleCount++; }
           }
         
@@ -43,7 +50,7 @@ bool AspectNode::onDraw()
               // skip north/south node opposition, and non-visible aspects
               if((asp.obj1->type == OBJ_NORTHNODE && asp.obj2->type == OBJ_SOUTHNODE) ||
                  (asp.obj2->type == OBJ_NORTHNODE && asp.obj1->type == OBJ_SOUTHNODE) ||
-                 !chart->getAspectVisible(asp.type) || !asp.visible || !asp.obj1->visible || !asp.obj2->visible) { continue; }
+                 !mAspVisible[i] || !asp.visible || !asp.obj1->visible || !asp.obj2->visible) { continue; }
               
               std::string aName = getAspectName(asp.type);
               std::string o1Name = getObjName(asp.obj1->type);
@@ -68,11 +75,15 @@ bool AspectNode::onDraw()
         }
         ImGui::EndChild();
       }
+    else
+      { mListOpen = false; }
 
     
     // aspect settings/orbs
+    ImGui::SetNextTreeNodeOpen(mOrbsOpen);
     if(ImGui::CollapsingHeader("orbs", nullptr, flags) && chart)
       {
+        mOrbsOpen = true;
         if(ImGui::BeginTable("##aspectCols", 4)) // COLUMNS --> aspect enabledCheck(0), symbol(1), name(2), orb(3)
           {
             ImGui::TableSetupColumn("ENABLE", ImGuiTableColumnFlags_WidthAlwaysAutoResize);
@@ -115,6 +126,8 @@ bool AspectNode::onDraw()
         
         if(changed) { chart->update(); }
       }
+    else
+      { mOrbsOpen = false; }
   }
   ImGui::EndGroup();
   

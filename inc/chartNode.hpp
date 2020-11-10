@@ -52,6 +52,21 @@ namespace astro
     ChartNode(const DateTime &dt, const Location &loc);
     ~ChartNode();
     virtual std::string type() const { return "ChartNode"; }
+    virtual bool copyTo(Node *other) override
+    { // copy settings
+      if(Node::copyTo(other))
+        {
+          // set date and location if inputs not conencted
+          if(!inputs()[CHARTNODE_INPUT_DATE]->get<DateTime>())     { ((ChartNode*)other)->mChart->setDate(mChart->date()); }
+          else                                                     { ((ChartNode*)other)->mChart->setDate(*inputs()[CHARTNODE_INPUT_DATE]->get<DateTime>()); }
+          if(!inputs()[CHARTNODE_INPUT_LOCATION]->get<Location>()) { ((ChartNode*)other)->mChart->setLocation(mChart->location()); }
+          else                                                     { ((ChartNode*)other)->mChart->setLocation(*inputs()[CHARTNODE_INPUT_LOCATION]->get<Location>()); }
+          // (everything else set by connections)
+          return true;
+        }
+      else { return false; }
+    }
+
     
     Chart* chart() { return mChart; }
   };

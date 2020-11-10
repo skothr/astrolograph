@@ -16,13 +16,10 @@ namespace astro
   class LocationNode : public Node
   {
   private:
-    static std::vector<ConnectorBase*> CONNECTOR_INPUTS()
-    { return {}; }
-    static std::vector<ConnectorBase*> CONNECTOR_OUTPUTS()
-    { return {new Connector<Location>("Location Output")}; }
+    static std::vector<ConnectorBase*> CONNECTOR_INPUTS()  { return {}; }
+    static std::vector<ConnectorBase*> CONNECTOR_OUTPUTS() { return {new Connector<Location>("Location Output")}; }
     
     LocationWidget mWidget;
-    virtual bool onDraw() override;
     
     virtual std::map<std::string, std::string>& getSaveParams(std::map<std::string, std::string> &params) const override
     {
@@ -52,12 +49,21 @@ namespace astro
       mWidget.setDST(params["dst"] != "0");
       return params;
     };
-    
+    virtual bool onDraw() override;    
     
   public:
     LocationNode();
     LocationNode(const Location &dt);
     virtual std::string type() const { return "LocationNode"; }
+    virtual bool copyTo(Node *other) override
+    { // copy settings
+      if(Node::copyTo(other))
+        {
+          ((LocationNode*)other)->mWidget = mWidget;
+          return true;
+        }
+      else { return false; }
+    }
   };
 
 }

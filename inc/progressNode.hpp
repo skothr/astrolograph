@@ -51,6 +51,11 @@ namespace astro
     ProgressNode();
     ~ProgressNode();
     virtual std::string type() const { return "ProgressNode"; }
+    virtual bool copyTo(Node *other) override
+    { // (no extra data to copy -- mChart is set based on connections)
+      if(Node::copyTo(other)) { return true; }
+      else                    { return false; }
+    }
   };
 }
 

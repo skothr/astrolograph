@@ -20,7 +20,9 @@ namespace imgui_addons { class ImGuiFileBrowser; }
 
 namespace astro
 {
+  class ViewSettings;
 
+  
   struct NodeType
   {
     std::string            typeName; // string returned by <NodeDerived>::type()>
@@ -45,19 +47,26 @@ namespace astro
     Vec2f  mSelectAnchor;
     Rect2f mSelectRect;
     bool   mDrawing = false; // set to true if between BeginDraw() and EndDraw()
+    bool   mLocked  = false;  // if true, nodes can't be selected or moved around
+    ViewSettings *mSettings = nullptr;
 
+    std::vector<Node*> mClipboard;
+    //Vec2f mClipMousePos;
     
-    bool  mDrawLines   = true;
-    Vec4f mLineColor   = Vec4f(1, 1, 1, 0.4f);
-    Vec2f mLineSpacing = Vec2f(100, 100);
-    float mLineWidth   = 1.0f;
+    //bool  mDrawLines   = true;
+    //Vec4f mLineColor   = Vec4f(1, 1, 1, 0.4f);
+    //Vec2f mLineSpacing = Vec2f(100, 100);
+    //float mLineWidth   = 1.0f;
 
     std::string mProjectDir = DEFAULT_PROJECT_DIR;
     bool mChangedSinceSave  = false;
     bool mOpenSave          = false;
     bool mOpenLoad          = false;
+
+    bool mClickCopied = false; // set to true when selected nodes are copied (CTRL+click+drag). Reset when mouse released.
     
     bool mSaveDialogOpen = false;
+    bool mLoadDialogOpen = false;
     std::string mSaveFile = ""; // last saved/loaded file name
     imgui_addons::ImGuiFileBrowser *mFileDialog;
     
@@ -73,18 +82,32 @@ namespace astro
     static const std::vector<NodeGroup>                    NODE_GROUPS;
     static Node* makeNode(const std::string &nodeType);
     
-    NodeGraph();
+    NodeGraph(ViewSettings *settings);
     ~NodeGraph();
     
-    void addNode(Node *n);
-    void addNode(const std::string &type);
+    Node* addNode(const std::string &type);
+    void prepNode(Node *n); // prepares node to be added
+    void addNode(Node *n);  // adds node to mNodes
     void clear();
+    
+    void cut();
+    void copy();
+    void paste();
     
     // selection
     void selectNode(Node *n);
-    void deselectAll();
     void moveSelected(const Vec2f &dpos);
+    std::vector<Node*> getSelected();
+    std::vector<Node*> makeCopies(const std::vector<Node*> &nodes); // returns new nodes
+    void copySelected();
+    void deselectAll();
+    
+    bool isSelectedHovered();  // returns true if any selected nodes are hovered
+    bool isSelectedActive();   // returns true if any selected nodes are active
+    bool isSelectedDragged(); // returns true if any selected nodes are dragged
 
+    void setLocked(bool lock) { mLocked = lock; }
+    bool setLocked() const    { return mLocked; }
     
     void setPos(const Vec2i &p);
     void setSize(const Vec2i &s);
@@ -94,10 +117,12 @@ namespace astro
     bool isSelecting() const        { return mSelecting; }
     bool isConnecting();//             { for(auto n : mNodes) { if(n.second->isConnecting()) { return true; } } return false; }
     bool isSaving() const           { return mOpenSave; }
+    bool isLoading() const          { return mOpenLoad; }
     bool unsavedChanges() const     { return mChangedSinceSave; }
     std::string getSaveName() const { return mSaveFile; }
 
     bool saveOpen() const { return mSaveDialogOpen; }
+    bool loadOpen() const { return mLoadDialogOpen; }
     
     void openSaveDialog();
     void openSaveAsDialog();

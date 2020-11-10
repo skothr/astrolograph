@@ -1,6 +1,7 @@
 #ifndef VECTOR_HPP
 #define VECTOR_HPP
 
+#include <string>
 #include <array>
 #include <cmath>
 #include <istream>
@@ -28,6 +29,7 @@ struct Vector
     for(int i = 0; i < N; i++)
       { data[i] = data_[i]; }
   }
+  Vector(const std::string &str) { fromString(str); }
 
   std::string toString() const            { std::ostringstream ss; ss << (*this); return ss.str(); }
   void fromString(const std::string &str) { std::istringstream ss(str); ss >> (*this); }
@@ -144,6 +146,7 @@ struct Vector<T, 2>
   Vector(T x_, T y_)                    : x(x_), y(y_)              { }
   Vector(const Vector<T, N> &other)     : x(other.x), y(other.y)    { }
   Vector(const std::array<T, N> &data_) : x(data_[0]), y(data_[1])  { }
+  Vector(const std::string &str)     { fromString(str); }
 
   T& operator[](int dim)             { return data[dim]; }
   const T& operator[](int dim) const { return data[dim]; }
@@ -283,6 +286,7 @@ struct Vector<T, 3>
   Vector(T x_, T y_, T z_)                : x(x_), y(y_), z(z_)                     { }
   Vector(const Vector<T, N> &other)       : x(other.x), y(other.y), z(other.z)      { }
   Vector(const std::array<T, N> &data_)   : x(data_[0]), y(data_[1]), z(data_[2])   { }
+  Vector(const std::string &str)       { fromString(str); }
   
   T& operator[](int dim)               { return data[dim]; }
   const T& operator[](int dim) const   { return data[dim]; }
@@ -392,6 +396,7 @@ struct Vector<T, 4>
                                              z(other.z), w(other.w)              { }
   Vector(const std::array<T, N> &data_)    : x(data_[0]), y(data_[1]),
                                              z(data_[2]), w(data_[3])            { }
+  Vector(const std::string &str)       { fromString(str); }
   
   Vector<T, 4>& operator=(const Vector<T, 4> &other)
   {

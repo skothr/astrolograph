@@ -22,13 +22,14 @@ namespace astro
     Location mLocation;
     Location mSavedLocation;
     char mName[LOCATION_NAME_BUFLEN] = "";
-    char mSaveName[LOCATION_NAME_BUFLEN] = "";
-    
+    char mSavedName[LOCATION_NAME_BUFLEN] = "";
     bool mDST = false; // daylight savings time
     
   public:
     LocationWidget();
     LocationWidget(const Location &location);
+    LocationWidget(const LocationWidget &other);
+    LocationWidget& operator=(const LocationWidget &other);
     
     Location& get()                    { return mLocation; }
     const Location& get() const        { return mLocation; }
@@ -42,7 +43,7 @@ namespace astro
     
     std::string getName() const { return mName; }
     void setName(const std::string &n) { sprintf(mName, "%s", n.c_str()); }
-    void setSaveName(const std::string &n) { sprintf(mSaveName, "%s", n.c_str()); }
+    void setSaveName(const std::string &n) { sprintf(mSavedName, "%s", n.c_str()); }
     
     bool save(const std::string &name);
     bool load(const std::string &name);

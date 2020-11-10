@@ -1,8 +1,9 @@
 cmake_minimum_required(VERSION 3.6)
 include_directories(.)
+include_directories(../../inc)
 add_library(
         imgui STATIC
-        ../../inc/vector.hpp
+        # ../../inc/vector.hpp
         imconfig.h
         imgui.h
         imgui_impl_glfw.h

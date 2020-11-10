@@ -11,8 +11,24 @@ namespace fs = std::experimental::filesystem;
 LocationWidget::LocationWidget()
 { }
 LocationWidget::LocationWidget(const Location &loc)
-  : mLocation(loc)
-{ mLocation.fix(); }
+  : mLocation(loc) { mLocation.fix(); }
+
+LocationWidget::LocationWidget(const LocationWidget &other)
+  : mLocation(other.mLocation), mSavedLocation(other.mSavedLocation), mDST(other.mDST)
+{
+  sprintf(mName, other.mName);
+  sprintf(mSavedName, other.mSavedName);
+}
+
+LocationWidget& LocationWidget::operator=(const LocationWidget &other)
+{
+  mLocation = other.mLocation;
+  mSavedLocation = other.mSavedLocation;
+  sprintf(mName, other.mName);
+  sprintf(mSavedName, other.mSavedName);
+  mDST = other.mDST;
+  return *this;
+}
 
 bool LocationWidget::save(const std::string &name)
 {
@@ -223,19 +239,19 @@ void LocationWidget::draw()
         // text input for new save
         ImGui::Text("New");
         ImGui::SameLine();
-        ImGui::InputText("##saveInput", mSaveName, LOCATION_NAME_BUFLEN);
+        ImGui::InputText("##saveInput", mSavedName, LOCATION_NAME_BUFLEN);
         bool enter = ImGui::IsKeyPressed(ImGui::GetIO().KeyMap[ImGuiKey_Enter]);
         ImGui::SameLine();
         enter |= ImGui::Button("Save##loc2");
         
         if(enter)
           {
-            if(!save(std::string(mSaveName)))
-              { std::cout << "Failed to save location as '" << mSaveName << "'!\n"; }
+            if(!save(std::string(mSavedName)))
+              { std::cout << "Failed to save location as '" << mSavedName << "'!\n"; }
             else
               {
-                std::cout << "Location saved as '" << mSaveName << "'!\n";
-                sprintf(mName, "%s", mSaveName);
+                std::cout << "Location saved as '" << mSavedName << "'!\n";
+                sprintf(mName, "%s", mSavedName);
               }
             ImGui::CloseCurrentPopup();
           }
@@ -274,7 +290,7 @@ void LocationWidget::draw()
         ImGui::EndPopup();
       }
     else // fill buffer with current name
-      { sprintf(mSaveName, "%s", mName); }
+      { sprintf(mSavedName, "%s", mName); }
 
     // reload button
     if(!std::string(mName).empty())

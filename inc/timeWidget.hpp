@@ -22,11 +22,13 @@ namespace astro
     DateTime mDate;
     DateTime mSavedDate;
     char mName[DATE_NAME_BUFLEN] = "";
-    char mSaveName[DATE_NAME_BUFLEN] = "";
+    char mSavedName[DATE_NAME_BUFLEN] = "";
     
   public:
     TimeWidget();
     TimeWidget(const DateTime &date);
+    TimeWidget(const TimeWidget &other);
+    TimeWidget& operator=(const TimeWidget &other);
     
     DateTime& get()                     { return mDate; }
     const DateTime& get() const         { return mDate; }

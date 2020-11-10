@@ -102,14 +102,11 @@ bool ChartViewNode::onDraw()
         ImGui::TextColored(ImColor(1.0f, 1.0f, 1.0f, 0.25f), (std::string("UTC")+(tzOffset >= 0 ? "+" : "")+to_string(tzOffset, 1)).c_str());
         
         const DateTime &date  = chart->date();
-        ImGui::Text(date.toString().c_str());
-        
-        // double julDay = chart->swe().getJulianDayET(date, loc, false);
-        // ImGui::SameLine(); ImGui::Text("(jd_ET =");
-        // ImGui::SameLine(); ImGui::Text(to_string(julDay).c_str()); ImGui::SameLine(); ImGui::Text(")");
-        
         const Location &loc  = chart->location();
+        
+        ImGui::Text(date.toString().c_str());
         ImGui::Text(loc.toString().c_str());
+        ImGui::Spacing();
       }
     else // draw empty chart
       { mView.draw((Chart*)nullptr, mChartWidth); }

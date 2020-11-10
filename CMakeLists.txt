@@ -57,6 +57,7 @@ add_library(astro STATIC
   src/progressNode.cpp
   src/timeNode.cpp
   src/timeWidget.cpp
+  src/viewSettings.cpp
   )
 find_library(LIB_CURL curl)
 

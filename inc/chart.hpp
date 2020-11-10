@@ -56,7 +56,7 @@ namespace astro
     std::array<bool,   ASPECT_COUNT> mAspectVisible;
     
     Ephemeris mSwe;
-    bool mNeedUpdate = false;
+    bool mNeedUpdate = true;
     
   public:
     Chart();

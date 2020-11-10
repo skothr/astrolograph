@@ -11,6 +11,10 @@ ChartDataNode::ChartDataNode()
   : Node(CONNECTOR_INPUTS(), CONNECTOR_OUTPUTS(), "Chart Data Node")
 {
   setMinSize(Vec2f(880, 0));
+  for(int o = OBJ_SUN; o < OBJ_COUNT; o++) // start with objects visible
+    { mObjVisible.push_back(true); }
+  for(int a = ANGLE_OFFSET; a < ANGLE_END; a++) // start with angles invisible
+    { mObjVisible.push_back(false); }
 }
 
 ChartDataNode::~ChartDataNode()
@@ -21,18 +25,12 @@ bool ChartDataNode::onDraw()
   bool changed = false;
   Chart *chart = inputs()[DATANODE_INPUT_CHART]->get<Chart>();
 
-  ImGuiTreeNodeFlags flags = (ImGuiTreeNodeFlags_SpanAvailWidth | ImGuiTreeNodeFlags_OpenOnArrow |
-                              ImGuiTreeNodeFlags_DefaultOpen | ImGuiTreeNodeFlags_FramePadding);
+  ImGuiTreeNodeFlags flags = (ImGuiTreeNodeFlags_SpanAvailWidth | ImGuiTreeNodeFlags_OpenOnArrow | ImGuiTreeNodeFlags_FramePadding);
   
   ImGui::BeginGroup();
   {
-    // if(!chart)
-    //   { // disable tree nodes
-    //     ImGui::PushItemFlag(ImGuiItemFlags_Disabled, true);
-    //     ImGui::PushStyleVar(ImGuiStyleVar_Alpha, ImGui::GetStyle().Alpha * 0.5f);
-    //   }
-
     // Angle Data
+    ImGui::SetNextTreeNodeOpen(mAngOpen);
     if(ImGui::CollapsingHeader("Angle Data", nullptr, flags) && chart)
       {
         mAngOpen = true;
@@ -59,7 +57,8 @@ bool ChartDataNode::onDraw()
             Vec4f color = getObjColor(name);
             ImVec4 tintCol = ImVec4(color.x, color.y, color.z, color.w);
 
-            bool checked = chart->getObject((ObjType)o)->visible;
+            mObjVisible[OBJ_COUNT+o-ANGLE_OFFSET] = chart->getObject((ObjType)o)->visible;
+            bool checked = mObjVisible[OBJ_COUNT+o-ANGLE_OFFSET];
             ImGui::Checkbox(("##show-"+name).c_str(), &checked);
             chart->showObject((ObjType)o, checked);
 
@@ -81,6 +80,7 @@ bool ChartDataNode::onDraw()
       { mAngOpen = false; }
     
     // Object Data
+    ImGui::SetNextTreeNodeOpen(mObjOpen);
     if(ImGui::CollapsingHeader("Object Data", nullptr, flags) && chart)
       {
         mObjOpen = true;
@@ -108,7 +108,8 @@ bool ChartDataNode::onDraw()
             Vec4f color = getObjColor(name);
             ImVec4 tintCol = ImVec4(color.x, color.y, color.z, color.w);
 
-            bool checked = chart->getObject((ObjType)o)->visible;
+            mObjVisible[o] = chart->getObject((ObjType)o)->visible;
+            bool checked = mObjVisible[o];
             ImGui::Checkbox(("##show-"+name).c_str(), &checked);
             chart->showObject((ObjType)o, checked);
 
@@ -136,13 +137,6 @@ bool ChartDataNode::onDraw()
       }
     else
       { mObjOpen = false; }
-    
-    // if(!chart)
-    //   {
-    //     ImGui::PopStyleVar();
-    //     ImGui::PopItemFlag();
-    //   }
-  
   }
   ImGui::EndGroup();
   

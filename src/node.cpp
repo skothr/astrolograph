@@ -14,7 +14,7 @@ static std::unordered_map<std::string, Vec4f> CONNECTOR_COLORS =
    {std::string(typeid(Chart).name()),    Vec4f(1.0f, 0.2f, 0.2f, 1.0f)}};
 
 
-bool ConnectorBase::connect(ConnectorBase *other)
+bool ConnectorBase::connect(ConnectorBase *other, bool force)
 {
   if(!other || other == this || type() != other->type() || mDirection == other->mDirection) { return false; }
   
@@ -24,7 +24,8 @@ bool ConnectorBase::connect(ConnectorBase *other)
       if(con == other)
         {
           disconnect(con);
-          break;
+          if(force) { break; }        // continue connecting anyway
+          else      { return false; } // connection failed
         }
     }
 
@@ -126,20 +127,20 @@ void ConnectorBase::draw()
   // drag/drop
   if(ImGui::BeginDragDropSource())
     {
-      std::cout << "DROP SOURCE --> " << ((mDirection == CONNECTOR_INPUT ? "CON_IN" : "CON_OUT")+type()) << "\n";
+      //std::cout << "DROP SOURCE --> " << ((mDirection == CONNECTOR_INPUT ? "CON_IN" : "CON_OUT")+type()) << "\n";
       ImGui::SetDragDropPayload(((mDirection == CONNECTOR_INPUT ? "CON_IN" : "CON_OUT")+type()).c_str(), &mThisPtr, sizeof(ConnectorBase*));
       ImGui::EndDragDropSource();
     }
   if(ImGui::BeginDragDropTarget())
     {
-      std::cout << "DROP TARGET --> " << ((mDirection == CONNECTOR_INPUT ? "CON_OUT" : "CON_IN")+type()) << "\n";
+      //std::cout << "DROP TARGET --> " << ((mDirection == CONNECTOR_INPUT ? "CON_OUT" : "CON_IN")+type()) << "\n";
       const ImGuiPayload* payload = ImGui::AcceptDragDropPayload(((mDirection == CONNECTOR_INPUT ? "CON_OUT" : "CON_IN")+type()).c_str());
       if(payload)
         {
           ConnectorBase *source = *((ConnectorBase**)payload->Data);
           if(source)
             {
-              std::cout << "Connecting " << source->type() << " to " << type() << "\n";
+              std::cout << "Connecting " << source->parent()->id() << " to " << parent()->id() << "\n";
               connect(source);
             }
         }
@@ -202,10 +203,10 @@ int Node::NEXT_ID = 0;
 std::unordered_set<int> Node::ACTIVE_IDS;
 
 
-Node::Node(const std::vector<ConnectorBase*> &inputs_, const std::vector<ConnectorBase*> &outputs_, const std::string &name, NodeParams *params)
+Node::Node(const std::vector<ConnectorBase*> &inputs_, const std::vector<ConnectorBase*> &outputs_, const std::string &name, Params *params)
   : mInputs(inputs_), mOutputs(outputs_), mParams(params)
 {
-  if(!mParams) { mParams = new NodeParams(); }
+  if(!mParams) { mParams = new Params(); }
   mParams->name = name;
   for(int i = 0; i < mInputs.size(); i++)  { mInputs[i]->setParent(this, i);  mInputs[i]->setDirection(CONNECTOR_INPUT); }
   for(int i = 0; i < mOutputs.size(); i++) { mOutputs[i]->setParent(this, i); mOutputs[i]->setDirection(CONNECTOR_OUTPUT); }
@@ -227,43 +228,42 @@ Node::~Node()
   delete mParams;
 }
 
-
 void Node::setPos(const Vec2f &p)
 {
   mParams->rect.setPos(p);
-  // if(!mFirstFrame)
-  //   {
-  //     // if(ImGui::Begin((name()+" ("+std::to_string(id())+")").c_str()))
-  //     // // if(ImGui::BeginChild((name()+" ("+std::to_string(id())+")").c_str()))
-  //     //   {
-  //     //     ImGui::SetWindowPos(pos());
-  //     //   }
-  //     // // ImGui::EndChild();
-  //     // ImGui::End();
-  //   }
+  bringToFront();
+}
+
+void Node::bringToFront()
+{
+  ImGui::SetNextWindowFocus();
+  BeginDraw();
+  EndDraw();
 }
 
 void Node::drawConnections(ImDrawList *drawList)
 {
   // TODO: improve drawing repetition
   BeginDraw();
-  // over output child
-  ImGui::BeginChild(("nodeOutputs"+std::to_string(id())).c_str());
-  ImDrawList *winDrawList = ImGui::GetWindowDrawList();
-  // draw connection lines over window area
-  for(auto con : mOutputs) { con->drawConnections(winDrawList); }
-  ImGui::EndChild();
-  // over input child
-  ImGui::BeginChild(("nodeInputs"+std::to_string(id())).c_str());
-  winDrawList = ImGui::GetWindowDrawList();
-  for(auto con : mInputs)  { con->drawConnections(winDrawList); }
-  ImGui::EndChild();
-  // over node window
-  ImGui::PushClipRect(rect().p1, rect().p2, false);
-  winDrawList = ImGui::GetWindowDrawList();
-  for(auto con : mOutputs) { con->drawConnections(winDrawList); }
-  for(auto con : mInputs)  { con->drawConnections(winDrawList); }
-  ImGui::PopClipRect();
+  {
+    // over output child
+    ImGui::BeginChild(("nodeOutputs"+std::to_string(id())).c_str());
+    ImDrawList *winDrawList = ImGui::GetWindowDrawList();
+    // draw connection lines over window area
+    for(auto con : mOutputs) { con->drawConnections(winDrawList); }
+    ImGui::EndChild();
+    // over input child
+    ImGui::BeginChild(("nodeInputs"+std::to_string(id())).c_str());
+    winDrawList = ImGui::GetWindowDrawList();
+    for(auto con : mInputs)  { con->drawConnections(winDrawList); }
+    ImGui::EndChild();
+    // over node window
+    ImGui::PushClipRect(rect().p1, rect().p2, false);
+    winDrawList = ImGui::GetWindowDrawList();
+    for(auto con : mOutputs) { con->drawConnections(winDrawList); }
+    for(auto con : mInputs)  { con->drawConnections(winDrawList); }
+    ImGui::PopClipRect();
+  }
   EndDraw();
   // over provided window
   for(auto con : mOutputs) { con->drawConnections(drawList); }
@@ -291,8 +291,8 @@ void Node::BeginDraw()
                              ImGuiWindowFlags_NoResize          |
                              ImGuiWindowFlags_NoTitleBar        |
                              ImGuiWindowFlags_NoMove            |
-                             ImGuiWindowFlags_AlwaysAutoResize  //|
-                             // ImGuiWindowFlags_NoScrollWithMouse 
+                             ImGuiWindowFlags_AlwaysAutoResize  |
+                             ImGuiWindowFlags_NoScrollWithMouse 
                              );
   
   ImGui::PushStyleVar(ImGuiStyleVar_WindowPadding, Vec2f(10, 10));
@@ -339,9 +339,11 @@ bool Node::draw(ImDrawList *drawList)
       }
 
     mActive = false;
-    mHover = ImGui::IsWindowHovered();
+    mHover = ImGui::IsWindowHovered() || ImGui::IsWindowHovered(ImGuiHoveredFlags_ChildWindows);
 
+    ImGui::BeginGroup();
     drawInputs();
+    ImGui::EndGroup();
     
     if(inputs().size() > 0)
       {
@@ -351,37 +353,45 @@ bool Node::draw(ImDrawList *drawList)
       }
 
     ImGui::BeginGroup();
-    { if(!onDraw()) { mState = false; } }
+    if(!onDraw()) { mState = false; }
     ImGui::EndGroup();
     mActive |= ImGui::IsItemActive();
     mHover  |= ImGui::IsItemHovered();
     
     ImGui::SameLine();
+    ImGui::BeginGroup();
     drawOutputs();
+    ImGui::EndGroup();
     if(outputs().size() > 0)
       {
         mActive |= ImGui::IsItemActive();
         mHover  |= ImGui::IsItemHovered();
       }
-    
-    if(!mFirstFrame)
-      { // set window position
-        setSize(ImGui::GetWindowSize());
-      }
-    else
-      {
-        ImGui::SetWindowPos(pos(), ImGuiCond_Once);
-      }
-    
+    if(mFirstFrame) // init window position (first frame only)
+      { ImGui::SetWindowPos(pos(), ImGuiCond_Once); }
+    else            // update window size 
+      { setSize(ImGui::GetWindowSize()); }
+
+    if(mClicked) { mGraph->selectNode(this); }             // click anywhere on node to select
+
     if((mActive || mHover) && ImGui::IsMouseClicked(ImGuiMouseButton_Left))
-      { mGraph->selectNode(this); }
+      { mClicked = true; }
+    else if((!mHover && !mActive) || ImGui::IsMouseReleased(ImGuiMouseButton_Left)) // always reset mClicked on mouse release, or clicked somewhere else
+      { mClicked = false; }
     
-    if(mSelected && ImGui::IsMouseDragging(ImGuiMouseButton_Left) && // !io.WantTextInput &&
-       !mActive && !mGraph->isSelecting() && !mGraph->isConnecting())
+    if(ImGui::IsMouseDragging(ImGuiMouseButton_Left) &&   // mouse drag --> move selected nodes
+       (mClicked || mDragging) &&                         // only initiate node move when clicked
+       !mActive && !mGraph->isSelectedActive() &&         // don't move if interacting with ui element on node
+       !mGraph->isSelecting() && !mGraph->isConnecting()) // don't move if selecting with rect or connecting nodes
       {
+        mDragging = true;
+        if(io.KeyCtrl) // CTRL+drag --> copy selected elements
+          { mGraph->copySelected(); }
         mGraph->moveSelected(Vec2f(ImGui::GetMouseDragDelta(ImGuiMouseButton_Left)));
         ImGui::ResetMouseDragDelta();
       }
+    else
+      { mDragging = false; }
     
   }
   EndDraw();
@@ -479,7 +489,6 @@ bool Node::drawOutputs()
   return true;
 }
 
-
 std::map<std::string, std::string> Node::getSaveHeader(const std::string &saveStr)
 {
   std::map<std::string, std::string> header;
@@ -554,11 +563,9 @@ std::string Node::fromSaveString(const std::string &saveStr)
   ss >> mParams->name;
   ss.str(params["nodeId"]); ss.clear();
   ss >> mParams->id;
-  // mNextPos.fromString(params["nodePos"]);
-  Vec2f nextPos;
-  nextPos.fromString(params["nodePos"]);
-  // mParams->rect.setPos(nextPos);
-  mFirstFrame = false;
+  
+  notFirstFrame();
+  Vec2f nextPos(params["nodePos"]);
   setPos(nextPos);
   setSaveParams(params);
       
@@ -566,11 +573,5 @@ std::string Node::fromSaveString(const std::string &saveStr)
   if(ACTIVE_IDS.count(mParams->id) > 0)
     { std::cout << "WARNING: Overlapping Node ID! (fromSaveString()) --> " << mParams->id << "\n"; }
   ACTIVE_IDS.emplace(mParams->id);
-  // while(ACTIVE_IDS.count(NEXT_ID) > 0) { NEXT_ID++; } // no id overlap
-      
-  // std::stringstream tmp; tmp << ss.rdbuf();
-  // std::string remaining = tmp.str();
-      
-  // return remaining;
   return "";
 }

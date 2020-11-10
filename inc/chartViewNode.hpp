@@ -57,6 +57,16 @@ namespace astro
   public:
     ChartViewNode();
     virtual std::string type() const { return "ChartViewNode"; }
+    virtual bool copyTo(Node *other) override
+    { // copy settings
+      if(Node::copyTo(other))
+        {
+          ((ChartViewNode*)other)->mChartWidth = mChartWidth;
+          // (everything else set by connections)
+          return true;
+        }
+      else { return false; }
+    }
 
     void processInput(Chart *chart);
   };

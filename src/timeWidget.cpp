@@ -16,6 +16,22 @@ TimeWidget::TimeWidget(const DateTime &date)
   : mDate(date)
 { mDate.fix(); }
 
+TimeWidget::TimeWidget(const TimeWidget &other)
+  : mDate(other.mDate), mSavedDate(other.mSavedDate)
+{
+  sprintf(mName, "%s", other.mName);
+  sprintf(mSavedName, "%s", other.mSavedName);
+}
+
+TimeWidget& TimeWidget::operator=(const TimeWidget &other)
+{
+  mDate = other.mDate;
+  mSavedDate = other.mSavedDate;
+  sprintf(mName, "%s", other.mName);
+  sprintf(mSavedName, "%s", other.mSavedName);
+}
+
+
 bool TimeWidget::save(const std::string &name)
 {
   if(!fs::exists(DATE_SAVE_DIR))
@@ -288,7 +304,7 @@ void TimeWidget::draw(const std::string &id)
         // text input for new save
         ImGui::Text("New");
         ImGui::SameLine();
-        ImGui::InputText(("##saveInput"+id).c_str(), mSaveName, DATE_NAME_BUFLEN);
+        ImGui::InputText(("##saveInput"+id).c_str(), mSavedName, DATE_NAME_BUFLEN);
         ImGuiIO& io = ImGui::GetIO();
             
         bool enter = ImGui::IsKeyPressed(io.KeyMap[ImGuiKey_Enter]);
@@ -296,12 +312,12 @@ void TimeWidget::draw(const std::string &id)
         enter |= ImGui::Button(("Save##date2"+id).c_str());
         if(enter)
           {
-            if(!save(std::string(mSaveName)))
-              { std::cout << "Failed to save date as '" << mSaveName << "'!\n"; }
+            if(!save(std::string(mSavedName)))
+              { std::cout << "Failed to save date as '" << mSavedName << "'!\n"; }
             else
               {
-                std::cout << "Date saved as '" << mSaveName << "'!\n";
-                sprintf(mName, "%s", mSaveName);
+                std::cout << "Date saved as '" << mSavedName << "'!\n";
+                sprintf(mName, "%s", mSavedName);
               }
             ImGui::CloseCurrentPopup();
           }
@@ -320,7 +336,7 @@ void TimeWidget::draw(const std::string &id)
                 std::cout << "Removing date '" << dt.name << "'!\n";
                 remove(dt.name);
                 if(mName == dt.name) { mName[0] = '\0'; } // (mName == "")
-                if(mSaveName == dt.name) { mSaveName[0] = '\0'; } // (mSaveName == "")
+                if(mSavedName == dt.name) { mSavedName[0] = '\0'; } // (mSavedName == "")
               }
             ImGui::PopStyleColor();
             
@@ -341,7 +357,7 @@ void TimeWidget::draw(const std::string &id)
         ImGui::EndPopup();
       }
     else // fill buffer with current name
-      { sprintf(mSaveName, "%s", mName); }
+      { sprintf(mSavedName, "%s", mName); }
 
     if(!std::string(mName).empty())
       {
