@@ -210,7 +210,7 @@ void LocationWidget::draw()
           { sName = std::string("[") + mName + "]"; }
         ImGui::TextColored(ImColor(1.0f, 1.0f, 1.0f, 0.5f), sName.c_str());
       }
-        
+    
     // load button
     ImGui::Button("Load##loc");
     if(ImGui::BeginPopupContextItem("loadPopup", ImGuiMouseButton_Left))

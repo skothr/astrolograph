@@ -59,8 +59,8 @@ namespace astro
     { // copy settings
       if(Node::copyTo(other))
         {
-          // ((TimeNode*)other)->mWidget = mWidget;
-          // ((TimeNode*)other)->mLiveMode = mLiveMode;
+          ((TimeNode*)other)->mWidget = mWidget;
+          ((TimeNode*)other)->mLiveMode = mLiveMode;
           return true;
         }
       else { return false; }

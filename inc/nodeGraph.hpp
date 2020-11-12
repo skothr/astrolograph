@@ -39,7 +39,7 @@ namespace astro
   {
   private:
     std::unordered_map<int, Node*> mNodes;    // maps ID to pointer
-    std::unordered_set<Node*> mSelectedNodes; // set of nodes that are selected
+    //std::vector<Node::Connection> mSelectedNodes; // set of nodes that are selected
     Vec2f  mCenter = Vec2f(0,0); // graph-space point to be centered in view
     Vec2f  mViewPos;             // screen-space position of nodeGraph view
     Vec2f  mViewSize;            // screen-space size of nodeGraph view
@@ -63,6 +63,8 @@ namespace astro
     bool mOpenSave          = false;
     bool mOpenLoad          = false;
 
+    bool mPanning     = false;
+    Vec2f mPanClick;
     bool mClickCopied = false; // set to true when selected nodes are copied (CTRL+click+drag). Reset when mouse released.
     
     bool mSaveDialogOpen = false;
@@ -85,9 +87,9 @@ namespace astro
     NodeGraph(ViewSettings *settings);
     ~NodeGraph();
     
-    Node* addNode(const std::string &type);
+    void addNode(Node *n, bool select=true);  // adds node to mNodes
+    Node* addNode(const std::string &type, bool select=true);
     void prepNode(Node *n); // prepares node to be added
-    void addNode(Node *n);  // adds node to mNodes
     void clear();
     
     void cut();
@@ -96,11 +98,16 @@ namespace astro
     
     // selection
     void selectNode(Node *n);
+    void select(const std::vector<Node*> &nodes);
     void moveSelected(const Vec2f &dpos);
     std::vector<Node*> getSelected();
-    std::vector<Node*> makeCopies(const std::vector<Node*> &nodes); // returns new nodes
+    std::vector<Node*> makeCopies(const std::vector<Node*> &group, bool externalConnections=true); // returns new nodes
+    void disconnectExternal(const std::vector<Node*> &group, bool disconnectInputs=true, bool disconnectOutputs=true);
     void copySelected();
     void deselectAll();
+    void deselect(const std::vector<Node*> &nodes);
+
+    bool isHovered() const { return Rect2f(mViewPos, mViewSize).contains(ImGui::GetMousePos()); }
     
     bool isSelectedHovered();  // returns true if any selected nodes are hovered
     bool isSelectedActive();   // returns true if any selected nodes are active
@@ -108,7 +115,12 @@ namespace astro
 
     void setLocked(bool lock) { mLocked = lock; }
     bool setLocked() const    { return mLocked; }
-    
+
+    Vec2f getCenter() const { return mCenter; }
+    bool isPanning() const { return mPanning; }
+
+    Vec2f viewPos() const  { return mViewPos; }
+    Vec2f viewSize() const { return mViewSize; }
     void setPos(const Vec2i &p);
     void setSize(const Vec2i &s);
     

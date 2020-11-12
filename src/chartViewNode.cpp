@@ -34,7 +34,7 @@ void ChartViewNode::processInput(Chart *chart)
   // scroll to edit date -- hold number keys for date, or Q/W/E for location
   // 1 --> year,     2 --> month,     3 --> day,     4 --> hour,     5 --> minute,     6 --> second
   // Q --> latitude, W --> longitude, E --> altitude
-  if(hover)// && !io.WantCaptureMouse)
+  if(hover)
     {
       float delta = io.MouseWheel;
       // key multipliers
@@ -83,11 +83,12 @@ bool ChartViewNode::onDraw()
   // 
   outputs()[CHARTVIEWNODE_OUTPUT_CHART]->set(chart);
   
-  ImGui::BeginGroup();
+  //  ImGui::BeginGroup();
   {
     // size of chart
     ImGui::Text("Chart Size:  ");
     ImGui::SameLine();
+    ImGui::SetNextItemWidth(360);
     ImGui::SliderFloat("##chartWidth", &mChartWidth, CHART_SIZE_MIN, CHART_SIZE_MAX, "%.0f");
 
     if(chart)
@@ -111,7 +112,7 @@ bool ChartViewNode::onDraw()
     else // draw empty chart
       { mView.draw((Chart*)nullptr, mChartWidth); }
   }
-  ImGui::EndGroup();
+  //ImGui::EndGroup();
   
   return true;
 }

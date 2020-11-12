@@ -26,6 +26,10 @@
 
 #include "date/tz.h"
 
+#define ENABLE_IMGUI_VIEWPORTS false
+#define ENABLE_IMGUI_DOCKING   false
+
+
 #define WINDOW_W    2400
 #define WINDOW_H    1600
 
@@ -171,22 +175,31 @@ int main(int argc, char* argv[])
   
   // imgui context config
   ImGuiIO& io = ImGui::GetIO();
-  // io.ConfigFlags |= ImGuiConfigFlags_NavEnableKeyboard; // Enable Keyboard Controls
   io.IniFilename = NULL;                                 // disable .ini file
+#if ENABLE_IMGUI_VIEWPORTS
+  io.ConfigFlags |= ImGuiConfigFlags_ViewportsEnable;
+  io.ConfigViewportsNoTaskBarIcon = true;
+#endif // ENABLE_IMGUI_VIEWPORTS
+#if ENABLE_IMGUI_DOCKING
   //io.ConfigFlags |= ImGuiConfigFlags_DockingEnable;      // enable docking
   //io.ConfigDockingWithShift = true;                      // docking when shift is held
-  io.BackendFlags |= ImGuiBackendFlags_HasMouseCursors;  // (?)
+#endif // ENABLE_IMGUI_DOCKING
   
+  // io.BackendFlags |= ImGuiBackendFlags_HasMouseCursors;  // (?)
+  // io.ConfigFlags |= ImGuiConfigFlags_NavEnableKeyboard; // Enable Keyboard Controls
+
+  // imgui context init
   ImGui_ImplGlfw_InitForOpenGL(window, true);
   ImGui_ImplOpenGL3_Init(glsl_version);
 
-  glfwSetWindowCloseCallback(window, windowCloseCallback);
+  glfwSetWindowCloseCallback(window, windowCloseCallback); // callback when closing window
 
   // load fonts
-  io.Fonts->AddFontFromFileTTF(FONT_PATH, DEFAULT_FONT_HEIGHT);
-
-
-  //
+  ImFont * defaultFont = io.Fonts->AddFontFromFileTTF(FONT_PATH, DEFAULT_FONT_HEIGHT);
+  if(!defaultFont)
+    { std::cout << "WARNING: Failed to load default font! (" << FONT_PATH << ")"; }
+  
+  // 
   astro::ViewSettings viewSettings;
   graph = new astro::NodeGraph(&viewSettings);
   
@@ -208,15 +221,15 @@ int main(int argc, char* argv[])
       { GLFW_MOD_CONTROL, GLFW_KEY_C, [](){ graph->copy(); } },                         // CTRL+C       --> copy
       { GLFW_MOD_CONTROL, GLFW_KEY_V, [](){ graph->paste(); } },                        // CTRL+V       --> paste
       //// Node Creation
-      { 0, GLFW_KEY_T, [](){ graph->addNode("TimeNode"); } },        // T --> new Time Node
-      { 0, GLFW_KEY_S, [](){ graph->addNode("TimeSpanNode"); } },    // S --> new Time Span Node
-      { 0, GLFW_KEY_L, [](){ graph->addNode("LocationNode"); } },    // L --> new Location Node
-      { 0, GLFW_KEY_C, [](){ graph->addNode("ChartNode"); } },       // C --> new Chart Node
-      { 0, GLFW_KEY_P, [](){ graph->addNode("ProgressNode"); } },    // P --> new Progress Node
-      { 0, GLFW_KEY_V, [](){ graph->addNode("ChartViewNode"); } },   // V --> new Chart View Node
-      { 0, GLFW_KEY_X, [](){ graph->addNode("ChartCompareNode");} }, // X --> new Chart Compare Node
-      { 0, GLFW_KEY_D, [](){ graph->addNode("ChartDataNode"); } },   // D --> new Chart Data Node
-      { 0, GLFW_KEY_A, [](){ graph->addNode("AspectNode"); } },      // A --> new Aspect Node
+      { 0, GLFW_KEY_T, [](){ graph->addNode("TimeNode", true); } },        // T --> new Time Node
+      { 0, GLFW_KEY_S, [](){ graph->addNode("TimeSpanNode", true); } },    // S --> new Time Span Node
+      { 0, GLFW_KEY_L, [](){ graph->addNode("LocationNode", true); } },    // L --> new Location Node
+      { 0, GLFW_KEY_C, [](){ graph->addNode("ChartNode", true); } },       // C --> new Chart Node
+      { 0, GLFW_KEY_P, [](){ graph->addNode("ProgressNode", true); } },    // P --> new Progress Node
+      { 0, GLFW_KEY_V, [](){ graph->addNode("ChartViewNode", true); } },   // V --> new Chart View Node
+      { 0, GLFW_KEY_X, [](){ graph->addNode("ChartCompareNode", true);} }, // X --> new Chart Compare Node
+      { 0, GLFW_KEY_D, [](){ graph->addNode("ChartDataNode", true); } },   // D --> new Chart Data Node
+      { 0, GLFW_KEY_A, [](){ graph->addNode("AspectNode", true); } },      // A --> new Aspect Node
       //// Debug
       { GLFW_MOD_ALT, GLFW_KEY_D, [&showDemo](){ showDemo = !showDemo; } }, // ALT+D --> open ImGui demo window
     };
@@ -235,33 +248,67 @@ int main(int argc, char* argv[])
       
       // get GLFW window size
       glfwGetFramebufferSize(window, &frameSize.x, &frameSize.y);
-
+            
       //// KEY SHORTCUTS ////
       ImGuiIO& io = ImGui::GetIO();
       //if(!io.WantCaptureKeyboard)
-        {
-          int mods = ((io.KeyCtrl  ? GLFW_MOD_CONTROL : 0) |
-                      (io.KeyAlt   ? GLFW_MOD_ALT     : 0) |
-                      (io.KeyShift ? GLFW_MOD_SHIFT   : 0) |
-                      (io.KeySuper ? GLFW_MOD_SUPER   : 0));
-          for(auto s : shortcuts)
-            {
-              if(mods == s.mods && ImGui::IsKeyPressed(s.key))
-                { s.action(); }
-            }
-        }
+      {
+        int mods = ((io.KeyCtrl  ? GLFW_MOD_CONTROL : 0) |
+                    (io.KeyAlt   ? GLFW_MOD_ALT     : 0) |
+                    (io.KeyShift ? GLFW_MOD_SHIFT   : 0) |
+                    (io.KeySuper ? GLFW_MOD_SUPER   : 0));
+        for(auto s : shortcuts)
+          {
+            if(mods == s.mods && ImGui::IsKeyPressed(s.key))
+              { s.action(); }
+          }
+      }
 
       //// DRAWING ////
       bool settingsOpen = viewSettings.draw();
-      
-      static const Vec2i framePadding(0,0); //(50,50);
-      graph->setPos(framePadding);
-      graph->setSize(frameSize - 2*framePadding);
-      graph->draw();
-      
+
+
+      // // blank window over graph for drawing selection rect and other overlays
+      // ImGuiWindowFlags wFlags = (ImGuiWindowFlags_NoTitleBar        |
+      //                            ImGuiWindowFlags_NoCollapse        |
+      //                            ImGuiWindowFlags_NoMove            |
+      //                            ImGuiWindowFlags_NoScrollbar       |
+      //                            ImGuiWindowFlags_NoScrollWithMouse |
+      //                            ImGuiWindowFlags_NoResize          |
+      //                            ImGuiWindowFlags_NoSavedSettings   |
+      //                            ImGuiWindowFlags_NoBringToFrontOnFocus
+      //                            );
+      // ImGui::SetNextWindowPos(Vec2f(0.0f,0.0f));
+      // ImGui::SetNextWindowSize(frameSize);
+      // ImGui::PushStyleColor(ImGuiCol_WindowBg, Vec4f(1.0f, 0.0f, 0.0f, 1.0f));
+      // ImGui::PushStyleVar(ImGuiStyleVar_WindowRounding, 0); // square frames by default
+      // ImGui::PushStyleVar(ImGuiStyleVar_FrameRounding,  0);
+      // ImGui::PushStyleVar(ImGuiStyleVar_WindowPadding, Vec2f(0, 0));
+      // ImGui::Begin("mainWindow", 0, wFlags);
+      // ImGui::PopStyleVar();
+      {
+        static const Vec2i framePadding(0,0);
+        Vec2i graphPos = Vec2i(0,0);
+#if ENABLE_IMGUI_VIEWPORTS
+        ImGuiViewport *mainView = ImGui::GetMainViewport();
+        // mainView->WorkOffsetMin = Vec2f(framePadding.x, framePadding.y);
+        // mainView->WorkMinPos = Vec2f(framePadding.x, framePadding.y);
+        graphPos = Vec2i(mainView->Pos.x, mainView->Pos.y);
+        ImGui::SetNextWindowViewport(mainView->ID);
+#endif // ENABLE_IMGUI_VIEWPORTS
+
+        graph->setPos(graphPos + framePadding);
+        graph->setSize(frameSize - 2*framePadding);
+        graph->draw();
+      }
+      // ImGui::End();
+      // ImGui::PopStyleVar(2);
+      // ImGui::PopStyleColor();
+
       // menu bar
       if(ImGui::BeginMainMenuBar())
         {
+          // ImGui::SetWindowFocus();
           if(ImGui::BeginMenu("File"))
             {
               if(ImGui::MenuItem("New"))     { graph->clear(); }
@@ -271,7 +318,6 @@ int main(int argc, char* argv[])
               if(ImGui::MenuItem("Exit"))    { closing = true; }
               ImGui::EndMenu();
             }
-          
           if(ImGui::BeginMenu("Edit"))
             {
               // if(ImGui::MenuItem("Cut"))  { std::cout << "CUT -- TODO\n"; }
@@ -310,15 +356,16 @@ int main(int argc, char* argv[])
             }
           ImGui::EndMainMenuBar();
         }
+
+
       
       // unsaved changes popup (TODO: improve/fix)
-      bool popupOpen = false;
+      static bool popupOpen = false;
       if(closing && !saving)
-        { ImGui::OpenPopup("Unsaved Changes"); }
-      if(ImGui::BeginPopupModal("Unsaved Changes", nullptr, ImGuiWindowFlags_NoMove | ImGuiWindowFlags_NoResize))
+        { popupOpen = true; ImGui::OpenPopup("Unsaved Changes"); }
+      if(ImGui::BeginPopupModal("Unsaved Changes", &popupOpen, ImGuiWindowFlags_NoMove | ImGuiWindowFlags_NoResize))
         {
-          popupOpen = true;
-          ImGui::SetWindowFocus();
+          // ImGui::SetWindowFocus();
           if(graph->getSaveName().empty())
             { ImGui::TextUnformatted("Unsaved project has been modified. Do you want to save?"); }
           else
@@ -349,6 +396,8 @@ int main(int argc, char* argv[])
             }
           ImGui::EndPopup();
         }
+      else
+        { popupOpen = false; }
 
 #if ENABLE_IMGUI_DEMO
       // show demo window if toggled
@@ -357,18 +406,18 @@ int main(int argc, char* argv[])
 
       graph->setLocked(settingsOpen || popupOpen || graph->saveOpen() || graph->isSaving() || graph->isLoading() || graph->loadOpen());
       
-      ImGui::EndFrame();      
-      
       if(closing && saving && graph->unsavedChanges() && !graph->saveOpen()) // save cancelled
-        {
-          // closing = false;
-          // saving = false;
-        }
+        { } // closing = false; saving = false; }
       else if(closing && (!graph->unsavedChanges() || noSave)) // close window
         { glfwSetWindowShouldClose(window, GLFW_TRUE); }
-
+      
       //// RENDERING ////
+      ImGui::EndFrame();
       ImGui::Render();
+      // Update and Render additional Platform Windows (if viewports enabled)
+      if(io.ConfigFlags & ImGuiConfigFlags_ViewportsEnable)
+        { ImGui::UpdatePlatformWindows(); ImGui::RenderPlatformWindowsDefault(); }
+      
       glViewport(0, 0, frameSize.x, frameSize.y);
       glClearColor(clearColor.x, clearColor.y, clearColor.z, clearColor.w);
       glClear(GL_COLOR_BUFFER_BIT);
