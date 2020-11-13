@@ -23,9 +23,9 @@ namespace astro
     { return {new Connector<DateTime>("Date"), new Connector<Location>("Location")}; }
     static std::vector<ConnectorBase*> CONNECTOR_OUTPUTS()
     { return {new Connector<Chart>("Chart")}; }
-
+    
     Chart *mChart = nullptr;
-
+    bool mOptionsOpen = false;
     virtual bool onDraw() override;
     
     virtual std::map<std::string, std::string>& getSaveParams(std::map<std::string, std::string> &params) const override
@@ -34,6 +34,8 @@ namespace astro
         { params.emplace("date", mChart->date().toSaveString()); }
       if(!inputs()[CHARTNODE_INPUT_LOCATION]->get<DateTime>())
         { params.emplace("location", mChart->location().toSaveString()); }
+      params.emplace("optionsOpen", (mOptionsOpen ? "1" : "0"));
+      params.emplace("houseSystem", getHouseSystemName(mChart->getHouseSystem()));
       return params;
     };
     
@@ -44,6 +46,10 @@ namespace astro
       iter = params.find("location");
       if(iter != params.end()) { mChart->setLocation(Location(iter->second)); }
       mChart->update();
+      iter = params.find("optionsOpen");
+      if(iter != params.end()) { mOptionsOpen = (iter->second != "0"); }
+      iter = params.find("houseSystem");
+      if(iter != params.end()) { mChart->setHouseSystem(getHouseSystem(iter->second)); }
       return params;
     };
     
@@ -61,6 +67,7 @@ namespace astro
           else                                                     { ((ChartNode*)other)->mChart->setDate(*inputs()[CHARTNODE_INPUT_DATE]->get<DateTime>()); }
           if(!inputs()[CHARTNODE_INPUT_LOCATION]->get<Location>()) { ((ChartNode*)other)->mChart->setLocation(mChart->location()); }
           else                                                     { ((ChartNode*)other)->mChart->setLocation(*inputs()[CHARTNODE_INPUT_LOCATION]->get<Location>()); }
+          ((ChartNode*)other)->mOptionsOpen = mOptionsOpen;
           // (everything else set by connections)
           return true;
         }

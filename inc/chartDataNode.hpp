@@ -25,7 +25,8 @@ namespace astro
     bool mObjOpen = true;
     bool mOrbOpen = false;
 
-    std::vector<bool> mObjVisible;
+    std::vector<bool> mShowObjects;
+    std::vector<bool> mFocusObjects;
     
     virtual bool onDraw() override;
     
@@ -61,9 +62,9 @@ namespace astro
           ((ChartDataNode*)other)->mObjOpen = mObjOpen;
           ((ChartDataNode*)other)->mOrbOpen = mOrbOpen;
           for(int o = OBJ_SUN; o < OBJ_COUNT; o++) // start with objects visible
-            { ((ChartDataNode*)other)->mObjVisible[o] = mObjVisible[o]; }
+            { ((ChartDataNode*)other)->mShowObjects[o] = mShowObjects[o]; }
           for(int a = ANGLE_OFFSET; a < ANGLE_END; a++) // start with angles invisible
-            { ((ChartDataNode*)other)->mObjVisible[OBJ_COUNT+a-ANGLE_OFFSET] = mObjVisible[OBJ_COUNT+a-ANGLE_OFFSET]; }
+            { ((ChartDataNode*)other)->mShowObjects[OBJ_COUNT+a-ANGLE_OFFSET] = mShowObjects[OBJ_COUNT+a-ANGLE_OFFSET]; }
           // (everything else set by connections)
           return true;
         }

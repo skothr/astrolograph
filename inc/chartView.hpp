@@ -16,35 +16,35 @@
 namespace astro
 {
 // chart params
-#define CHART_SIZE                900.0f     // initial chart size
-#define CHART_SIZE_DEFAULT        1024.0f    // default chart size (used to calculate scaling ratio)
-#define CHART_SIZE_MIN            512.0f     // minimum chart size
-#define CHART_SIZE_MAX            1660.0f    // maximum chart size
-#define OUTER_RING_W              32.0f
-#define CHART_PADDING             25.0f
-#define ANGLE_SYMBOL_OFFSET       50.0f      // distance from outer zodiac ring border to draw angle symbols (e.g. ASC)
+#define CHART_SIZE                900.0f  // initial chart size
+#define CHART_SIZE_DEFAULT        1024.0f // default chart size (used to calculate scaling ratio)
+#define CHART_SIZE_MIN            512.0f  // minimum chart size
+#define CHART_SIZE_MAX            1660.0f // maximum chart size
+#define OUTER_RING_W              32.0f   // width of our zodic ring
+#define CHART_PADDING             25.0f   // padding around chart (additional, past angle symbols)
+#define ANGLE_SYMBOL_OFFSET       50.0f   // distance from outer zodiac ring border to draw angle symbols (e.g. ASC)
 
-#define CHART_RING_W              92.0f      // width of zodiac sign ring
-#define CHART_EARTH_RADIUS        80.0f      // radius of inner reference circle (with house numbers)
-#define CHART_OBJRING_W           38.0f      // radius of ring where objects are shown
+#define CHART_RING_W              92.0f   // width of zodiac sign ring
+#define CHART_EARTH_RADIUS        80.0f   // radius of inner reference circle (with house numbers)
+#define CHART_OBJRING_W           38.0f   // radius of ring where objects are shown
 
-#define TEXT_HEIGHT               24.0f      // height of text
-#define TEXT_PADDING              32.0f      // spacing between text
-#define TEXT_LINE_PADDING         10.0f      // spacing between text
+#define TEXT_HEIGHT               24.0f   // height of text
+#define TEXT_PADDING              32.0f   // spacing between text
+#define TEXT_LINE_PADDING         10.0f   // spacing between text
 
-#define CHART_SYMBOL_SIZE         32.0f      // default size of obejct symbols (should be same as image file size) 
-#define CHART_SYMBOL_SIZE_SMALL   20.0f      // default size of obejct symbols (should be same as image file size) 
+#define CHART_SYMBOL_SIZE         32.0f   // default size of obejct symbols (should be same as image file size) 
+#define CHART_SYMBOL_SIZE_SMALL   20.0f   // default size of obejct symbols (should be same as image file size) 
 
-#define CHART_HOUSE_NUM_OFFSET    14.0f
-#define CHART_HOUSE_CIRCLE_RADIUS 14.0f
-#define DEGREE_TICK_SIZE_1        5.0f
-#define DEGREE_TICK_SIZE_5        12.0f
-#define DEGREE_TICK_SIZE_10       12.0f
-#define DEGREE_TICK_SIZE_15       16.0f
-#define DEGREE_TICK_SIZE_30       20.0f
+#define CHART_HOUSE_NUM_OFFSET    14.0f   // offset of house numbers from outer ring
+#define CHART_HOUSE_CIRCLE_RADIUS 14.0f   // radius of circle around hosue numbers
+#define DEGREE_TICK_SIZE_1        5.0f    // length of tick for 1-degree increments
+#define DEGREE_TICK_SIZE_5        12.0f   // length of tick for 5-degree increments
+#define DEGREE_TICK_SIZE_10       12.0f   // length of tick for 10-degree increments
+#define DEGREE_TICK_SIZE_15       16.0f   // length of tick for 15-degree increments
+#define DEGREE_TICK_SIZE_30       20.0f   // length of tick for 30-degree increments
   
-#define OUTLINE_W                 3.0f // zodiac chart line width
-#define OBJRING_OUTLINE_W         1.0f // object ring line width
+#define OUTLINE_W                 3.0f    // zodiac chart line width
+#define OBJRING_OUTLINE_W         1.0f    // object ring line width
 
   struct ViewParams
   {

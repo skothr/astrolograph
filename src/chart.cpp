@@ -197,14 +197,13 @@ void Chart::update()
 {
   if(mNeedUpdate)
     {
-      // update chart info (via Swiss Ephemeris)
+      // update chart info (via Swiss Ephemeris wrapper)
       mLocation.fix();
       mDate.fix();
-      
       mSwe.setLocation(mLocation);
       mSwe.setDate(mDate);
+      mSwe.setHouseSystem(mHouseSystem);
       mSwe.calcHouses();
-
       for(int i = 0; i < mObjects.size(); i++)
         { // calc objects
           ObjType o = (ObjType)(OBJ_SUN + i);

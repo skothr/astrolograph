@@ -29,7 +29,7 @@ void ChartViewNode::processInput(Chart *chart)
       mEditLat = ImGui::IsKeyDown(GLFW_KEY_Q);
       mEditLon = ImGui::IsKeyDown(GLFW_KEY_W);
       mEditAlt = ImGui::IsKeyDown(GLFW_KEY_E);
-    }      
+    }
 
   // scroll to edit date -- hold number keys for date, or Q/W/E for location
   // 1 --> year,     2 --> month,     3 --> day,     4 --> hour,     5 --> minute,     6 --> second
@@ -80,9 +80,8 @@ bool ChartViewNode::onDraw()
 {
   bool changed = false;
   Chart *chart = inputs()[CHARTVIEWNODE_INPUT_CHART]->get<Chart>();
-  // 
-  outputs()[CHARTVIEWNODE_OUTPUT_CHART]->set(chart);
-  
+  //outputs()[CHARTVIEWNODE_OUTPUT_CHART]->set(chart);
+
   //  ImGui::BeginGroup();
   {
     // size of chart
@@ -107,7 +106,7 @@ bool ChartViewNode::onDraw()
         
         ImGui::Text(date.toString().c_str());
         ImGui::Text(loc.toString().c_str());
-        ImGui::Spacing();
+        // ImGui::Spacing();
       }
     else // draw empty chart
       { mView.draw((Chart*)nullptr, mChartWidth); }

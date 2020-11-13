@@ -70,15 +70,10 @@ void ConnectorBase::disconnectAll()
   for(int i = 0; i < mConnected.size(); i++)
     {
       ConnectorBase *con = mConnected[i];
-      if(con)
+      for(int j = 0; j < con->mConnected.size(); j++)
         {
-          for(int j = 0; j < con->mConnected.size(); j++)
-            {
-              if(con->mConnected[j] == mThisPtr)
-                {
-                  con->mConnected.erase(con->mConnected.begin() + j--);
-                }
-            }
+          if(con->mConnected[j] == mThisPtr)
+            { con->mConnected.erase(con->mConnected.begin() + j--); }
         }
     }
   mConnected.clear();
@@ -93,7 +88,7 @@ void ConnectorBase::reset(bool rs)
     { for(auto con : mConnected) { con->reset(rs); } }
 }
     
-void ConnectorBase::BeginDraw()
+bool ConnectorBase::BeginDraw()
 {
 
 }
@@ -106,7 +101,7 @@ void ConnectorBase::EndDraw()
 void ConnectorBase::draw()
 {
   // calculate screen position (center of connector) for connection lines
-  screenPos = Vec2f(ImGui::GetCursorScreenPos()) + CONNECTOR_SIZE/2.0f;
+  screenPos = Vec2f(ImGui::GetCursorScreenPos()) + CONNECTOR_SIZE/2.0f - mParent->getGraph()->getCenter();
   
   // get color
   Vec4f connectorColor(0.5f, 0.5f, 0.5f, 1.0f);
@@ -173,24 +168,39 @@ void ConnectorBase::drawConnections(ImDrawList *drawList)
   Vec4f connectedColor  = Vec4f(connectorColor.x*0.75f, connectorColor.y*0.75f, connectorColor.z*0.75f, connectorColor.w); // color when fully connected
   Vec4f dotColor        = Vec4f(connectorColor.x*0.4f, connectorColor.y*0.4f, connectorColor.z*0.4f, 1.0f); // color when fully connected
 
+  Vec2f offsetPos = screenPos + mParent->getGraph()->getCenter();
+  Vec2f protrudePos = getProtrudePos() + mParent->getGraph()->getCenter();
+
+  
   // connecting (draw line to mouse)
   if(isConnecting())
     { // use foreground drawlist (only while actively connecting, otherwise connections will show above file dialog)
-      ImGui::GetForegroundDrawList()->AddLine(screenPos, ImGui::GetMousePos(), ImColor(connectingColor), 1.0f);
-      ImGui::GetForegroundDrawList()->AddLine(screenPos, ImGui::GetMousePos(), ImColor(connectingColor), 1.0f);
+      ImGui::GetForegroundDrawList()->AddLine(offsetPos, ImGui::GetMousePos(), ImColor(connectingColor), 1.0f);
+      ImGui::GetForegroundDrawList()->AddLine(offsetPos, ImGui::GetMousePos(), ImColor(connectingColor), 1.0f);
     }
-  else
-    { // connected
+  else if(mConnected.size() > 0)
+    { // draw protruding line
+      drawList->AddLine(offsetPos, protrudePos, ImColor(connectedColor), 3.0f);
+      // draw connection line
       for(auto con : mConnected)
         {
+          Vec2f offsetPos2 = con->screenPos + mParent->getGraph()->getCenter();
+          Vec2f protrudePos2 = con->getProtrudePos() + mParent->getGraph()->getCenter();
           // std::cout << "   DRAWING CONNECTION --> thisPos=" << screenPos << ", otherPos=" << con->screenPos << "\n";
-          drawList->AddLine(screenPos, con->screenPos, ImColor(connectedColor), 3.0f);
-          drawList->AddLine(screenPos, con->screenPos, ImColor(connectedColor), 3.0f);
+          drawList->AddLine(protrudePos, protrudePos2, ImColor(connectedColor), 3.0f);
+          drawList->AddLine(protrudePos, protrudePos2, ImColor(connectedColor), 3.0f);
+        }
+      // draw protruding dot
+      //if(!isConnecting() && mConnected.size() > 0)
+        {
+          drawList->AddCircleFilled(protrudePos, 5.0f, ImColor(connectedColor), 20);
+          // // draw other connection dot(s)
+          // for(auto con : mConnected)
+          //   { drawList->AddCircleFilled(con->getProtrudePos() + mParent->getGraph()->getCenter(), 5.0f, ImColor(connectedColor), 20); }
         }
     }
-  
-  // draw connector dot
-  drawList->AddCircleFilled(screenPos, 5.0f, ImColor(dotColor), 6);
+  // draw connection dot
+  drawList->AddCircleFilled(offsetPos, 5.0f, ImColor(dotColor), 20);
 }
 
 
@@ -225,19 +235,42 @@ void Node::setPos(const Vec2f &p)
 void Node::bringToFront()
 {
   mParams->z = NODE_TOP_Z;
-  // ImGui::SetNextWindowFocus();
-  // BeginDraw();
-  // EndDraw();
 }
 
-void Node::setSelected(bool selected, bool stopDragging)
+std::vector<Node::Connection> Node::getInputConnections()
 {
-  mSelected = selected;
-  if(!mSelected && stopDragging && !mClicked)
+  std::vector<Connection> connections;
+  for(int i = 0; i < inputs().size(); i++)
     {
-      // mClicked = false;
-      mDragging = false;
+      std::vector<ConnectorBase*> connected = inputs()[i]->getConnected();
+      for(int j = 0; j < connected.size(); j++)
+        { connections.push_back(Connection{ connected[j]->parent()->id(), connected[j]->conId(), id(), inputs()[i]->conId() }); }
     }
+  return connections;
+}
+std::vector<Node::Connection> Node::getOutputConnections()
+{
+  std::vector<Connection> connections;
+  for(int i = 0; i < outputs().size(); i++)
+    {
+      std::vector<ConnectorBase*> connected = outputs()[i]->getConnected();
+      for(int j = 0; j < connected.size(); j++)
+        { connections.push_back(Connection{ id(), outputs()[i]->conId(), connected[j]->parent()->id(), connected[j]->conId() }); }
+    }
+  return connections;
+}
+std::vector<Node::Connection> Node::getConnections()
+{
+  std::vector<Connection> connections  = getInputConnections();
+  std::vector<Connection> oConnections = getOutputConnections();
+  connections.insert(connections.end(), oConnections.begin(), oConnections.end());
+  return connections;
+}
+
+void Node::disconnectAll()
+{
+  for(auto c : inputs())  { c->disconnectAll(); }
+  for(auto c : outputs()) { c->disconnectAll(); }
 }
 
 void Node::drawConnections(ImDrawList *drawList)
@@ -246,6 +279,7 @@ void Node::drawConnections(ImDrawList *drawList)
   BeginDraw();
   {
     ImDrawList *winDrawList = nullptr;
+    
     // over output child
     if(mOutputs.size() > 0)
       {
@@ -260,26 +294,33 @@ void Node::drawConnections(ImDrawList *drawList)
       {
         ImGui::BeginChild(("nodeInputs"+std::to_string(id())).c_str());
         winDrawList = ImGui::GetWindowDrawList();
-        for(auto con : mInputs)  { con->drawConnections(winDrawList); }
+        for(auto con : mInputs) { con->drawConnections(winDrawList); }
         ImGui::EndChild();
       }
+
+    // over parent window (TODO: find path through node rects via orthogonal lines)
+    for(auto con : mOutputs) { con->drawConnections(drawList); }
+    for(auto con : mInputs)  { con->drawConnections(drawList); }
+  
     // over node window
-    float borderW = 1.0f;
-    if(mActive)        { borderW = NODE_ACTIVE_BORDER_W; }
-    else if(mSelected) { borderW = NODE_SELECTED_BORDER_W; }
-    else if(mHover)    { borderW = NODE_HIGHLIGHTED_BORDER_W; }
-    else               { borderW = NODE_DEFAULT_BORDER_W; }
-    Rect2f borderRect = rect().expanded(borderW);
-    ImGui::PushClipRect(borderRect.p1, borderRect.p2, false);
     winDrawList = ImGui::GetWindowDrawList();
+    // over parent window
+    for(auto con : mOutputs) { con->drawConnections(winDrawList); }
+    for(auto con : mInputs)  { con->drawConnections(winDrawList); }
+    
+    // draw border
+    float borderW = 1.0f;
+    if(mActive)        { borderW = NODE_ACTIVE_BORDER_W;      }
+    else if(mSelected) { borderW = NODE_SELECTED_BORDER_W;    }
+    else if(mHover)    { borderW = NODE_HIGHLIGHTED_BORDER_W; }
+    else               { borderW = NODE_DEFAULT_BORDER_W;     }
+    Rect2f borderRect = rect().expanded(borderW*2.0f);
+    ImGui::PushClipRect(borderRect.p1, borderRect.p2, false);
     for(auto con : mOutputs) { con->drawConnections(winDrawList); }
     for(auto con : mInputs)  { con->drawConnections(winDrawList); }
     ImGui::PopClipRect();
   }
   EndDraw();
-  // over provided window
-  for(auto con : mOutputs) { con->drawConnections(drawList); }
-  for(auto con : mInputs)  { con->drawConnections(drawList); }
 }
 
 bool Node::isConnecting() const
@@ -289,39 +330,43 @@ bool Node::isConnecting() const
   return false;
 }
 
-void Node::BeginDraw()
+bool Node::BeginDraw()
 {
-  ImGuiWindowFlags wFlags = (ImGuiWindowFlags_NoDecoration | ImGuiWindowFlags_NoMove);
-  ImGui::PushStyleVar(ImGuiStyleVar_FramePadding, NODE_PADDING);
-  ImGui::PushStyleVar(ImGuiStyleVar_ItemSpacing, NODE_PADDING);
-  ImGui::PushStyleVar(ImGuiStyleVar_ChildRounding, NODE_ROUNDING);
-  ImGui::PushStyleVar(ImGuiStyleVar_ChildBorderSize, 0.0f);
-  ImGui::PushStyleColor(ImGuiCol_Border, Vec4f(1,0,0,0));
-  Vec2f childSize(std::max(size().x, mMinSize.x), std::max(size().y, mMinSize.y));
-  ImGui::BeginChild((name()+" ("+std::to_string(id())+")").c_str(), childSize, false, wFlags);
-  ImGui::PopStyleColor();
-  ImGui::PopStyleVar(4);
+  if(!mDrawing)
+    {
+      ImGuiWindowFlags wFlags = (ImGuiWindowFlags_NoDecoration | ImGuiWindowFlags_NoMove);
+      ImGui::PushStyleVar(ImGuiStyleVar_FramePadding, NODE_PADDING);
+      ImGui::PushStyleVar(ImGuiStyleVar_ItemSpacing, NODE_PADDING);
+      ImGui::PushStyleVar(ImGuiStyleVar_ChildRounding, NODE_ROUNDING);
+      ImGui::PushStyleVar(ImGuiStyleVar_ChildBorderSize, 0.0f);
+      ImGui::PushStyleColor(ImGuiCol_Border, Vec4f(1,0,0,0));
+      Vec2f childSize(std::max(size().x, mMinSize.x), std::max(size().y, mMinSize.y));
+      if(ImGui::BeginChild((name()+" ("+std::to_string(id())+")").c_str(), childSize, false, wFlags))
+        { mDrawing = true; }
+      ImGui::PopStyleColor();
+      ImGui::PopStyleVar(4);
+    }
+  return mDrawing;
 }
 
 void Node::EndDraw()
 {
   ImGui::EndChild();
+  mDrawing = false;
 }
 
 bool Node::draw(ViewSettings *settings, bool blocked)
 {
   ImGui::SetNextWindowPos(pos()+mGraph->getCenter());
-  // ImGui::PushClipRect(mGraph->viewPos(), mGraph->viewSize(), false);
-  ImGuiIO &io = ImGui::GetIO();
-  BeginDraw();
+  if(BeginDraw() || mFirstFrame)
   {
     // draw background
     ImGui::GetWindowDrawList()->AddRectFilled(rect().p1+mGraph->getCenter(), rect().p2+mGraph->getCenter(),
                                               ImColor(settings->nodeBgColor), NODE_ROUNDING);
     // draw border
-    float borderW = 1.0f;
+    float  borderW = 1.0f;
     Rect2f borderRect = rect() + mGraph->getCenter();
-    Vec4f borderColor(1.0f, 1.0f, 1.0f, 1.0f);
+    Vec4f  borderColor(1.0f, 1.0f, 1.0f, 1.0f);
     if(mActive)
       {
         borderW     = NODE_ACTIVE_BORDER_W;
@@ -342,13 +387,13 @@ bool Node::draw(ViewSettings *settings, bool blocked)
         borderW     = NODE_DEFAULT_BORDER_W;
         borderColor = NODE_DEFAULT_BORDER_COLOR;
       }
-    borderRect.expand(borderW);
-    ImGui::PushClipRect(borderRect.p1, borderRect.p2, false);
+    Rect2f clipRect = borderRect.expanded(borderW);
+    ImGui::PushClipRect(clipRect.p1, clipRect.p2, false);
     ImGui::GetWindowDrawList()->AddRect(borderRect.p1, borderRect.p2, ImColor(borderColor), NODE_ROUNDING+borderW/2.0f, ImDrawCornerFlags_All, borderW);
     ImGui::PopClipRect();
     
     mActive = false;
-    mHover = false;
+    mHover  = false;
     
     ImGui::BeginGroup();
     {
@@ -359,26 +404,46 @@ bool Node::draw(ViewSettings *settings, bool blocked)
           ImGui::SetCursorPos(Vec2f(ImGui::GetCursorPos()) + Vec2f(0.0f, NODE_PADDING.y));
         }
       else // add padding for node body
-        { ImGui::SetCursorPos(NODE_PADDING + ImGui::GetCursorPos()); }
-      
+        { ImGui::SetCursorPos(Vec2f(ImGui::GetCursorPos()) + NODE_PADDING); }
+
+      ImGui::PushStyleVar(ImGuiStyleVar_FramePadding, NODE_PADDING);
       ImGui::BeginGroup();
       {
         ImGui::Text("ID: %d", id());
-        onDraw();
-        // mActive |= ImGui::IsItemActive();
+        ImGuiWindowFlags bodyFlags = (ImGuiWindowFlags_NoDecoration | ImGuiWindowFlags_NoScrollWithMouse);
+        Vec2f bodySize = Vec2f(std::max(mBodySize.x, mMinSize.x), std::max(mBodySize.y, mMinSize.y));
+        if(ImGui::BeginChild("##bodyChild", bodySize, false, bodyFlags))
+          {
+            ImGui::BeginGroup();
+            ImGui::PopStyleVar();
+            onDraw();
+            ImGui::EndGroup();
+            mBodySize = Vec2f(ImGui::GetItemRectMax()) - ImGui::GetItemRectMin();
+            mBodySize = Vec2f(std::max(mBodySize.x, mMinSize.x), std::max(mBodySize.y, mMinSize.y));
+            ImGui::SetWindowSize(mBodySize);
+          }
+        else { ImGui::PopStyleVar(); }
+        ImGui::EndChild();
       }
       ImGui::EndGroup();
-      // mActive |= ImGui::IsItemActive();
-
-      ImGui::SameLine();
+      
       if(mOutputs.size() > 0)
-        { // remove node padding
-          ImGui::SetCursorPos(Vec2f(ImGui::GetCursorPos()) - Vec2f(0.0f, NODE_PADDING.y));
+        {
+          ImGui::SameLine();
+          ImGui::SetCursorPos(Vec2f(ImGui::GetCursorPos()) - Vec2f(0.0f, NODE_PADDING.y)); // remove node padding
           ImGui::BeginGroup(); DrawOutputs(); ImGui::EndGroup();
         }
     }
     ImGui::EndGroup();
-    setSize(Vec2f(ImGui::GetItemRectMax()) - Vec2f(ImGui::GetItemRectMin()) + Vec2f(0.0f, NODE_PADDING.y));
+    
+    // calculate size
+    Vec2f windowSize = Vec2f(ImGui::GetItemRectMax()) - Vec2f(ImGui::GetItemRectMin());
+    windowSize = Vec2f(std::max(mMinSize.x, windowSize.x), std::max(mMinSize.y, windowSize.y)); // no less than minimum size
+    setSize(windowSize + Vec2f((mOutputs.size() == 0 ? NODE_PADDING.x : 0.0f), NODE_PADDING.y));
+    
+    ImGuiWindowFlags bodyFlags = (ImGuiWindowFlags_NoDecoration | ImGuiWindowFlags_NoScrollWithMouse);
+    ImGui::BeginChild("##bodyChild", mBodySize, false, bodyFlags); ImGui::EndChild();
+
     mActive = ImGui::IsItemActive();
     mHover  = !blocked && (ImGui::IsItemHovered() || ImGui::IsWindowHovered(ImGuiHoveredFlags_ChildWindows));
 
@@ -389,14 +454,12 @@ bool Node::draw(ViewSettings *settings, bool blocked)
           { mGraph->deselectAll(); }
         setSelected(true);
       }
-    else if(((!mHover && !mActive) || ImGui::IsMouseReleased(ImGuiMouseButton_Left)) ||
-            (!mHover && !mActive))// && (mGraph->isSelectedActive() || mGraph->isSelectedHovered())))
-      {
-        mClicked = false;
-      }
+    else if(((!mHover && !mActive) || ImGui::IsMouseReleased(ImGuiMouseButton_Left)) || (!mHover && !mActive))
+      { mClicked = false; }
     
+    ImGuiIO &io = ImGui::GetIO();
     if(!blocked && ImGui::IsMouseDragging(ImGuiMouseButton_Left) &&               // mouse drag --> move selected nodes
-       mSelected && (mDragging || mClicked) &&                 // only initiate node move when clicked
+       mSelected && (mDragging || mClicked) &&                                    // only initiate node move when clicked or already dragging
        !mGraph->isSelectedActive() &&                                             // don't move if interacting with ui element on node
        !mGraph->isSelecting() && !mGraph->isPanning() && !mGraph->isConnecting()) // don't move if selecting with rect or connecting nodes
       {
@@ -416,81 +479,66 @@ bool Node::draw(ViewSettings *settings, bool blocked)
 
 void Node::DrawInputs()
 {
-  Vec2f cursorPos  = ImGui::GetCursorPos();       // + CONNECTOR_PADDING; // save cursor position
-  Vec2f canvasPos  = ImGui::GetCursorScreenPos(); // + CONNECTOR_PADDING;
-  Vec2f canvasSize = ImGui::GetContentRegionAvail();
-
-  Vec2f contentMin = ImGui::GetWindowContentRegionMin();
-  Vec2f contentMax = ImGui::GetContentRegionMax();
-
-  ImDrawList* window_draw = ImGui::GetWindowDrawList();
-
-  if(mInputs.size() == 0)
-    {
-      mInputsSize = Vec2f(0,0);
-      return;
-    }
+  if(mInputs.size() == 0) { mInputsSize = Vec2f(0,0); return; } // no inputs -- don't create child
   
   // draw inputs
+  Vec2f canvasPos  = ImGui::GetCursorScreenPos();
+  Vec2f canvasSize = ImGui::GetContentRegionAvail();
+  Vec2f childSize  = Vec2f(CONNECTOR_SIZE.x, (CONNECTOR_PADDING.y+CONNECTOR_SIZE.y)*mInputs.size());
+  ImGui::PushStyleVar(ImGuiStyleVar_FramePadding, CONNECTOR_PADDING);
   ImGui::BeginGroup();
-  ImGui::BeginChild(("nodeInputs"+std::to_string(id())).c_str(), 2.0f*CONNECTOR_PADDING + Vec2f(CONNECTOR_SIZE.x,(CONNECTOR_PADDING.y+CONNECTOR_SIZE.y)*mInputs.size()));
+  if(ImGui::BeginChild(("nodeInputs"+std::to_string(id())).c_str(), childSize+2.0f*CONNECTOR_PADDING, false) || mFirstFrame)
   {
     for(int i = 0; i < mInputs.size(); i++)
       {
-        ImGui::SetCursorPos(CONNECTOR_PADDING + Vec2f(0.0f, (CONNECTOR_PADDING.y+CONNECTOR_SIZE.y)*i));
+        ImGui::SetCursorPos(Vec2f(ImGui::GetCursorPos()) + CONNECTOR_PADDING);
         mInputs[i]->draw();
       }
   }
   ImGui::EndChild();
   ImGui::EndGroup();
-      
+  ImGui::PopStyleVar();
+  mInputsSize = Vec2f(ImGui::GetItemRectMax()) - Vec2f(ImGui::GetItemRectMin());
+  
   // draw input separator
   if(mInputs.size() > 0)
     {
       Vec2f p1 = canvasPos + Vec2f(CONNECTOR_SIZE.x + 2.0f*CONNECTOR_PADDING.x, CONNECTOR_PADDING.y);
       Vec2f p2 = Vec2f(p1.x, canvasPos.y + canvasSize.y-CONNECTOR_PADDING.y);
-      window_draw->AddLine(p1, p2, ImColor(1.0f, 1.0f, 1.0f, 0.5f), 1.0f);
+      ImGui::GetWindowDrawList()->AddLine(p1, p2, ImColor(1.0f, 1.0f, 1.0f, 0.5f), 1.0f);
     }
 }
 
 void Node::DrawOutputs()
 {
-  Vec2f cursorPos  = ImGui::GetCursorPos(); // save cursor position
+  if(mOutputs.size() == 0) { mOutputsSize = Vec2f(0,0); return; } // no outputs -- don't create child
+  
+  // draw outputs
   Vec2f canvasPos  = ImGui::GetCursorScreenPos();
   Vec2f canvasSize = ImGui::GetContentRegionAvail();
-
-  Vec2f contentMin = ImGui::GetWindowContentRegionMin();
-  Vec2f contentMax = ImGui::GetContentRegionMax();
-
-  ImDrawList* window_draw = ImGui::GetWindowDrawList();
-  
-  if(mOutputs.size() == 0)
-    {
-      mOutputsSize = Vec2f(0,0);
-      return;
-    }
-
+  Vec2f childSize  = Vec2f(CONNECTOR_SIZE.x, (CONNECTOR_PADDING.y+CONNECTOR_SIZE.y)*mOutputs.size());
+  ImGui::PushStyleVar(ImGuiStyleVar_FramePadding, CONNECTOR_PADDING);
   ImGui::BeginGroup();
-  ImGui::BeginChild(("nodeOutputs"+std::to_string(id())).c_str(), 2.0f*CONNECTOR_PADDING + Vec2f(CONNECTOR_SIZE.x, (CONNECTOR_PADDING.y+CONNECTOR_SIZE.y)*mOutputs.size()));
+  if(ImGui::BeginChild(("nodeOutputs"+std::to_string(id())).c_str(), childSize+2.0f*CONNECTOR_PADDING, false) || mFirstFrame)
   {
-    // draw outputs
     for(int i = 0; i < mOutputs.size(); i++)
       {
-        ImGui::SetCursorPos(CONNECTOR_PADDING + Vec2f(0.0f, (CONNECTOR_PADDING.y+CONNECTOR_SIZE.y)*i));
+        ImGui::SetCursorPos(Vec2f(ImGui::GetCursorPos()) + CONNECTOR_PADDING);
         mOutputs[i]->draw();
       }
   }
   ImGui::EndChild();
   ImGui::EndGroup();
+  ImGui::PopStyleVar();
+  mOutputsSize = Vec2f(ImGui::GetItemRectMax()) - Vec2f(ImGui::GetItemRectMin());
   
   // draw output separator
   if(mOutputs.size() > 0)
     {
       Vec2f p1 = canvasPos + Vec2f(0.0f, CONNECTOR_PADDING.y);
       Vec2f p2 = canvasPos + Vec2f(0.0f, canvasSize.y-CONNECTOR_PADDING.y);
-      window_draw->AddLine(p1, p2, ImColor(1.0f, 1.0f, 1.0f, 0.5f), 1.0f);
+      ImGui::GetWindowDrawList()->AddLine(p1, p2, ImColor(1.0f, 1.0f, 1.0f, 0.5f), 1.0f);
     }
-
 }
 
 std::map<std::string, std::string> Node::getSaveHeader(const std::string &saveStr)
@@ -526,7 +574,7 @@ std::string Node::toSaveString() const
   getSaveParams(params);
       
   std::ostringstream ss;
-  ss << "NODE { ";// << type() << ": " << std::quoted(mParams->name) << " " << id() << " " << mParams->pos;
+  ss << "NODE { ";
   for(auto &p : params)
     { ss << p.first << " : " << std::quoted(p.second) << ", "; }
   ss << "}";
@@ -555,11 +603,7 @@ std::string Node::fromSaveString(const std::string &saveStr)
           params.emplace(name, value);
         }
     } while(!name.empty() && name != "\n" && name.find("}") == std::string::npos && value.find("}") == std::string::npos);
-      
-  // erase current id
-  // if(mParams->id >= 0)
-  //   { ACTIVE_IDS.erase(mParams->id); }
-
+  
   // load stored values
   ss.str(params["nodeType"]); ss.clear();
   ss >> nodeType;
@@ -572,10 +616,5 @@ std::string Node::fromSaveString(const std::string &saveStr)
   Vec2f nextPos(params["nodePos"]);
   setPos(nextPos);
   setSaveParams(params);
-      
-  // check active id
-  // if(ACTIVE_IDS.count(mParams->id) > 0)
-  //   { std::cout << "WARNING: Overlapping Node ID! (fromSaveString()) --> " << mParams->id << "\n"; }
-  // ACTIVE_IDS.emplace(mParams->id);
   return "";
 }

@@ -14,8 +14,12 @@
 
 namespace astro
 {
-
-
+  // connector params
+#define CONNECTOR_SIZE     Vec2f(20.0f, 40.0f)
+#define CONNECTOR_PADDING  Vec2f(10.0f, 10.0f)
+#define CONNECTOR_PROTRUDE (Vec2f(CONNECTOR_SIZE.x/2,0) + Vec2f(CONNECTOR_PADDING.x,0) + Vec2f(16.0f, 0.0f)) // vector from connection center to start point
+#define CONNECTOR_ROUNDING 6.0f
+  // node params
 #define NODE_PADDING Vec2f(10.0f, 10.0f)
 #define NODE_ROUNDING 6.0f
 #define NODE_DEFAULT_BORDER_W 1.0f
@@ -24,25 +28,20 @@ namespace astro
 #define NODE_SELECTED_BORDER_COLOR Vec4f(1.0f, 1.0f, 1.0f, 1.0f)
 #define NODE_HIGHLIGHTED_BORDER_W 1.0f
 #define NODE_HIGHLIGHTED_BORDER_COLOR Vec4f(1.0f, 0.25f, 0.25f, 1.0f)
-  // (TEST) //
 #define NODE_ACTIVE_BORDER_W 1.0f
 #define NODE_ACTIVE_BORDER_COLOR Vec4f(0.25f, 0.25f, 1.0f, 1.0f)
-  ////////////
-#define NODE_TOP_Z 1000000.0f
-
   
-#define CONNECTOR_SIZE    Vec2f(20.0f, 40.0f)
-#define CONNECTOR_PADDING Vec2f(10.0f, 10.0f)
-#define CONNECTOR_ROUNDING 6.0f
+#define NODE_TOP_Z 1000000.0f // z value to bring a node to the top
 
+// direction of node connector (for now just input/output)
   enum Direction
     {
       CONNECTOR_INVALID = -1,
-      
       CONNECTOR_INPUT = 0,
       CONNECTOR_OUTPUT // TODO: refine input vs. output (bi-directional?)
     };
 
+  // forward declarations
   class Node;
   template<typename T> class Connector;
   class NodeGraph;
@@ -62,11 +61,12 @@ namespace astro
     
     std::vector<ConnectorBase*> mConnected;
 
-    void BeginDraw();
+    bool BeginDraw();
     void EndDraw();
     
   public:
     Vec2f screenPos;
+    Vec2f getProtrudePos() { return screenPos + (mDirection == CONNECTOR_INPUT ? -1.0f : 1.0f)*CONNECTOR_PROTRUDE; }
     
     ConnectorBase(std::string name="")
       : mName(name) { mThisPtr = this; }
@@ -125,13 +125,12 @@ namespace astro
         { ((Connector<T>*)mConnected[0])->mData = data; }
     }
   };
-
   
   // NODE //
   class Node
   {
   protected:
-    // base class for Node parameters (?)
+    // base class(?) for Node parameters
     struct Params
     {
       int         id = -1;
@@ -157,6 +156,8 @@ namespace astro
     
     // Vec2f mNextPos = Vec2f(0,0);  // node window pos
     Vec2f mMinSize = Vec2f(1,1);  // min size (to be set by child class)
+
+    bool mDrawing = false; // set to true by BeginDraw() if visible, set to false by EndDraw()
     
     std::vector<ConnectorBase*> mInputs;
     std::vector<ConnectorBase*> mOutputs;
@@ -169,7 +170,7 @@ namespace astro
 
     void DrawOutputs();
     void DrawInputs();
-    void BeginDraw();
+    bool BeginDraw();
     void EndDraw();
     
   public:
@@ -188,6 +189,10 @@ namespace astro
     Node(const Node &other);
     virtual ~Node();
     virtual std::string type() const = 0;
+
+    // set parent NodeGraph
+    void setGraph(NodeGraph *graph) { mGraph = graph; }
+    NodeGraph* getGraph() { return mGraph; }
     
     // Copies child class data to other node (must be same type)
     //  --> override in child class if data needs to be copied
@@ -195,38 +200,15 @@ namespace astro
     {
       if(other && (type() == other->type()))
         {
-          std::cout << "NAME: " << name() << ", SIZE: " << size() << ", MINSIZE: " << getMinSize() << ", POS: " << pos() << "\n";
+          std::cout << "COPYING NODE --> NAME: " << name() << ", SIZE: " << size() << ", MINSIZE: " << getMinSize() << ", POS: " << pos() << "\n";
           other->setName(name());
           other->setSize(size());
           other->setMinSize(getMinSize());
           other->setPos(pos());
-          // other->mSelected = mSelected;
-          // other->mClicked = mClicked;
-          // other->mHover = mHover;
-          // other->mActive = mActive;
-          // other->mDragging = mDragging;
           return true;
         }
       else { return false; }
-    }
-    
-    
-    // Copies child class flag data (for UI interaction) to other node (must be same type)
-    bool copyFlagsTo(Node *other)
-    {
-      if(other && (type() == other->type()))
-        {
-          other->mSelected = mSelected;
-          other->mClicked = mClicked;
-          other->mHover = mHover;
-          other->mActive = mActive;
-          other->mDragging = mDragging;
-          return true;
-        }
-      else { return false; }
-    }
-    
-    void setGraph(NodeGraph *graph) { mGraph = graph; }
+    }    
     
     static std::map<std::string, std::string> getSaveHeader(const std::string &saveStr);    
     std::string toSaveString() const;
@@ -246,40 +228,14 @@ namespace astro
     std::vector<ConnectorBase*>& inputs()              { return mInputs;  }
     const std::vector<ConnectorBase*>& inputs() const  { return mInputs;  }
 
-    std::vector<Connection> getInputConnections()
-    {
-      std::vector<Connection> connections;
-      for(int i = 0; i < inputs().size(); i++)
-        {
-          std::vector<ConnectorBase*> connected = inputs()[i]->getConnected();
-          for(int j = 0; j < connected.size(); j++)
-            { connections.push_back(Connection{ connected[j]->parent()->id(), connected[j]->conId(), id(), inputs()[i]->conId() }); }
-        }
-      return connections;
-    }
-    std::vector<Connection> getOutputConnections()
-    {
-      std::vector<Connection> connections;
-      for(int i = 0; i < outputs().size(); i++)
-        {
-          std::vector<ConnectorBase*> connected = outputs()[i]->getConnected();
-          for(int j = 0; j < connected.size(); j++)
-            { connections.push_back(Connection{ id(), outputs()[i]->conId(), connected[j]->parent()->id(), connected[j]->conId() }); }
-        }
-      return connections;
-    }
-    std::vector<Connection> getConnections()
-    {
-      std::vector<Connection> connections  = getInputConnections();
-      std::vector<Connection> oConnections = getOutputConnections();
-      connections.insert(connections.end(), oConnections.begin(), oConnections.end());
-      return connections;
-    }
+    std::vector<Connection> getInputConnections();
+    std::vector<Connection> getOutputConnections();
+    std::vector<Connection> getConnections();
 
-    void disconnectAll() { for(auto c : inputs()) { c->disconnectAll(); } for(auto c : outputs()) { c->disconnectAll(); } }
+    void disconnectAll();
     bool isConnecting() const;
-    bool isSelected() const { return mSelected; }
-    void setSelected(bool selected, bool stopDragging = false);
+    bool isSelected() const         { return mSelected; }
+    void setSelected(bool selected) { mSelected = selected; }
 
     bool isActive() const   { return mActive; }
     bool isHovered() const  { return mHover; }
@@ -292,11 +248,12 @@ namespace astro
     void setRect(const Rect2f &r) { mParams->rect = r; }
     void setPos(const Vec2f &p);
     void setSize(const Vec2f &s)  { mParams->rect.setSize(s); }
-    const Rect2f& rect() const { return mParams->rect; }
-    const Vec2f& pos() const   { return mParams->rect.p1; }
-    Vec2f size() const         { return mParams->rect.size(); }
-    const float& getZ() const  { return mParams->z; }
-    float& getZ()              { return mParams->z; }
+    
+    const Rect2f& rect() const    { return mParams->rect; }
+    const Vec2f& pos() const      { return mParams->rect.p1; }
+    Vec2f size() const            { return mParams->rect.size(); }
+    float getZ() const            { return mParams->z; }
+    void setZ(float z) const      { mParams->z = z; }
 
     void drawConnections(ImDrawList *drawList);
     bool draw(ViewSettings *settings, bool blocked);

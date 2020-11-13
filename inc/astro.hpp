@@ -128,6 +128,55 @@ namespace astro
     double orb;
     Vec4f color;
   };
+
+  ///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+  // HOUSE SYSTEMS
+  ///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+  // The complete list of house methods in alphabetical order is:
+  // hsys =   ‘B’         Alcabitus
+  //          ‘Y’         APC houses
+  //          ‘X’         Axial rotation system / Meridian system / Zariel
+  //          ‘H’         Azimuthal or horizontal system
+  //          ‘C’         Campanus
+  //          ‘F’         Carter "Poli-Equatorial"
+  //          ‘A’ or ‘E’  Equal (cusp 1 is Ascendant)
+  //          ‘D’         Equal MC (cusp 10 is MC)
+  //          ‘N’         Equal/1=Aries
+  //          ‘G’         Gauquelin sector
+  //                       Goelzer -> Krusinski
+  //                       Horizontal system -> Azimuthal system
+  //          ‘I’         Sunshine (Makransky, solution Treindl)
+  //          ‘i’         Sunshine (Makransky, solution Makransky)
+  //          ‘K’         Koch
+  //          ‘U’         Krusinski-Pisa-Goelzer
+  //                      Meridian system -> axial rotation
+  //          ‘M’         Morinus
+  //                       Neo-Porphyry -> Pullen SD
+  //                       Pisa -> Krusinski
+  //          ‘P’         Placidus
+  //                       Poli-Equatorial -> Carter
+  //          ‘T’         Polich/Page (“topocentric” system)
+  //          ‘O’         Porphyrius
+  //          ‘L’         Pullen SD (sinusoidal delta) – ex Neo-Porphyry
+  //          ‘Q’         Pullen SR (sinusoidal ratio)
+  //          ‘R’         Regiomontanus
+  //          ‘S’         Sripati
+  //                       “Topocentric” system -> Polich/Page
+  //          ‘V’         Vehlow equal (Asc. in middle of house 1)
+  //          ‘W’         Whole sign
+  //                       Zariel -> Axial rotation system
+  ///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+  enum HouseSystem
+    { // TODO: explore more house systems
+      HOUSE_INVALID       = -1,
+      HOUSE_PLACIDUS      = 'P',
+      HOUSE_KOCH          = 'K',
+      HOUSE_PORPHYRIUS    = 'O',
+      HOUSE_REGIOMONTANUS = 'R',
+      HOUSE_CAMPANUS      = 'C',
+      HOUSE_EQUAL         = 'E', // or 'A'?
+      HOUSE_WHOLESIGN     = 'W',
+    };
   
   
   ////////////////////////////////////////////////////////////////////////////
@@ -145,14 +194,19 @@ namespace astro
   static const std::vector<std::string> SIGN_NAMES =
     { "aries", "taurus", "gemini", "cancer", "leo", "virgo",
       "libra", "scorpio", "sagittarius", "capricorn", "aquarius", "pisces" };
-
-  // static const std::vector<std::string> ASPECT_NAMES =
-  //   { "conjunction", "sextile", "square", "trine", "opposition",
-  //     "quincunx", "semisextile", "sesquiquadrate", "octile", "novile" };
-
   static const std::vector<std::string> ASPECT_NAMES =
     { "conjunction", "opposition", "square", "trine", "sextile", 
       "quincunx", "semisextile", "sesquiquadrate", "octile", "novile" };
+  
+  static std::map<HouseSystem, std::string> HOUSE_SYSTEM_NAMES =
+    {{ HOUSE_PLACIDUS,      "Placidus"},
+     { HOUSE_WHOLESIGN,     "Whole Sign"},
+     { HOUSE_EQUAL,         "Equal"},
+     { HOUSE_CAMPANUS,      "Campanus"},
+     { HOUSE_KOCH,          "Koch"},
+     { HOUSE_PORPHYRIUS,    "Porphyrius"},
+     { HOUSE_REGIOMONTANUS, "Regiomontanus"},
+    };
   
   static const std::vector<Vec4f> ELEMENT_COLORS =
     { Vec4f(1.0f, 0.2f, 0.2f, 0.8f),   // ELEMENT_FIRE
@@ -297,6 +351,19 @@ namespace astro
       { return "<UNKNOWN_ASPECT>"; }
   }
 
+  //// HOUSE SYSTEMS
+  inline std::string getHouseSystemName(HouseSystem hs)
+  { return HOUSE_SYSTEM_NAMES[hs]; }
+  inline HouseSystem getHouseSystem(const std::string &hsName)
+  {
+    for(const auto &iter : HOUSE_SYSTEM_NAMES)
+      {
+        if(iter.second == hsName)
+          { return iter.first; }
+      }
+    return HOUSE_INVALID;
+  }
+
   //// RULERSHIP
   inline std::string getRuler(int signIndex)
   {
@@ -325,7 +392,20 @@ namespace astro
   template<typename T>
   inline T angleDiffDegrees(T angle1, T angle2)
   { return static_cast<T>(180-std::abs(std::abs(angle2-angle1)-180)); }
-  
+
+  // tests if angleTest is between angle1 and angle2
+  template<typename T>
+  inline bool anglesContain(T angle1, T angle2, T angleTest)
+  {
+    if(angle2 < angle1) { angle2 += 2.0f*M_PI; }
+    return ((angleTest >= angle1 && angleTest < angle2) || (angleTest+2.0f*M_PI >= angle1 && angleTest+2.0f*M_PI < angle2));
+  }  
+  template<typename T>
+  inline bool anglesContainDegrees(T angle1, T angle2, T angleTest)
+  {
+    if(angle2 < angle1) { angle2 += 360.0f; }
+    return ((angleTest >= angle1 && angleTest < angle2) || (angleTest+360.0f >= angle1 && angleTest+360.0f < angle2));
+  }  
   ////////////////////////////////////////////////////////////////////////////
 
 

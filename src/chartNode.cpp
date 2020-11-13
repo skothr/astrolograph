@@ -35,7 +35,7 @@ ChartNode::~ChartNode()
 
 bool ChartNode::onDraw()
 {
-  ImGui::BeginGroup();
+  //ImGui::BeginGroup();
   {
     DateTime *dtIn = inputs()[CHARTNODE_INPUT_DATE]->get<DateTime>();
     Location *locIn = inputs()[CHARTNODE_INPUT_LOCATION]->get<Location>();
@@ -54,7 +54,6 @@ bool ChartNode::onDraw()
         else
           { mChart->setLocation(*locIn); }
       }
-    mChart->update(); // UPDATE (should be only one -- TODO: improve?)
     
     DateTime dt   = mChart->date();
     Location loc  = mChart->location();
@@ -64,10 +63,39 @@ bool ChartNode::onDraw()
     ImGui::Text("(jd_ET = %.6f)", julDay);
     ImGui::Text(loc.toString().c_str());
     ImGui::Spacing();
+
+    // ephemeris options
+    ImGuiTreeNodeFlags flags = 0;//ImGuiTreeNodeFlags_SpanAvailWidth;
+    ImGui::SetNextTreeNodeOpen(mOptionsOpen);
+    if(ImGui::CollapsingHeader("Options", nullptr, flags))
+      {
+        mOptionsOpen = true;
+        ImGui::TextUnformatted("House System: ");
+        ImGui::SameLine();
+        ImGui::SetNextItemWidth(150);
+        if(ImGui::BeginCombo("##houseSystem", getHouseSystemName(mChart->getHouseSystem()).c_str()))
+          {
+            // std::vector<HouseSystem> systems;
+            // for(auto hs : HOUSE_SYSTEM_NAMES) { systems.push_back(hs.first); }
+            // std::sort(systems.begin(), systems.end(),
+            //           [](const HouseSystem &hs1, const HouseSystem &hs2) { return getHouseSystemName(hs1) < getHouseSystemName(hs2); });
+            //for(auto hs : systems)
+              // {
+              //   if(ImGui::Selectable(getHouseSystemName(hs).c_str()))
+              //     { mChart->setHouseSystem(hs); }
+              // }
+            for(const auto &hs : HOUSE_SYSTEM_NAMES)
+              {
+                if(ImGui::Selectable(hs.second.c_str()))
+                  { mChart->setHouseSystem(hs.first); }
+              }
+            ImGui::EndCombo();
+          }
+      }
+    else { mOptionsOpen = false; }
   }
-  ImGui::EndGroup();
-  
-  // mChart->update();
+  //ImGui::EndGroup();
+  mChart->update(); // UPDATE (should be only one -- TODO: improve?)
   return true;
 }
 

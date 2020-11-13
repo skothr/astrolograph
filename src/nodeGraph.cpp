@@ -172,7 +172,11 @@ bool NodeGraph::loadFromFile(const std::string &path)
               ss >> io;   // always OUTPUT (TODO: ?)
               ss >> cId;  // output connector index
 
-              ConnectorBase *con = mNodes[nId]->outputs()[cId];
+              ConnectorBase *con = nullptr;
+              if(mNodes[nId]->outputs().size() > cId)
+                { con = mNodes[nId]->outputs()[cId]; }
+              else
+                { std::cout << "WARNING: Node connector missing! May be an old save file.\n"; continue; }
 
               std::cout << "SS: '" << ss.str() << "'\n";
 
@@ -263,6 +267,7 @@ void NodeGraph::clear()
   //Node::ACTIVE_IDS.clear();
   Node::NEXT_ID = 0;
   mSaveFile = "";
+  mCenter = Vec2f(0,0);
   mChangedSinceSave = false;
 }
 
@@ -374,7 +379,7 @@ void NodeGraph::deselect(const std::vector<Node*> &nodes)
 
 void NodeGraph::deselectAll()
 {
-  for(auto n : mNodes) { n.second->setSelected(false, false); }
+  for(auto n : mNodes) { n.second->setSelected(false); }
   // select background window
   // if(mDrawing) { ImGui::SetWindowFocus(); }
   // else         { ImGui::SetNextWindowFocus(); BeginDraw(); EndDraw(); }
@@ -403,9 +408,7 @@ std::vector<Node*> NodeGraph::makeCopies(const std::vector<Node*> &group, bool e
   for(auto n : group)
     {
       Node *newNode = makeNode(n->type());
-      // newNode->setid(Node::NEXT_ID++);
       n->copyTo(newNode);
-      // if(copyFlags) { n->copyFlagsTo(newNode); }
       newNode->setGraph(this);
       copies.push_back(newNode);
       oldToNew.emplace(n, newNode);
@@ -480,8 +483,6 @@ void NodeGraph::copySelected()
           n->setDragging(true);
           n->bringToFront();
           addNode(n, false);
-          // mNodes.emplace(n->id(), n);
-          // selectNode(n.second);
         }
       mClickCopied = true;
     }
@@ -601,11 +602,13 @@ void NodeGraph::draw()
     // reset click copy flag if mouse released
     if(ImGui::IsMouseReleased(ImGuiMouseButton_Left))
       { mClickCopied = false; }
-
     
     // move selected nodes to front
-    for(auto n : mNodes)
-      { if(n.second->isSelected()) { n.second->getZ() = NODE_TOP_Z; } }
+    if(!mSelecting)
+      {
+        for(auto n : mNodes)
+          { if(n.second->isSelected()) { n.second->bringToFront(); } }
+      }
     // sort nodes by z value
     std::vector<std::pair<int, Node*>> sorted(mNodes.begin(), mNodes.end());
     std::sort(sorted.begin(), sorted.end(),
@@ -613,7 +616,7 @@ void NodeGraph::draw()
               { return (n1.second->getZ() < n2.second->getZ()) || (n1.second->getZ() == n2.second->getZ() && n1.first < n2.first); });
     // clean up z ordering
     for(int i = 0; i < sorted.size(); i++)
-      { sorted[i].second->getZ() = (float)i; }
+      { sorted[i].second->setZ(i); }
 
     // block from front to back
     std::vector<bool> blocked(sorted.size(), false);
@@ -654,37 +657,42 @@ void NodeGraph::draw()
     Rect2f rect = Rect2f(mViewPos, mViewPos+mViewSize) - mCenter;
     
     // node selection/highlighting
-    if(ImGui::IsWindowHovered(ImGuiHoveredFlags_RootWindow) && ImGui::IsMouseClicked(ImGuiMouseButton_Left))
+    bool bgHover = ImGui::IsWindowHovered(ImGuiHoveredFlags_RootWindow);
+    bool lbClick = ImGui::IsMouseClicked(ImGuiMouseButton_Left);
+    bool mbClick = ImGui::IsMouseClicked(ImGuiMouseButton_Middle);
+
+    
+    if(bgHover)// && lbDown)
       {
-        if(ImGui::IsKeyDown(GLFW_KEY_LEFT_SHIFT))// && ImGui::IsMouseDragging(ImGuiMouseButton_Left))
+        if((ImGui::IsKeyDown(GLFW_KEY_LEFT_SHIFT) && lbClick) || mbClick)
           { // pan view center
+            std::cout << "MB DOWN: " << mbClick << "\n";
             mPanning = true;
             mPanClick = Vec2f(ImGui::GetMousePos());
-            ImGui::ResetMouseDragDelta();
+            ImGui::ResetMouseDragDelta(lbClick ? ImGuiMouseButton_Left : ImGuiMouseButton_Middle);
           }
-        else
+        else if(lbClick)
           {
             mSelecting = true;
-            mSelectAnchor = ImGui::GetMousePos();
+            mSelectAnchor = Vec2f(ImGui::GetMousePos());
             mSelectRect.p1 = mSelectAnchor;
             mSelectRect.p2 = mSelectAnchor;
             deselectAll();
           }
       }
-    
-    if(ImGui::IsMouseReleased(ImGuiMouseButton_Left))
+
+    bool lbUp = ImGui::IsMouseReleased(ImGuiMouseButton_Left);
+    bool mbUp = ImGui::IsMouseReleased(ImGuiMouseButton_Middle);
+    if(mSelecting && lbUp)
       {
-        if(mSelecting)
-          {
-            mSelecting = false;
-            mSelectAnchor = Vec2f(0,0);
-            mSelectRect.p1 = mSelectAnchor;
-            mSelectRect.p2 = mSelectAnchor;
-          }
-        else if(mPanning)
-          {
-            mPanning = false;
-          }
+        mSelecting = false;
+        mSelectAnchor = Vec2f(0,0);
+        mSelectRect.p1 = mSelectAnchor;
+        mSelectRect.p2 = mSelectAnchor;
+      }
+    else if(mPanning && (lbUp || mbUp))
+      {
+        mPanning = false;
       }
     
     if(mSelecting)
@@ -701,26 +709,25 @@ void NodeGraph::draw()
 
         for(auto n : mNodes)
           {
-            if(n.second->rect().intersects(mSelectRect))
+            if((n.second->rect()+mCenter).intersects(mSelectRect))
               { n.second->setSelected(true); }
             else
               { n.second->setSelected(false); }
           }
-     }
+      }
     else if(mPanning)
       { // pan view (shift+click+drag)
-        if(ImGui::IsMouseDragging(ImGuiMouseButton_Left))
+        bool lDrag = ImGui::IsMouseDragging(ImGuiMouseButton_Left);
+        bool mDrag = ImGui::IsMouseDragging(ImGuiMouseButton_Middle);
+        if(lDrag || mDrag)
           {
-            Vec2f dpos = ImGui::GetMouseDragDelta(ImGuiMouseButton_Left);
-            mCenter += dpos;
-            ImGui::ResetMouseDragDelta();
-            std::cout << "MCENTER: " << mCenter << "\n";
-            
+            mCenter += ImGui::GetMouseDragDelta(lDrag ? ImGuiMouseButton_Left : ImGuiMouseButton_Middle);
+            ImGui::ResetMouseDragDelta(lDrag ? ImGuiMouseButton_Left : ImGuiMouseButton_Middle);
           }
-     } 
+      }
     
     // right click menu (alternative to keyboard for adding new nodes)
-    if(ImGui::BeginPopupContextVoid("nodeGraphContext"))
+    if(ImGui::BeginPopupContextWindow("nodeGraphContext"))
       {
         if(ImGui::MenuItem("Cut"))   { cut(); }
         if(ImGui::MenuItem("Copy"))  { copy(); }
@@ -739,8 +746,8 @@ void NodeGraph::draw()
                             if(ImGui::MenuItem(nIter->second.name.c_str()))
                               {
                                 Node *n = nIter->second.get();
-                                deselectAll();
-                                addNode(n, false);
+                                n->setPos(Vec2f(ImGui::GetMousePos()) - mCenter);
+                                addNode(n, true);
                               }
                           }
                       }

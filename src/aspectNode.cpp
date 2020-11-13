@@ -20,11 +20,12 @@ bool AspectNode::onDraw()
 {
   bool changed = false;
   Chart *chart = inputs()[ASPECTNODE_INPUT_CHART]->get<Chart>();
-  ImGuiTreeNodeFlags flags = ImGuiTreeNodeFlags_SpanAvailWidth | ImGuiTreeNodeFlags_DefaultOpen | ImGuiTreeNodeFlags_FramePadding;
+  ImGuiTreeNodeFlags flags = ImGuiTreeNodeFlags_SpanAvailWidth | ImGuiTreeNodeFlags_FramePadding | ImGuiTreeNodeFlags_Framed;
   
-  ImGui::BeginGroup();
+  //ImGui::BeginGroup();
   {
     // aspect list
+    ImGui::SetNextItemWidth(384);
     ImGui::SetNextTreeNodeOpen(mListOpen);
     if(ImGui::CollapsingHeader("aspectList", nullptr, flags) && chart)
       {
@@ -77,7 +78,6 @@ bool AspectNode::onDraw()
       }
     else
       { mListOpen = false; }
-
     
     // aspect settings/orbs
     ImGui::SetNextTreeNodeOpen(mOrbsOpen);
@@ -129,7 +129,7 @@ bool AspectNode::onDraw()
     else
       { mOrbsOpen = false; }
   }
-  ImGui::EndGroup();
+  //ImGui::EndGroup();
   
   return true;
 }

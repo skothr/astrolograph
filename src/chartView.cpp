@@ -119,7 +119,7 @@ void ChartView::renderHouses(Chart *chart, const ViewParams &params, ImDrawList 
     {
       float angle1 = chart->swe().getHouseCusp(i);                    // this house's cusp
       float angle2 = chart->swe().getHouseCusp((i < 12 ? (i+1) : 1)); // next house's cusp
-      float houseSize = astro::angleDiffDegrees(angle2, angle1);         // angular size of house
+      float houseSize = astro::angleDiffDegrees(angle2, angle1);      // angular size of house
 
       // house cusp line
       float angle = screenAngle(chart, angle1);
@@ -131,23 +131,24 @@ void ChartView::renderHouses(Chart *chart, const ViewParams &params, ImDrawList 
       draw_list->AddLine(pobj, pa, ImColor(Vec4f(0.7f, 0.7f, 0.7f, 0.5f)), 1.5f);
       // painter->drawLine(LineDesc{pe, pi, 1.5f, Vec4f(0.25f, 0.25f, 0.25f, 1.0f)}); //, Vec4f(1.0f, 1.0f, 1.0f, 1.0f), 2);
 
-      // inner house number text (NOTE: removed)
+      // inner house number text (NOTE: removed -- too messy. Add option in future?)
       float tAngle = screenAngle(chart, (angle1 + houseSize/2.0f)); // center angle of house
       Vec2f tSize = ImGui::CalcTextSize(std::to_string(i).c_str());
       Vec2f tp = cc + (params.eRadius+numOffset)*Vec2f(cos(tAngle), -sin(tAngle)) - tSize/2.0f;
       std::stringstream ss; ss << i;
-      
       // ImGui::SetCursorScreenPos(tp);
       // ImGui::TextColored(Vec4f(0.7f, 0.7f, 0.7f, 0.7f), ss.str().c_str());
 
       // outer house number text
       tAngle = screenAngle(chart, angle1); // angle of house cusp
-      tp = cc + (params.oRadius + numOffset)*Vec2f(cos(tAngle), -sin(tAngle)) - tSize/2.0f;// - Vec2f(8.0f, 8.0f);
+      tp = cc + (params.oRadius + numOffset)*Vec2f(cos(tAngle), -sin(tAngle));// - Vec2f(8.0f, 8.0f);
       
-      draw_list->AddCircle(tp + tSize/2.0f, ocRadius, ImColor(Vec4f(0.7f, 0.7f, 0.7f, 0.7f)), 12, 1.0f);
+      draw_list->AddCircle(tp, ocRadius, ImColor(Vec4f(0.7f, 0.7f, 0.7f, 0.7f)), 12, 1.0f);
       
-      ImGui::SetCursorScreenPos(tp);
+      ImGui::SetCursorScreenPos(tp - tSize/2.0f);
       ImGui::TextColored(Vec4f(0.7f, 0.7f, 0.7f, 0.7f), ss.str().c_str());
+      ImGui::SetCursorScreenPos(tp - Vec2f(ocRadius,ocRadius));
+      ImGui::InvisibleButton("##hitbox", Vec2f(ocRadius,ocRadius)*2.0f);
       if(ImGui::IsItemHovered())
         {
           ImGui::BeginTooltip();
@@ -169,31 +170,42 @@ void ChartView::renderHouses(Chart *chart, const ViewParams &params, ImDrawList 
                            ImColor(ELEMENT_COLORS[getSignElement(hSign)]), ImColor(Vec4f(0,0,0,0)));
               ImGui::TableNextColumn();
               ImGui::TextUnformatted(angle_string(angle1 - chart->swe().getSignCusp(hSign), true, false).c_str());
+
               // contained objects
-              for(auto obj : chart->objects())
+              std::vector<ChartObject*> inHouse;
+              for(int i2 = OBJ_SUN; i2 < OBJ_COUNT; i2++) // (angles already at house cusps)
                 {
+                  ChartObject *obj = chart->getObject((ObjType)i2);
                   int hi = chart->swe().getHouse(obj->angle);
-                  if(hi == i)
-                    {
-                      ImGui::TableNextRow();
-                      ImGui::TableSetColumnIndex(0);
-                      // object name
-                      std::string oName = getObjName(obj->type);
-                      ImGui::TextUnformatted((oName+"  ").c_str());
-                      ImGui::TableNextColumn();
-                      // object symbol
-                      ChartImage *oImg = getWhiteImage(oName);
-                      Vec4f oColor = getObjColor(oName);
-                      ImGui::Image((ImTextureID)oImg->texId, Vec2f(20.0f, 20.0f), t0, t1, oColor, ImColor(Vec4f(0,0,0,0)));
-                      ImGui::TableNextColumn();
-                      // object angle
-                      ImGui::TextUnformatted(angle_string(obj->angle - chart->swe().getHouseCusp(i), true, false).c_str());
-                    }
+                  if(hi == i) { inHouse.push_back(obj); }
                 }
+
+              std::sort(inHouse.begin(), inHouse.end(),
+                        [angle1](ChartObject *obj1, ChartObject *obj2) -> bool
+                        { return (angleDiffDegrees(obj1->angle, (double)angle1) < angleDiffDegrees(obj2->angle, (double)angle1)); });
+
+              for(auto obj : inHouse)
+                {
+                  ImGui::TableNextRow();
+                  ImGui::TableSetColumnIndex(0);
+                  // object name
+                  std::string oName = getObjName(obj->type);
+                  ImGui::TextUnformatted((oName+"  ").c_str());
+                  ImGui::TableNextColumn();
+                  // object symbol
+                  ChartImage *oImg = getWhiteImage(oName);
+                  Vec4f oColor = getObjColor(oName);
+                  ImGui::Image((ImTextureID)oImg->texId, Vec2f(20.0f, 20.0f), t0, t1, oColor, ImColor(Vec4f(0,0,0,0)));
+                  ImGui::TableNextColumn();
+                  // object angle
+                  double houseAngle = obj->angle - chart->swe().getHouseCusp(i);
+                  if(houseAngle < 0.0) { houseAngle += 360.0; }
+                  ImGui::TextUnformatted(angle_string(houseAngle, true, false).c_str());
+                }
+              ImGui::EndTable();
             }
-            ImGui::EndTable();
+            ImGui::EndTooltip();
           }
-          ImGui::EndTooltip();
         }
     }
 }
@@ -227,14 +239,31 @@ void ChartView::renderAngles(Chart *chart, const ViewParams &params, ImDrawList 
               // sign symbol
               ImGui::SameLine();
               double oAngle = chart->swe().getAngle((ObjType)a);
-              int oSign = chart->swe().getSign(oAngle);
+              int    oSign = chart->swe().getSign(oAngle);
+              double oDegree = oAngle - chart->swe().getSignCusp(oSign);
               ChartImage *sImg = getWhiteImage(getSignName(oSign));
-              Vec4f sColor = ELEMENT_COLORS[getSignElement(oSign)];
+              Vec4f  sColor = ELEMENT_COLORS[getSignElement(oSign)];
+              
               ImGui::Image((ImTextureID)sImg->texId, Vec2f(20.0f, 20.0f), t0, t1, ImColor(sColor), borderCol);
               // angle
               ImGui::SameLine();
-              double aAngle = chart->swe().getAngle((ObjType)a);
-              ImGui::Text("%s", angle_string(aAngle - chart->swe().getSignCusp(chart->swe().getSign(aAngle)), false).c_str());
+              ImGui::Text("%s", angle_string(oAngle - chart->swe().getSignCusp(chart->swe().getSign(oAngle)), false).c_str());
+
+              if(ImGui::GetIO().KeyAlt) // ALT --> show inside degrees text
+                {
+                  // display inside degrees text underneath
+                  ImGui::Spacing();
+                  int iDegree = (int)std::floor(oDegree);
+                  ImGui::Text("%s:%d -- %s", getSignName(oSign).c_str(), iDegree+1, Chart::getInsideDegreeTextShort(oSign, iDegree).c_str());
+                        
+                  if(ImGui::GetIO().KeyShift) // ALT+SHIFT --> show long text
+                    {
+                      // display inside degrees text underneath
+                      int iDegree = (int)std::floor(oDegree);
+                      ImGui::TextWrapped("Explanation: %s", Chart::getInsideDegreeTextLong(oSign, iDegree).c_str());
+                    }
+                }
+              
               ImGui::EndTooltip();
             }
           if(chart->objects()[getObjId(name)-ANGLE_OFFSET+OBJ_COUNT]->focused)
@@ -618,15 +647,16 @@ void ChartView::renderObjects(Chart *chart, int level, const ViewParams &params,
               ImGui::PopStyleVar();
               
               bool hover = ImGui::IsItemHovered();
+              bool focused = false;
               if(hover)
                 {
                   double oAngle = chart->objects()[i]->angle;
-                  int oSign = chart->swe().getSign(oAngle);
+                  int    oSign = chart->swe().getSign(oAngle);
+                  double oDegree = oAngle - chart->swe().getSignCusp(oSign);
                   ChartImage *sImg = getWhiteImage(getSignName(oSign));
-                  Vec4f sColor = ELEMENT_COLORS[getSignElement(oSign)];
+                  Vec4f  sColor = ELEMENT_COLORS[getSignElement(oSign)];
                   color = Vec4f(sColor.x, sColor.y, sColor.z, sColor.w);
 
-                  double oDegree = oAngle - chart->swe().getSignCusp(oSign);
                   
                   ImGui::BeginTooltip();
                   {
@@ -661,20 +691,18 @@ void ChartView::renderObjects(Chart *chart, int level, const ViewParams &params,
                             int iDegree = (int)std::floor(oDegree);
                             ImGui::TextWrapped("Explanation: %s", Chart::getInsideDegreeTextLong(oSign, iDegree).c_str());
                           }
-
-                      }                    
+                      }
                   }
                   ImGui::EndTooltip();
-
-                  mFocusObjects[i] = ImGui::GetIO().KeyShift; // focus when shift key held
-                }
-              else
-                {
-                  mFocusObjects[i] = chart->objects()[i]->focused;
+                  focused = ImGui::GetIO().KeyShift; // focus when shift key held
                 }
 
               // set focus
-              chart->setObjFocus((ObjType)i, mFocusObjects[i]);
+              if(mFocusObjects[i] == chart->objects()[i]->focused)
+                {
+                  mFocusObjects[i] = focused;
+                  chart->setObjFocus((ObjType)i, mFocusObjects[i]);
+                }
               
               
               if(chart->objects()[i]->focused)

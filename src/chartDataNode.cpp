@@ -8,13 +8,13 @@ using namespace astro;
 
 
 ChartDataNode::ChartDataNode()
-  : Node(CONNECTOR_INPUTS(), CONNECTOR_OUTPUTS(), "Chart Data Node")
+  : Node(CONNECTOR_INPUTS(), CONNECTOR_OUTPUTS(), "Chart Data Node"),
+    mShowObjects(OBJ_COUNT + ANGLE_END-ANGLE_OFFSET, false),
+    mFocusObjects(OBJ_COUNT + ANGLE_END-ANGLE_OFFSET, false)
 {
   setMinSize(Vec2f(880, 0));
   for(int o = OBJ_SUN; o < OBJ_COUNT; o++) // start with objects visible
-    { mObjVisible.push_back(true); }
-  for(int a = ANGLE_OFFSET; a < ANGLE_END; a++) // start with angles invisible
-    { mObjVisible.push_back(false); }
+    { mShowObjects[o] = true; }
 }
 
 ChartDataNode::~ChartDataNode()
@@ -25,9 +25,9 @@ bool ChartDataNode::onDraw()
   bool changed = false;
   Chart *chart = inputs()[DATANODE_INPUT_CHART]->get<Chart>();
 
-  ImGuiTreeNodeFlags flags = (ImGuiTreeNodeFlags_SpanAvailWidth | ImGuiTreeNodeFlags_OpenOnArrow | ImGuiTreeNodeFlags_FramePadding);
+  ImGuiTreeNodeFlags flags = (ImGuiTreeNodeFlags_SpanAvailWidth | ImGuiTreeNodeFlags_FramePadding);// | ImGuiTreeNodeFlags_OpenOnArrow);
   
-  ImGui::BeginGroup();
+  //ImGui::BeginGroup();
   {
     // Angle Data
     ImGui::SetNextTreeNodeOpen(mAngOpen);
@@ -48,29 +48,32 @@ bool ChartDataNode::onDraw()
         ImGuiIO& io = ImGui::GetIO();
         astro::Ephemeris &swe = chart->swe();
             
-        for(int o = ANGLE_OFFSET; o < ANGLE_END; o++)
+        for(int a = ANGLE_OFFSET; a < ANGLE_END; a++)
           {
-            double angle = swe.getAngle((ObjType)o);
-            std::string name = getObjName((astro::ObjType)o);
+            double angle = swe.getAngle((ObjType)a);
+            std::string name = getObjName((astro::ObjType)a);
                 
             ChartImage *img = getWhiteImage(name);
             Vec4f color = getObjColor(name);
             ImVec4 tintCol = ImVec4(color.x, color.y, color.z, color.w);
 
-            mObjVisible[OBJ_COUNT+o-ANGLE_OFFSET] = chart->getObject((ObjType)o)->visible;
-            bool checked = mObjVisible[OBJ_COUNT+o-ANGLE_OFFSET];
+            mShowObjects[OBJ_COUNT+a-ANGLE_OFFSET] = chart->getObject((ObjType)a)->visible;
+            bool checked = mShowObjects[OBJ_COUNT+a-ANGLE_OFFSET];
             ImGui::Checkbox(("##show-"+name).c_str(), &checked);
-            chart->showObject((ObjType)o, checked);
+            chart->showObject((ObjType)a, checked);
 
             ImGui::SetNextItemWidth(symSize+10.0f);
             ImGui::SameLine(); ImGui::Image((ImTextureID)img->texId, ImVec2(symSize, symSize), ImVec2(0,0), ImVec2(1,1), tintCol, ImVec4(0,0,0,0));
             bool hover = ImGui::IsItemHovered();
             if(hover) { ImGui::SetTooltip((name + " - " + angle_string(angle)).c_str()); }
-                
-            if(hover && io.KeyShift) // focus on this object when SHIFT+hover
-              { chart->showObject((ObjType)o, true); chart->setObjFocus((ObjType)o, hover); }
-            else
-              { chart->setObjFocus((ObjType)o, false); }
+            
+            // set focus
+            bool focused = (hover && io.KeyShift); // focus on this object with SHIFT+hover
+            if(mFocusObjects[a] == chart->objects()[a]->focused)
+              {
+                mFocusObjects[a] = focused;
+                chart->setObjFocus((ObjType)a, mFocusObjects[a]);
+              }
             ImGui::NextColumn();
             ImGui::Text(angle_string(angle).c_str()); ImGui::NextColumn();
           }
@@ -108,8 +111,8 @@ bool ChartDataNode::onDraw()
             Vec4f color = getObjColor(name);
             ImVec4 tintCol = ImVec4(color.x, color.y, color.z, color.w);
 
-            mObjVisible[o] = chart->getObject((ObjType)o)->visible;
-            bool checked = mObjVisible[o];
+            mShowObjects[o] = chart->getObject((ObjType)o)->visible;
+            bool checked = mShowObjects[o];
             ImGui::Checkbox(("##show-"+name).c_str(), &checked);
             chart->showObject((ObjType)o, checked);
 
@@ -117,11 +120,18 @@ bool ChartDataNode::onDraw()
             ImGui::SameLine(); ImGui::Image((ImTextureID)img->texId, ImVec2(symSize, symSize), ImVec2(0,0), ImVec2(1,1), tintCol, ImVec4(0,0,0,0));
             bool hover = ImGui::IsItemHovered();
             if(hover) { ImGui::SetTooltip((name + " - " + angle_string(angle)).c_str()); }
-                
-            if(hover && io.KeyShift) // focus on this object when SHIFT+hover
-              { chart->showObject((ObjType)o, true); chart->setObjFocus((ObjType)o, hover); }
-            else
-              { chart->setObjFocus((ObjType)o, false); }
+            
+            // set focus
+            bool focused = (hover && io.KeyShift); // focus on this object with SHIFT+hover
+            if(mFocusObjects[o] == chart->objects()[o]->focused)
+              {
+                mFocusObjects[o] = focused;
+                chart->setObjFocus((ObjType)o, mFocusObjects[o]);
+              }
+            // if(hover && io.KeyShift) // focus on this object when SHIFT+hover
+            //   { chart->showObject((ObjType)o, true); chart->setObjFocus((ObjType)o, hover); }
+            // else
+            //   { chart->setObjFocus((ObjType)o, false); }
             ImGui::NextColumn();
                 
             ImGui::Text(angle_string(obj.latitude).c_str());       ImGui::NextColumn();
@@ -138,7 +148,7 @@ bool ChartDataNode::onDraw()
     else
       { mObjOpen = false; }
   }
-  ImGui::EndGroup();
+  //ImGui::EndGroup();
   
   return true;
 }

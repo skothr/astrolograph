@@ -20,10 +20,10 @@ namespace astro
     static std::vector<ConnectorBase*> CONNECTOR_INPUTS()
     { return {new Connector<Chart>("Chart Input")}; }
     static std::vector<ConnectorBase*> CONNECTOR_OUTPUTS()
-    { return {new Connector<Chart>("Chart Ouput (Copy)")}; }
+    { return {}; }//new Connector<Chart>("Chart Ouput (Copy)")}; }
 
     ChartView mView;
-    float mChartWidth = CHART_SIZE_DEFAULT;
+    float mChartWidth = (CHART_SIZE_MIN + CHART_SIZE_DEFAULT)/2.0f; // start halfways between minimum size and "default"
     // bool mProgressed = false;
     // bool mDaylightSavings = false;
 

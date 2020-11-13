@@ -197,18 +197,14 @@ int Ephemeris::getSign(double longitude) const
 // return number of the house containing the given ecliptic angle
 int Ephemeris::getHouse(double longitude) const
 {
-  for(int i = 1; i < 12; i++)
+  for(int i = 1; i <= 12; i++)
     {
       int ni = (i == 12 ? 1 : i+1);
       double h1 = getHouseCusp(i);
       double h2 = getHouseCusp(ni);
-      if(h2 < h1)
-        {
-          //if(longitude < h2) { longitude += 2.0*M_PI; }
-          h2 = h1 + angleDiff(h2, h1);
-        }
-      if(longitude >= h1 && longitude <= h2) { return i; }
+      if(anglesContainDegrees(h1, h2, longitude)) { return i; }
     }
+  return -1;
 }
 
 double Ephemeris::getSignCusp(int sign) const

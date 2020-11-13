@@ -56,6 +56,7 @@ namespace astro
     std::array<bool,   ASPECT_COUNT> mAspectVisible;
     
     Ephemeris mSwe;
+    HouseSystem mHouseSystem = HOUSE_PLACIDUS;
     bool mNeedUpdate = true;
     
   public:
@@ -68,7 +69,7 @@ namespace astro
 
     void setDate(const DateTime &dt);
     void setLocation(const Location &loc);
-    
+    void setHouseSystem(HouseSystem hs) { mHouseSystem = hs; mNeedUpdate = true; }
     void calcAspects();
     void update();
 
@@ -97,7 +98,8 @@ namespace astro
 
     const DateTime& date() const     { return mDate; }
     const Location& location() const { return mLocation; }
-    
+
+    HouseSystem getHouseSystem()     { return mHouseSystem; }
   };
   
 }
