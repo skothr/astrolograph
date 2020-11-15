@@ -27,10 +27,9 @@ ProgressNode::~ProgressNode()
   delete mChart;
 }
 
-
 bool ProgressNode::onDraw()
 {
-  ImGui::BeginGroup();
+  //ImGui::BeginGroup();
   {
     Chart *inChart = inputs()[PROGRESSNODE_INPUT_CHART]->get<Chart>();
     
@@ -50,7 +49,7 @@ bool ProgressNode::onDraw()
 
         ImGui::TextUnformatted(dtComp.toString().c_str());
         ImGui::Text(" -->  %s", dtProg.toString().c_str());
-        ImGui::Text(locComp.toString().c_str());
+        ImGui::TextUnformatted(locComp.toString().c_str());
         ImGui::Spacing();
 
         if(mChart->date() != dtProg)      { mChart->setDate(dtProg); }
@@ -58,7 +57,7 @@ bool ProgressNode::onDraw()
         mChart->update();
       }
   }
-  ImGui::EndGroup();
+  //ImGui::EndGroup();
   
   mChart->update();
   

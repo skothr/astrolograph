@@ -24,9 +24,11 @@
 
 
 // location of New York Stock Exchange (used as default coordinates)
-#define NYSE_LAT      40.706833333333 // degrees NORTH
-#define NYSE_LON     -74.011027777778 // degrees WEST
-#define NYSE_ALT      200.00000000000 // meters (approx.)
+#define NYSE_LAT      40.706833333333    // degrees NORTH
+#define NYSE_LON     -74.011027777778    // degrees WEST
+#define NYSE_ALT      200.00000000000    // meters (approx.)
+#define NYSE_TZNAME   "America/New_York" // NYSE timezone name
+#define NYSE_OFFSET   -5.0               // UTC offset
 
 namespace astro
 {
@@ -35,13 +37,13 @@ namespace astro
   // LOCATION -- defines a location with latitude, longitude, and altitude //
   struct Location
   {
-    double      latitude   = NYSE_LAT; // degrees (+N/-S)
-    double      longitude  = NYSE_LON; // degrees (+E/-W)
-    double      altitude   = NYSE_ALT; // meters
-    std::string timezoneId = "";       // timezone label
-    double      utcOffset  = 0.0;      // timezone UTC offset
+    double      latitude   = NYSE_LAT;    // degrees (+N/-S)
+    double      longitude  = NYSE_LON;    // degrees (+E/-W)
+    double      altitude   = NYSE_ALT;    // meters
+    std::string timezoneId = NYSE_TZNAME; // timezone label
+    double      utcOffset  = NYSE_OFFSET; // timezone UTC offset
     
-    Location() { }
+    Location();
     Location(const std::string &saveStr) { fromSaveString(saveStr); }
     Location(double lat, double lon, double alt);
     Location(const Location &other);

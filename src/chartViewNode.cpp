@@ -45,9 +45,9 @@ void ChartViewNode::processInput(Chart *chart)
       DateTime dt  = chart->date();
       Location loc = chart->location();
 
+      bool changed = false;
       if(delta != 0.0f)
         {
-          bool changed = false;
           // date/time scroll
           if(mEditYear)   { dt.setYear(  dt.year()   + delta); changed = true; }
           if(mEditMonth)  { dt.setMonth( dt.month()  + delta); changed = true; }
@@ -55,15 +55,13 @@ void ChartViewNode::processInput(Chart *chart)
           if(mEditHour)   { dt.setHour(  dt.hour()   + delta); changed = true; }
           if(mEditMinute) { dt.setMinute(dt.minute() + delta); changed = true; }
           if(mEditSecond) { dt.setSecond(dt.second() + delta); changed = true; }
-          if(changed) { chart->setDate(dt.fixed()); }
-          changed  = false;
+          chart->setDate(dt.fixed());
           
           // location
           if(mEditLat)      { loc.latitude  += delta; changed = true; }
           else if(mEditLon) { loc.longitude += delta; changed = true; }
           else if(mEditAlt) { loc.altitude  += delta; changed = true; }
-          if(changed) { chart->setLocation(loc.fixed()); }
-          changed = false;
+          chart->setLocation(loc.fixed());
         }
         
       // ESCAPE -- reset to current time
@@ -71,7 +69,10 @@ void ChartViewNode::processInput(Chart *chart)
         {
           DateTime resetDate = DateTime::now();
           chart->setDate(resetDate);
+          changed = true;
         }
+      // if(changed)
+      //   { inputs()[CHARTVIEWNODE_INPUT_CHART]->setReset(true); }
     }
 }
 
@@ -85,27 +86,26 @@ bool ChartViewNode::onDraw()
   //  ImGui::BeginGroup();
   {
     // size of chart
-    ImGui::Text("Chart Size:  ");
+    ImGui::TextUnformatted("Chart Size:  ");
     ImGui::SameLine();
     ImGui::SetNextItemWidth(360);
     ImGui::SliderFloat("##chartWidth", &mChartWidth, CHART_SIZE_MIN, CHART_SIZE_MAX, "%.0f");
 
     if(chart)
-      {
-        // draw chart view
+      { // draw chart view
         mView.draw(chart, mChartWidth);
         processInput(chart);
         ImGui::Spacing();
         ImGui::Spacing();
         
         double tzOffset = chart->date().tzOffset();
-        ImGui::TextColored(ImColor(1.0f, 1.0f, 1.0f, 0.25f), (std::string("UTC")+(tzOffset >= 0 ? "+" : "")+to_string(tzOffset, 1)).c_str());
+        ImGui::TextColored(ImColor(1.0f, 1.0f, 1.0f, 0.25f), "UTC%s%.1f", (tzOffset >= 0 ? "+" : ""), tzOffset);
         
-        const DateTime &date  = chart->date();
+        const DateTime &date = chart->date();
         const Location &loc  = chart->location();
         
-        ImGui::Text(date.toString().c_str());
-        ImGui::Text(loc.toString().c_str());
+        ImGui::TextUnformatted(date.toString().c_str());
+        ImGui::TextUnformatted(loc.toString().c_str());
         // ImGui::Spacing();
       }
     else // draw empty chart

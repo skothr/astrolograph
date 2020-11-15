@@ -61,10 +61,10 @@ Chart::Chart(const DateTime &dt, const Location &loc)
   : mDate(dt), mLocation(loc)
 {
   for(int o = OBJ_SUN; o < OBJ_COUNT; o++)
-    { mObjects.push_back(new ChartObject{(ObjType)o, mSwe.getObjAngle((ObjType)o), true, false}); }
+    { mObjects.push_back(new ChartObject{(ObjType)o, 0.0, true, false}); }
 
   for(int o = ANGLE_OFFSET; o < ANGLE_END; o++)
-    { mObjects.push_back(new ChartObject{(ObjType)o, mSwe.getObjAngle((ObjType)o), true, false}); }
+    { mObjects.push_back(new ChartObject{(ObjType)o, 0.0, true, false}); }
 
   for(int asp = ASPECT_CONJUNCTION; asp < ASPECT_COUNT; asp++)
     {
@@ -203,19 +203,80 @@ void Chart::update()
       mSwe.setLocation(mLocation);
       mSwe.setDate(mDate);
       mSwe.setHouseSystem(mHouseSystem);
+      mSwe.setSidereal(mSidereal);
+      mSwe.setTruePos(mTruePos);
       mSwe.calcHouses();
+      
+      mObjectData.clear();
       for(int i = 0; i < mObjects.size(); i++)
         { // calc objects
           ObjType o = (ObjType)(OBJ_SUN + i);
           if(o >= OBJ_COUNT) { o = (ObjType)(o-OBJ_COUNT+ANGLE_OFFSET); } // correct for angles
           ChartObject *obj = mObjects[i];
-          ObjData data = mSwe.getObjData((ObjType)o);
-          float angle = mSwe.getObjAngle((ObjType)o);
-          // float rAngle = screenAngle(angle);
-          // Vec2f v = Vec2f(cos(rAngle), -sin(rAngle));
-          obj->angle = angle;
+          mObjectData.push_back(mSwe.getObjData((ObjType)o));
+          obj->angle = mObjectData.back().longitude;
         }
+
+      if(mDraconic)
+        { // set aries 0-degrees to true node 
+          double nnAngle = mObjects[OBJ_NORTHNODE]->angle;
+          for(auto obj : mObjects)
+            { obj->angle =  fmod(obj->angle - nnAngle + 360.0, 360.0); }
+        }
+      
       calcAspects();
       mNeedUpdate = false;
     }
 }
+
+double Chart::getSingleAngle(ObjType obj)
+{
+  if(!mNeedUpdate)
+    { return getObject(obj)->angle; }
+  else
+    {
+      // update chart info (via Swiss Ephemeris wrapper)
+      mLocation.fix();
+      mDate.fix();
+      mSwe.setLocation(mLocation);
+      mSwe.setDate(mDate);
+      mSwe.setHouseSystem(mHouseSystem);
+      mSwe.setSidereal(mSidereal);
+      mSwe.setTruePos(mTruePos);
+      mSwe.calcHouses();
+      
+      return mSwe.getObjData(obj).longitude;
+    }
+}
+
+
+void Chart::setAspectOrb(AspectType asp, double orb)
+{
+  if(asp > ASPECT_INVALID && asp < ASPECT_COUNT)
+    {
+      mAspectOrbs[(int)asp] = orb;
+      mNeedUpdate = true;
+    }
+}
+void Chart::setAspectFocus(AspectType asp, bool focus)
+{
+  if(asp > ASPECT_INVALID && asp < ASPECT_COUNT)
+    {
+      mAspectFocus[(int)asp] = focus;
+      mNeedUpdate = true;
+    }
+}
+void Chart::setAspectVisible(AspectType asp, bool visible)
+{
+  if(asp > ASPECT_INVALID && asp < ASPECT_COUNT)
+    {
+      mAspectVisible[(int)asp] = visible;
+      mNeedUpdate = true;
+    }
+}
+double Chart::getAspectOrb(AspectType asp)
+{ return ((asp > ASPECT_INVALID && asp < ASPECT_COUNT) ? mAspectOrbs[(int)asp]   : -1.0); }
+bool Chart::getAspectFocus(AspectType asp)
+{ return (asp > ASPECT_INVALID && asp < ASPECT_COUNT) ? mAspectFocus[(int)asp]   : false; }
+bool Chart::getAspectVisible(AspectType asp)
+{ return (asp > ASPECT_INVALID && asp < ASPECT_COUNT) ? mAspectVisible[(int)asp] : false; }

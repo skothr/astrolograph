@@ -39,58 +39,70 @@ bool ChartNode::onDraw()
   {
     DateTime *dtIn = inputs()[CHARTNODE_INPUT_DATE]->get<DateTime>();
     Location *locIn = inputs()[CHARTNODE_INPUT_LOCATION]->get<Location>();
+    
+    // bool chartReset = outputs()[CHARTNODE_OUTPUT_CHART]->needsReset();
 
     if(dtIn && *dtIn != mChart->date())
       {
-        if(mChart->changed())
-          { *dtIn = mChart->date(); }
+        if(mChart->changed())// || chartReset)
+          {
+            *dtIn = mChart->date();
+            //outputs()[CHARTNODE_OUTPUT_CHART]->setReset(false);
+          }
         else
           { mChart->setDate(*dtIn); }
       }
     if(locIn && *locIn != mChart->location())
       {
-        if(mChart->changed())
-          { *locIn = mChart->location(); }
+        if(mChart->changed())// || chartReset)
+          {
+            *locIn = mChart->location();
+            //outputs()[CHARTNODE_OUTPUT_CHART]->setReset(false);
+          }
         else
           { mChart->setLocation(*locIn); }
       }
+    
     
     DateTime dt   = mChart->date();
     Location loc  = mChart->location();
     double julDay = mChart->swe().getJulianDayET(dt, loc, false);
 
-    ImGui::Text(dt.toString().c_str());
+    ImGui::TextUnformatted(dt.toString().c_str());
     ImGui::Text("(jd_ET = %.6f)", julDay);
-    ImGui::Text(loc.toString().c_str());
+    ImGui::TextUnformatted(loc.toString().c_str());
     ImGui::Spacing();
 
     // ephemeris options
-    ImGuiTreeNodeFlags flags = 0;//ImGuiTreeNodeFlags_SpanAvailWidth;
+    ImGuiTreeNodeFlags flags = ImGuiTreeNodeFlags_SpanAvailWidth;
     ImGui::SetNextTreeNodeOpen(mOptionsOpen);
     if(ImGui::CollapsingHeader("Options", nullptr, flags))
       {
         mOptionsOpen = true;
-        ImGui::TextUnformatted("House System: ");
+        ImGui::TextUnformatted("Houses    ");
         ImGui::SameLine();
         ImGui::SetNextItemWidth(150);
-        if(ImGui::BeginCombo("##houseSystem", getHouseSystemName(mChart->getHouseSystem()).c_str()))
+        HouseSystem hsCurrent = mChart->getHouseSystem();
+        if(ImGui::BeginCombo("##houseSystem", getHouseSystemName(hsCurrent).c_str()))
           {
-            // std::vector<HouseSystem> systems;
-            // for(auto hs : HOUSE_SYSTEM_NAMES) { systems.push_back(hs.first); }
-            // std::sort(systems.begin(), systems.end(),
-            //           [](const HouseSystem &hs1, const HouseSystem &hs2) { return getHouseSystemName(hs1) < getHouseSystemName(hs2); });
-            //for(auto hs : systems)
-              // {
-              //   if(ImGui::Selectable(getHouseSystemName(hs).c_str()))
-              //     { mChart->setHouseSystem(hs); }
-              // }
             for(const auto &hs : HOUSE_SYSTEM_NAMES)
               {
-                if(ImGui::Selectable(hs.second.c_str()))
+                if(ImGui::Selectable(((hs.first == hsCurrent ? "* " : "") + hs.second).c_str()))
                   { mChart->setHouseSystem(hs.first); }
               }
             ImGui::EndCombo();
           }
+
+        // sidereal/tropical system
+        ImGui::TextUnformatted("Zodiac    ");
+        int calcType = (mChart->getSidereal() ? 1 : 0);
+        ImGui::SameLine(); ImGui::TextUnformatted("Tropical"); ImGui::SameLine(); ImGui::RadioButton("##tropRB", &calcType, 0);
+        ImGui::SameLine(); ImGui::TextUnformatted("Sidereal"); ImGui::SameLine(); ImGui::RadioButton("##realRB", &calcType, 1);
+        
+        mChart->setSidereal(calcType == 1);
+        // draconic chart
+        bool draconic = mChart->getDraconic();
+        ImGui::TextUnformatted("Draconic  "); ImGui::SameLine(); if(ImGui::Checkbox("##drCheck", &draconic)) { mChart->setDraconic(draconic); }
       }
     else { mOptionsOpen = false; }
   }

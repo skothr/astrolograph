@@ -41,6 +41,14 @@ namespace astro
       CONNECTOR_OUTPUT // TODO: refine input vs. output (bi-directional?)
     };
 
+  enum NodeSignal
+    {
+      NODE_SIGNAL_INVALID = -1,
+      NODE_SIGNAL_NONE    = 0,
+      NODE_SIGNAL_RESET   = 0x01,
+      NODE_SIGNAL_CHANGED = 0x02,
+    };
+
   // forward declarations
   class Node;
   template<typename T> class Connector;
@@ -55,7 +63,7 @@ namespace astro
     Node          *mParent  = nullptr;
     int            mConId   = -1;      // index of this connector in parent node
     std::string    mName;
-    bool           mNeedReset  = false;
+    NodeSignal     mSignals    = NODE_SIGNAL_NONE;
     bool           mConnecting = false;
     Direction      mDirection  = CONNECTOR_INVALID;
     
@@ -65,8 +73,8 @@ namespace astro
     void EndDraw();
     
   public:
-    Vec2f screenPos;
-    Vec2f getProtrudePos() { return screenPos + (mDirection == CONNECTOR_INPUT ? -1.0f : 1.0f)*CONNECTOR_PROTRUDE; }
+    Vec2f graphPos;
+    Vec2f getProtrudePos() { return graphPos + (mDirection == CONNECTOR_INPUT ? -1.0f : 1.0f)*CONNECTOR_PROTRUDE; }
     
     ConnectorBase(std::string name="")
       : mName(name) { mThisPtr = this; }
@@ -93,10 +101,10 @@ namespace astro
     void beginConnecting()   { mConnecting = true; }
     void endConnecting()     { mConnecting = false; }
 
-    bool needsReset() { return mNeedReset; }
-    void reset(bool rs=true);
-    void draw();
-    void drawConnections(ImDrawList *drawList);
+    void sendSignal(NodeSignal signal);
+
+    void draw(bool blocked);
+    void drawConnections(ImDrawList *nodeDrawList, ImDrawList *graphDrawList);
   };
   
   // CONNECTOR //
@@ -146,16 +154,17 @@ namespace astro
 
     NodeGraph *mGraph  = nullptr; // parent node graph
     Params    *mParams = nullptr;
+    bool mFirstFrame   = true;    // true only on first frame
     bool mState        = true;    // state of node window (imgui)
-    bool mSelected     = false;   // 
-    bool mFirstFrame   = true;    // 
+    bool mChanged      = true;   // true if node has changed since last save
+    bool mSelected     = false;   // true of node is selected
     bool mClicked      = false;   // whether mouse has clicked node window (and is still down)
     bool mHover        = false;   // whether mouse is over node window (window background)
     bool mActive       = false;   // whether mouse is over node window (interactive ui element)
     bool mDragging     = false;   // whether mouse is dragging window
     
     // Vec2f mNextPos = Vec2f(0,0);  // node window pos
-    Vec2f mMinSize = Vec2f(1,1);  // min size (to be set by child class)
+    Vec2f mMinSize = Vec2f(1,1);     // min size (to be set by child class)
 
     bool mDrawing = false; // set to true by BeginDraw() if visible, set to false by EndDraw()
     
@@ -168,8 +177,26 @@ namespace astro
     virtual std::map<std::string, std::string>& getSaveParams(std::map<std::string, std::string> &params) const { return params; }
     virtual std::map<std::string, std::string>& setSaveParams(std::map<std::string, std::string> &params)       { return params; }
 
-    void DrawOutputs();
-    void DrawInputs();
+    float getBorderWidth() const
+    {
+      float borderW = NODE_DEFAULT_BORDER_W;
+      if(mActive)        { borderW = NODE_ACTIVE_BORDER_W;      }
+      else if(mSelected) { borderW = NODE_SELECTED_BORDER_W;    }
+      else if(mHover)    { borderW = NODE_HIGHLIGHTED_BORDER_W; }
+      return borderW;
+    }
+
+    Vec4f getBorderColor() const
+    {
+      Vec4f borderColor = NODE_DEFAULT_BORDER_COLOR;
+      if(mActive)        { borderColor = NODE_ACTIVE_BORDER_COLOR;      }
+      else if(mSelected) { borderColor = NODE_SELECTED_BORDER_COLOR;    }
+      else if(mHover)    { borderColor = NODE_HIGHLIGHTED_BORDER_COLOR; }
+      return borderColor;
+    }
+
+    void DrawOutputs(bool blocked);
+    void DrawInputs(bool blocked);
     bool BeginDraw();
     void EndDraw();
     
@@ -208,7 +235,10 @@ namespace astro
           return true;
         }
       else { return false; }
-    }    
+    }
+
+    bool hasChanged() const       { return mChanged; }
+    void setChanged(bool changed) { mChanged = changed; }
     
     static std::map<std::string, std::string> getSaveHeader(const std::string &saveStr);    
     std::string toSaveString() const;
@@ -220,7 +250,7 @@ namespace astro
     const std::string& name() const       { return mParams->name; }
     void setName(const std::string &name) { mParams->name = name; }
     
-    void notFirstFrame() { mFirstFrame = false; }
+    void setFirstFrame(bool firstFrame) { mFirstFrame = firstFrame; }
     void bringToFront();
     
     std::vector<ConnectorBase*>& outputs()             { return mOutputs; }
@@ -255,8 +285,8 @@ namespace astro
     float getZ() const            { return mParams->z; }
     void setZ(float z) const      { mParams->z = z; }
 
-    void drawConnections(ImDrawList *drawList);
-    bool draw(ViewSettings *settings, bool blocked);
+    void drawConnections(ImDrawList *graphDrawList);
+    bool draw(ViewSettings *settings, ImDrawList *graphDrawList, bool blocked);
   };
 }
 

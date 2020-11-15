@@ -12,6 +12,7 @@ namespace astro
 {
   //// node connector indices ////
   // inputs
+#define TIMENODE_INPUT_LOCATION   0
   // outputs
 #define TIMENODE_OUTPUT_DATE      0
   ////////////////////////////////
@@ -20,7 +21,7 @@ namespace astro
   {
   private:
     static std::vector<ConnectorBase*> CONNECTOR_INPUTS()
-    { return {}; }
+    { return {new Connector<Location>("Location Input (sets timezone)")}; }
     static std::vector<ConnectorBase*> CONNECTOR_OUTPUTS()
     { return {new Connector<DateTime>("Time Output")}; }
     

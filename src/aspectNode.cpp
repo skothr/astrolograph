@@ -31,7 +31,7 @@ bool AspectNode::onDraw()
       {
         mListOpen = true;
         // update aspect visiblity and count visible aspects
-        int visibleCount = 0;
+        long visibleCount = 0;
         for(int i = 0; i < chart->aspects().size(); i++)
           {
             mAspVisible[i] = chart->getAspectVisible(chart->aspects()[i].type);
@@ -39,7 +39,7 @@ bool AspectNode::onDraw()
               { visibleCount++; }
           }
         
-        ImGui::Text("Total count: %d (visible: %d)", chart->aspects().size(), visibleCount);
+        ImGui::Text("Total count: %d (visible: %d)", (int)chart->aspects().size(), (int)visibleCount);
         ImGui::Spacing(); ImGui::Separator(); ImGui::Spacing();
 
         ImGui::BeginChild("##listChild", Vec2f(384,512));
@@ -65,10 +65,10 @@ bool AspectNode::onDraw()
               ImGui::Spacing();
               ImGui::Text("%s", angle_string(asp.orb, true).c_str());
               {
-                ImGui::SameLine(); ImGui::Image((ImTextureID)getWhiteImage(o1Name)->texId, Vec2f(20,20), Vec2f(0,0), Vec2f(1,1), o1Color, Vec4f(0,0,0,0));
-                ImGui::SameLine(); ImGui::Image((ImTextureID)getImage(aName)->texId,       Vec2f(20,20), Vec2f(0,0), Vec2f(1,1), aColor,  Vec4f(0,0,0,0));
+                ImGui::SameLine(); ImGui::Image(getWhiteImage(o1Name)->id(), Vec2f(20,20), Vec2f(0,0), Vec2f(1,1), o1Color, Vec4f(0,0,0,0));
+                ImGui::SameLine(); ImGui::Image(getImage(aName)->id(),       Vec2f(20,20), Vec2f(0,0), Vec2f(1,1), aColor,  Vec4f(0,0,0,0));
                 draw_list->AddCircle(Vec2f(ImGui::GetCursorScreenPos())+Vec2f(164-14,-14), 20.0f*0.7f, ImColor(scaledColor), 6, 1);
-                ImGui::SameLine(); ImGui::Image((ImTextureID)getWhiteImage(o2Name)->texId, Vec2f(20,20), Vec2f(0,0), Vec2f(1,1), o2Color, Vec4f(0,0,0,0));
+                ImGui::SameLine(); ImGui::Image(getWhiteImage(o2Name)->id(), Vec2f(20,20), Vec2f(0,0), Vec2f(1,1), o2Color, Vec4f(0,0,0,0));
               }
               ImGui::SameLine(); ImGui::TextUnformatted(aName.c_str());
               ImGui::Spacing();
@@ -107,10 +107,10 @@ bool AspectNode::onDraw()
                 ImGui::TableSetColumnIndex(1);
                 Vec4f color = getAspect((AspectType)i)->color;
                 ChartImage *img = getImage(name);
-                ImGui::Image((ImTextureID)img->texId, Vec2f(20, 20), Vec2f(0,0), Vec2f(1,1), color, Vec4f(0,0,0,0));
+                ImGui::Image(reinterpret_cast<ImTextureID*>(img->texId), Vec2f(20, 20), Vec2f(0,0), Vec2f(1,1), color, Vec4f(0,0,0,0));
                 
                 ImGui::TableSetColumnIndex(2);
-                ImGui::Text(name.c_str());
+                ImGui::TextUnformatted(name.c_str());
           
                 ImGui::TableSetColumnIndex(3);
                 ImGui::SetNextItemWidth(120);

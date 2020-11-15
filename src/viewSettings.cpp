@@ -31,6 +31,51 @@ bool ViewSettings::checkExitPopup(bool hover)
     { return false; }
 }
 
+bool ViewSettings::colorSetting(const std::string &name, const std::string &id, Vec4f *color, bool busy)
+{
+  ImGuiWindowFlags wFlags = (ImGuiWindowFlags_AlwaysAutoResize |
+                             ImGuiWindowFlags_NoMove           |
+                             ImGuiWindowFlags_NoTitleBar       |
+                             ImGuiWindowFlags_NoResize );
+  ImGuiStyle& style = ImGui::GetStyle();
+  static Vec4f lastColor; // save previous color in case user cancels
+  std::string popupName = id + "popup";
+  std::string pickerName = id + "picker";
+  
+  // choose graph background color
+  ImGui::TextUnformatted(name.c_str());
+  ImGui::SameLine(mLabelColWidth);
+  if(ImGui::ColorButton((std::string("##")+id).c_str(), *color,
+                        ImGuiColorEditFlags_NoOptions|ImGuiColorEditFlags_DisplayRGB|ImGuiColorEditFlags_NoAlpha, ImVec2(20, 20)) && !busy)
+    {
+      style.Colors[ImGuiCol_ModalWindowDimBg] = ImVec4(0,0,0,0);
+      lastColor = *color;
+      ImGui::OpenPopup(popupName.c_str());
+    }
+  if(ImGui::BeginPopup(popupName.c_str(), wFlags))
+    {
+      busy = true;
+      if(!ImGui::ColorPicker4(pickerName.c_str(), color->data.data(), ImGuiColorEditFlags_NoSidePreview))
+        {
+          if(checkExitPopup(ImGui::IsWindowHovered(ImGuiHoveredFlags_RootWindow|ImGuiHoveredFlags_ChildWindows)))
+            {
+              *color = lastColor;
+              ImGui::CloseCurrentPopup();
+            }
+        }
+      if(ImGui::Button("Select") || ImGui::IsKeyPressed(GLFW_KEY_ENTER)) // selects color
+        { ImGui::CloseCurrentPopup(); }
+      ImGui::SameLine();
+      if(ImGui::Button("Cancel"))
+        {
+          *color = lastColor;
+          ImGui::CloseCurrentPopup();
+        }
+      ImGui::EndPopup();
+    }
+  return busy;
+}
+
 bool ViewSettings::draw()
 {
   ImGuiWindowFlags wFlags = (ImGuiWindowFlags_AlwaysAutoResize |
@@ -57,37 +102,12 @@ bool ViewSettings::draw()
       ImGui::BeginGroup();
       {
         ImGui::TextUnformatted("Node Graph");
-        static Vec4f lastColor; // save previous color in case user cancels
-        // choose graph background color
-        ImGui::TextUnformatted("Graph Background Color");
-        ImGui::SameLine();
-        if(ImGui::ColorButton("##current", graphBgColor, ImGuiColorEditFlags_NoOptions|ImGuiColorEditFlags_DisplayRGB|ImGuiColorEditFlags_NoAlpha, ImVec2(20, 20)))
-          {
-            style.Colors[ImGuiCol_ModalWindowDimBg] = ImVec4(0,0,0,0);
-            lastColor = graphBgColor;
-            ImGui::OpenPopup("bgPopup");
-          }
-        if(ImGui::BeginPopup("bgPopup", wFlags))
-          {
-            busy = true;
-            if(!ImGui::ColorPicker4("bgPicker", graphBgColor.data.data(), ImGuiColorEditFlags_NoSidePreview))
-              {
-                if(checkExitPopup(ImGui::IsWindowHovered(ImGuiHoveredFlags_RootWindow|ImGuiHoveredFlags_ChildWindows)))
-                  {
-                    graphBgColor = lastColor;
-                    ImGui::CloseCurrentPopup();
-                  }
-              }
-            if(ImGui::Button("Select") || ImGui::IsKeyPressed(GLFW_KEY_ENTER)) // selects color
-              { ImGui::CloseCurrentPopup(); }
-            ImGui::SameLine();
-            if(ImGui::Button("Cancel"))
-              {
-                graphBgColor = lastColor;
-                ImGui::CloseCurrentPopup();
-              }
-            ImGui::EndPopup();
-          }
+        busy |= colorSetting("Graph Background Color", "ngBgCol", &graphBgColor,   busy);
+        busy |= colorSetting("Graph Line Color",       "ngLnCol", &graphLineColor, busy);
+        busy |= colorSetting("Graph Axes Color",       "ngAxCol", &graphAxesColor, busy);
+        ImGui::Separator();
+        ImGui::TextUnformatted("Nodes");
+        busy |= colorSetting("Node Background Color",  "nBgCol",  &nodeBgColor,    busy);
       }
       ImGui::EndGroup();
 

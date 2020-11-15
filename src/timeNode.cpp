@@ -17,15 +17,16 @@ TimeNode::TimeNode(const DateTime &dt)
 
 bool TimeNode::onDraw()
 {
-  ImGui::BeginGroup();
+  //ImGui::BeginGroup();
   {
-    if(outputs()[TIMENODE_OUTPUT_DATE]->needsReset())
-      {
-        mWidget.set(mWidget.getSaved());
-        outputs()[TIMENODE_OUTPUT_DATE]->reset(false);
-      }
+    // if(outputs()[TIMENODE_OUTPUT_DATE]->needsReset())
+    //   {
+    //     mWidget.set(mWidget.getSaved());
+    //     outputs()[TIMENODE_OUTPUT_DATE]->setReset(false);
+    //   }
+
+    DateTime dt = mWidget.get();
  
-    DateTime dt = mWidget.get(); 
     ImGui::TextUnformatted(dt.toString().c_str());
     ImGui::SameLine();
     if(ImGui::Button(mLiveMode ? "PAUSE" : "LIVE"))
@@ -33,13 +34,20 @@ bool TimeNode::onDraw()
         mLiveMode = !mLiveMode;
         mWidget.setName("");
       }
+    
+    Location *locIn = inputs()[TIMENODE_INPUT_LOCATION]->get<Location>();
+    if(locIn)
+      {
+        dt.setTzOffset(locIn->utcOffset);
+        mWidget.set(dt);
+      }
   
     if(mLiveMode) // live time
       { mWidget.set(DateTime::now()); }
     else
       { mWidget.draw(); }
   }
-  ImGui::EndGroup();  
+  //ImGui::EndGroup();  
   return true;
 }
 
@@ -61,7 +69,7 @@ TimeSpanNode::TimeSpanNode(const DateTime &dtStart, const DateTime &dtEnd)
 
 bool TimeSpanNode::onDraw()
 {
-  ImGui::BeginGroup();
+  //ImGui::BeginGroup();
   {
     bool startConnected = false;
     bool endConnected = false;
@@ -176,7 +184,7 @@ bool TimeSpanNode::onDraw()
         ImGui::Text("  %s", dtEnd.toString().c_str());
       }
   }
-  ImGui::EndGroup();
+  //ImGui::EndGroup();
   
   return true;
 }

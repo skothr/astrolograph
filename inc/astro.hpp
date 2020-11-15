@@ -399,13 +399,16 @@ namespace astro
   {
     if(angle2 < angle1) { angle2 += 2.0f*M_PI; }
     return ((angleTest >= angle1 && angleTest < angle2) || (angleTest+2.0f*M_PI >= angle1 && angleTest+2.0f*M_PI < angle2));
-  }  
+  }
   template<typename T>
   inline bool anglesContainDegrees(T angle1, T angle2, T angleTest)
   {
     if(angle2 < angle1) { angle2 += 360.0f; }
     return ((angleTest >= angle1 && angleTest < angle2) || (angleTest+360.0f >= angle1 && angleTest+360.0f < angle2));
-  }  
+  }
+
+  // inline int diffDays(const DateTime &dt1, const DateTime &dt2) { }
+  
   ////////////////////////////////////////////////////////////////////////////
 
 
@@ -415,12 +418,14 @@ namespace astro
 #define SYMBOL_STYLE "light" // style of symbols  (light/dark)
 
   typedef unsigned int GLuint;
+  typedef void* ImTextureID;
   struct ChartImage
   {
     int    width    = 0;
     int    height   = 0;
     int    channels = 0;
     GLuint texId    = 0;
+    ImTextureID* id() const { return reinterpret_cast<ImTextureID*>(texId); }
   };
   
   bool loadSymbolImages(const std::string &resPath="./res");
@@ -433,12 +438,12 @@ namespace astro
   // celestial objects (planets, asteroids, comets, etc(?).)
   struct ObjData
   {
-    double longitude; // theta
-    double latitude;  // phi
-    double distance;  // radius
-    double lonSpeed; // dTheta
-    double latSpeed;  // dPhi
-    double distSpeed; // dRadius
+    double longitude = 0.0; // theta
+    double latitude  = 0.0; // phi
+    double distance  = 0.0; // radius
+    double lonSpeed  = 0.0; // dTheta
+    double latSpeed  = 0.0; // dPhi
+    double distSpeed = 0.0; // dRadius
   };
   
 }

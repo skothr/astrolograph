@@ -36,21 +36,21 @@ bool ChartDataNode::onDraw()
         mAngOpen = true;
         int symSize = 20;
         std::string headers[] = { "", "   LONGITUDE" };
-
+        
         ImGui::Columns(2, "data-table##angles", false);
         ImGui::SetColumnWidth(0, 2.0f*symSize+30.0f);
-
+        
         // column headers
         for(int i = 0; i < 2; i++)
-          { ImGui::Text(headers[i].c_str()); ImGui::NextColumn(); }
+          { ImGui::TextUnformatted(headers[i].c_str()); ImGui::NextColumn(); }
         ImGui::Separator();
-                
+        
         ImGuiIO& io = ImGui::GetIO();
         astro::Ephemeris &swe = chart->swe();
-            
+        
         for(int a = ANGLE_OFFSET; a < ANGLE_END; a++)
           {
-            double angle = swe.getAngle((ObjType)a);
+            double angle = chart->getObject((ObjType)a)->angle;//swe.getAngle((ObjType)a);
             std::string name = getObjName((astro::ObjType)a);
                 
             ChartImage *img = getWhiteImage(name);
@@ -63,9 +63,9 @@ bool ChartDataNode::onDraw()
             chart->showObject((ObjType)a, checked);
 
             ImGui::SetNextItemWidth(symSize+10.0f);
-            ImGui::SameLine(); ImGui::Image((ImTextureID)img->texId, ImVec2(symSize, symSize), ImVec2(0,0), ImVec2(1,1), tintCol, ImVec4(0,0,0,0));
+            ImGui::SameLine(); ImGui::Image(img->id(), ImVec2(symSize, symSize), ImVec2(0,0), ImVec2(1,1), tintCol, ImVec4(0,0,0,0));
             bool hover = ImGui::IsItemHovered();
-            if(hover) { ImGui::SetTooltip((name + " - " + angle_string(angle)).c_str()); }
+            if(hover) { ImGui::SetTooltip("%s - %s", name.c_str(), angle_string(angle).c_str()); }
             
             // set focus
             bool focused = (hover && io.KeyShift); // focus on this object with SHIFT+hover
@@ -75,7 +75,7 @@ bool ChartDataNode::onDraw()
                 chart->setObjFocus((ObjType)a, mFocusObjects[a]);
               }
             ImGui::NextColumn();
-            ImGui::Text(angle_string(angle).c_str()); ImGui::NextColumn();
+            ImGui::TextUnformatted(angle_string(angle).c_str()); ImGui::NextColumn();
           }
         ImGui::Columns(1);
       }
@@ -95,7 +95,7 @@ bool ChartDataNode::onDraw()
 
         // column headers
         for(int i = 0; i < 7; i++)
-          { ImGui::Text(headers[i].c_str()); ImGui::NextColumn(); }
+          { ImGui::TextUnformatted(headers[i].c_str()); ImGui::NextColumn(); }
         ImGui::Separator();
       
         ImGuiIO& io = ImGui::GetIO();
@@ -104,7 +104,7 @@ bool ChartDataNode::onDraw()
         for(int o = OBJ_SUN; o < OBJ_COUNT; o++)
           {
             astro::ObjData obj = swe.getObjData((astro::ObjType)o);
-            double angle = swe.getObjAngle((astro::ObjType)o);
+            double angle = obj.longitude;//swe.getObjAngle((astro::ObjType)o);
             std::string name = getObjName((astro::ObjType)o);
                 
             ChartImage *img = getWhiteImage(name);
@@ -117,9 +117,9 @@ bool ChartDataNode::onDraw()
             chart->showObject((ObjType)o, checked);
 
             ImGui::SetNextItemWidth(symSize+10.0f);
-            ImGui::SameLine(); ImGui::Image((ImTextureID)img->texId, ImVec2(symSize, symSize), ImVec2(0,0), ImVec2(1,1), tintCol, ImVec4(0,0,0,0));
+            ImGui::SameLine(); ImGui::Image(img->id(), ImVec2(symSize, symSize), ImVec2(0,0), ImVec2(1,1), tintCol, ImVec4(0,0,0,0));
             bool hover = ImGui::IsItemHovered();
-            if(hover) { ImGui::SetTooltip((name + " - " + angle_string(angle)).c_str()); }
+            if(hover) { ImGui::SetTooltip("%s - %s", name.c_str(), angle_string(angle).c_str()); }
             
             // set focus
             bool focused = (hover && io.KeyShift); // focus on this object with SHIFT+hover
@@ -134,12 +134,12 @@ bool ChartDataNode::onDraw()
             //   { chart->setObjFocus((ObjType)o, false); }
             ImGui::NextColumn();
                 
-            ImGui::Text(angle_string(obj.latitude).c_str());       ImGui::NextColumn();
-            ImGui::Text(angle_string(obj.longitude).c_str());      ImGui::NextColumn();
-            ImGui::Text((to_string(obj.distance)+" AU").c_str());  ImGui::NextColumn();
-            ImGui::Text(angle_string(obj.latSpeed).c_str());       ImGui::NextColumn();
-            ImGui::Text(angle_string(obj.lonSpeed).c_str());       ImGui::NextColumn();
-            ImGui::Text((to_string(obj.distSpeed)+" AU").c_str()); ImGui::NextColumn();
+            ImGui::TextUnformatted(angle_string(obj.latitude).c_str());       ImGui::NextColumn();
+            ImGui::TextUnformatted(angle_string(obj.longitude).c_str());      ImGui::NextColumn();
+            ImGui::TextUnformatted((to_string(obj.distance)+" AU").c_str());  ImGui::NextColumn();
+            ImGui::TextUnformatted(angle_string(obj.latSpeed).c_str());       ImGui::NextColumn();
+            ImGui::TextUnformatted(angle_string(obj.lonSpeed).c_str());       ImGui::NextColumn();
+            ImGui::TextUnformatted((to_string(obj.distSpeed)+" AU").c_str()); ImGui::NextColumn();
             if(o == OBJ_PLUTO) // separator after planets
               { ImGui::Separator(); }
           }

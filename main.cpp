@@ -7,7 +7,6 @@
 
 #include <GL/glew.h>
 #include <GLFW/glfw3.h>
-
 #include <string>
 #include <vector>
 
@@ -15,20 +14,8 @@
 #include "nodeGraph.hpp"
 #include "viewSettings.hpp"
 
-
-#include "chart.hpp"
-#include "chartView.hpp"
-#include "chartNode.hpp"
-#include "timeNode.hpp"
-#include "locationNode.hpp"
-#include "chartDataNode.hpp"
-#include "aspectNode.hpp"
-
-#include "date/tz.h"
-
 #define ENABLE_IMGUI_VIEWPORTS false
 #define ENABLE_IMGUI_DOCKING   false
-
 
 #define WINDOW_W    2400
 #define WINDOW_H    1600
@@ -186,6 +173,7 @@ int main(int argc, char* argv[])
 #endif // ENABLE_IMGUI_DOCKING
   
   // io.BackendFlags |= ImGuiBackendFlags_HasMouseCursors;  // (?)
+  io.BackendFlags |= ImGuiBackendFlags_RendererHasVtxOffset;
   // io.ConfigFlags |= ImGuiConfigFlags_NavEnableKeyboard; // Enable Keyboard Controls
 
   // imgui context init
@@ -214,8 +202,8 @@ int main(int argc, char* argv[])
       { GLFW_MOD_CONTROL,                GLFW_KEY_O,      [](){ graph->openLoadDialog(); } },   // CTRL+O       --> open file
       { GLFW_MOD_CONTROL,                GLFW_KEY_S,      [](){ graph->openSaveDialog(); } },   // CTRL+S       --> save file
       { GLFW_MOD_CONTROL|GLFW_MOD_SHIFT, GLFW_KEY_S,      [](){ graph->openSaveAsDialog(); } }, // CTRL+SHIFT+S --> save file as (rename)
-      { GLFW_MOD_CONTROL,                GLFW_KEY_ESCAPE, [&closing](){ closing = true; } },    // CTRL+ALT+Q   --> quit program
-      { GLFW_MOD_CONTROL|GLFW_MOD_ALT,   GLFW_KEY_V,      [&viewSettings](){ viewSettings.toggleWindow(); } },    // CTRL+ALT+V --> toggle view settings
+      { GLFW_MOD_CONTROL,                GLFW_KEY_ESCAPE, [](){ closing = true; } },            // CTRL+ALT+Q   --> quit program
+      { GLFW_MOD_ALT,                    GLFW_KEY_V,      [&viewSettings](){ viewSettings.toggleWindow(); } },    // CTRL+ALT+V --> toggle view settings
       //// Graph Control
       { GLFW_MOD_CONTROL, GLFW_KEY_X, [](){ graph->cut(); } },                          // CTRL+X       --> cut
       { GLFW_MOD_CONTROL, GLFW_KEY_C, [](){ graph->copy(); } },                         // CTRL+C       --> copy
@@ -267,27 +255,8 @@ int main(int argc, char* argv[])
       //// DRAWING ////
       bool settingsOpen = viewSettings.draw();
 
-
-      // // blank window over graph for drawing selection rect and other overlays
-      // ImGuiWindowFlags wFlags = (ImGuiWindowFlags_NoTitleBar        |
-      //                            ImGuiWindowFlags_NoCollapse        |
-      //                            ImGuiWindowFlags_NoMove            |
-      //                            ImGuiWindowFlags_NoScrollbar       |
-      //                            ImGuiWindowFlags_NoScrollWithMouse |
-      //                            ImGuiWindowFlags_NoResize          |
-      //                            ImGuiWindowFlags_NoSavedSettings   |
-      //                            ImGuiWindowFlags_NoBringToFrontOnFocus
-      //                            );
-      // ImGui::SetNextWindowPos(Vec2f(0.0f,0.0f));
-      // ImGui::SetNextWindowSize(frameSize);
-      // ImGui::PushStyleColor(ImGuiCol_WindowBg, Vec4f(1.0f, 0.0f, 0.0f, 1.0f));
-      // ImGui::PushStyleVar(ImGuiStyleVar_WindowRounding, 0); // square frames by default
-      // ImGui::PushStyleVar(ImGuiStyleVar_FrameRounding,  0);
-      // ImGui::PushStyleVar(ImGuiStyleVar_WindowPadding, Vec2f(0, 0));
-      // ImGui::Begin("mainWindow", 0, wFlags);
-      // ImGui::PopStyleVar();
       {
-        static const Vec2i framePadding(0,0);
+        static const Vec2i framePadding(50,50);
         Vec2i graphPos = Vec2i(0,0);
 #if ENABLE_IMGUI_VIEWPORTS
         ImGuiViewport *mainView = ImGui::GetMainViewport();
@@ -301,14 +270,10 @@ int main(int argc, char* argv[])
         graph->setSize(frameSize - 2*framePadding);
         graph->draw();
       }
-      // ImGui::End();
-      // ImGui::PopStyleVar(2);
-      // ImGui::PopStyleColor();
 
       // menu bar
       if(ImGui::BeginMainMenuBar())
         {
-          // ImGui::SetWindowFocus();
           if(ImGui::BeginMenu("File"))
             {
               if(ImGui::MenuItem("New"))     { graph->clear(); }
@@ -320,9 +285,9 @@ int main(int argc, char* argv[])
             }
           if(ImGui::BeginMenu("Edit"))
             {
-              // if(ImGui::MenuItem("Cut"))  { std::cout << "CUT -- TODO\n"; }
-              // if(ImGui::MenuItem("Copy")) { std::cout << "COPY -- TODO\n"; }
-              // if(ImGui::MenuItem("Paste")) { std::cout << "PASTE -- TODO\n"; }
+              if(ImGui::MenuItem("Cut"))   { graph->cut(); }
+              if(ImGui::MenuItem("Copy"))  { graph->copy(); }
+              if(ImGui::MenuItem("Paste")) { graph->paste(); }
               if(ImGui::BeginMenu("Add Node"))
                 {
                   for(const auto &gIter : astro::NodeGraph::NODE_GROUPS)

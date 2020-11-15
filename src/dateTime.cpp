@@ -3,9 +3,12 @@ using namespace astro;
 
 #include <chrono>
 #include <ctime>
+#include "date/tz.h"
 
 // static
 const std::array<int, 12> DateTime::MONTH_DAYS { 31, 28, 31, 30, 31, 30, 31, 31, 30, 31, 30, 31 }; // (non-leap years)
+const int DateTime::MAX_YEAR = 8000;
+const int DateTime::MIN_YEAR = -8000;
 
 int monthDays(int month)
 { return DateTime::MONTH_DAYS[month-1]; }
@@ -69,6 +72,21 @@ DateTime DateTime::correctDate(int year, int month, int day, int hour, int minut
   return DateTime(year, month, day, hour, minute, second);
 }
 
+float DateTime::diffDays(const DateTime &other)
+{
+  DateTime diff = (other - *this);
+  float ddays = 0.0f;
+
+  ddays += diff.year()*360.25f;
+  ddays += diff.month()*30;
+  ddays += diff.day();
+  ddays += diff.hour()/24.0f;
+  ddays += diff.minute()/24.0f/60.0f;
+  ddays += diff.second()/24.0f/60.0f/60.0f;
+  
+  return ddays;
+}
+
 DateTime DateTime::now()
 {
   auto current = std::chrono::system_clock::now();
@@ -85,7 +103,10 @@ DateTime DateTime::now()
   
   tm *local = localtime(&tt);
   DateTime d(local->tm_year + 1900, local->tm_mon + 1, local->tm_mday, local->tm_hour, local->tm_min, (double)local->tm_sec + (double)ms / 1000.0);
-  
+
+  auto zoned = date::make_zoned(date::current_zone(), current);
+  int offset = zoned.get_info().offset.count();
+  d.mTzOffset = ((double)offset) / 60.0/60.0;
   return d;
 }
 

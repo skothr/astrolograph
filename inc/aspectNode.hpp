@@ -28,6 +28,20 @@ namespace astro
     
     virtual bool onDraw() override;
     
+    virtual std::map<std::string, std::string>& getSaveParams(std::map<std::string, std::string> &params) const override
+    {
+      params.emplace("listOpen", (mListOpen ? "1" : "0"));
+      params.emplace("orbsOpen", (mOrbsOpen ? "1" : "0"));
+      return params;
+    };
+    
+    virtual std::map<std::string, std::string>& setSaveParams(std::map<std::string, std::string> &params) override
+    {
+      auto iter = params.find("listOpen"); if(iter != params.end()) { mListOpen = (iter->second != "0"); }
+      iter = params.find("orbsOpen"); if(iter != params.end()) { mOrbsOpen = (iter->second != "0"); }
+      return params;
+    };
+    
   public:
     AspectNode();
     virtual std::string type() const { return "AspectNode"; }

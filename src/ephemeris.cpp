@@ -17,7 +17,8 @@ const std::vector<int> Ephemeris::SWE_IDS = { SE_SUN, SE_MOON,
 
 Ephemeris::Ephemeris()
 {
-  swe_set_ephe_path(EPHEM_PATH);
+  char ephemPath[512] = EPHEM_PATH;
+  swe_set_ephe_path(ephemPath);
 }
 
 void Ephemeris::setDate(const DateTime &dt, bool daylightSavings)
@@ -97,67 +98,63 @@ DateTime Ephemeris::getProgressed(const DateTime &ndt, const Location &nloc, con
 }
 
 
-ObjData Ephemeris::getObjData(ObjType obj) const
+ObjData Ephemeris::getObjData(ObjType o) const
 {
   ObjData objData;
-
-  if(obj >= ANGLE_OFFSET)
+  if(o >= ANGLE_OFFSET)
     {
-      
+      objData.longitude = getAngle(o);
     }
   else
     {
-      char serr[AS_MAXCH];
-      //long iflag = SEFLG_SPEED | SEFLG_TOPOCTR | SEFLG_TRUEPOS;// | SEFLG_EQUATORIAL;// | SEFLG_TRUEPOS;
-  
-      int p = getSweIndex(obj);
+      int p = getSweIndex(o);
       if(p < 0) { return ObjData{}; }
 
       // set geographic position for calculations
       swe_set_topo(mLocation.longitude, mLocation.latitude, mLocation.altitude);
       
-      // swe calc
+      // calculate
       double data[6];
+      char serr[AS_MAXCH];
       long iflgret = swe_calc(mJulDay_et, p, mSweFlags, data, serr);
       if(iflgret < 0) { std::cout << "SWE ERROR: " << serr << "\n"; }
   
       objData = *reinterpret_cast<ObjData*>(data);
-  
-      if(obj == OBJ_SOUTHNODE)
+      if(o == OBJ_SOUTHNODE)
         { // calculate south lunar node from true node
-          objData.latitude  = fmod(objData.latitude+90.0, 180.0);
+          objData.latitude  *= -1; //fmod(objData.latitude+90.0, 180.0);
           objData.longitude = fmod(objData.longitude+180.0, 360.0);
           objData.latSpeed  *= -1;
-          objData.lonSpeed *= -1;
+          // objData.lonSpeed *= -1;
         }
     }
   return objData;
 }
 
-double Ephemeris::getObjAngle(ObjType obj) const
-{
-  if(obj >= ANGLE_OFFSET)
-    {
-      switch(obj)
-        {
-        case ANGLE_ASC:
-          return mAsc;
-        case ANGLE_DSC:
-          return mDsc;
-        case ANGLE_MC:
-          return mMc;
-        case ANGLE_IC:
-          return mIc;
-        default:
-          return -1.0;
-        }
-    }
-  else
-    {
-      ObjData data = getObjData(obj);
-      return data.longitude;
-    }
-}
+// double Ephemeris::getObjAngle(ObjType obj) const
+// {
+//   if(obj >= ANGLE_OFFSET)
+//     {
+//       switch(obj)
+//         {
+//         case ANGLE_ASC:
+//           return mAsc;
+//         case ANGLE_DSC:
+//           return mDsc;
+//         case ANGLE_MC:
+//           return mMc;
+//         case ANGLE_IC:
+//           return mIc;
+//         default:
+//           return -1.0;
+//         }
+//     }
+//   else
+//     {
+//       ObjData data = getObjData(obj);
+//       return data.longitude;
+//     }
+// }
 
 double Ephemeris::getAngle(ObjType angle) const
 {
@@ -187,9 +184,7 @@ void Ephemeris::calcHouses()
 }
 
 double Ephemeris::getHouseCusp(int house) const
-{
-  return mCusps[house];// + mAsc;
-}
+{ return mCusps[house]; }
 
 // return index of the sign containing the given ecliptic angle
 int Ephemeris::getSign(double longitude) const
@@ -214,7 +209,6 @@ double Ephemeris::getSignCusp(int sign) const
   else
     { return -1.0; }
 }
-
 
 double Ephemeris::getSignCusp(const std::string &name) const
 { return getSignCusp(getSignIndex(name)); }
@@ -249,7 +243,7 @@ void Ephemeris::printObjects(const astro::DateTime &dt, const astro::Location &l
   for(int o = OBJ_SUN; o < OBJ_COUNT; o++)
     {
       ObjData obj = getObjData((ObjType)o);
-      double angle = getObjAngle((ObjType)o);
+      double angle = obj.longitude;
       std::string name = getObjName((ObjType)o);
       std::cout << std::fixed << std::setprecision(6)
                 << "|" << std::setw(12) << name << " | " << std::setw(12) << angle << " | "

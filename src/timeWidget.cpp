@@ -29,6 +29,7 @@ TimeWidget& TimeWidget::operator=(const TimeWidget &other)
   mSavedDate = other.mSavedDate;
   sprintf(mName, "%s", other.mName);
   sprintf(mSavedName, "%s", other.mSavedName);
+  return *this;
 }
 
 
@@ -261,7 +262,7 @@ void TimeWidget::draw(const std::string &id)
         std::string sName = mName;
         if(mDate != mSavedDate)
           { sName = std::string("[") + mName + "]"; }
-        ImGui::TextColored(ImColor(1.0f, 1.0f, 1.0f, 0.5f), sName.c_str());
+        ImGui::TextColored(ImColor(1.0f, 1.0f, 1.0f, 0.5f), "%s", sName.c_str());
       }
 
     // display time zone
@@ -368,9 +369,6 @@ void TimeWidget::draw(const std::string &id)
     ImGui::SameLine(280);
     if(ImGui::Button(("Now##date"+id).c_str()))
       { mDate = DateTime::now(); }
-    
-    
-    ImGui::Spacing();
   }
   ImGui::EndGroup();
   mDate.fix();

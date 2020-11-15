@@ -7,8 +7,16 @@
 namespace astro
 {
   // global view settings -- controls interface to settings window (Menu: View->Settings)
-  struct ViewSettings
+  class ViewSettings
   {
+  private:
+
+    float mLabelColWidth = 256.0f;
+
+    // returns whether setting is busy being modified
+    bool colorSetting(const std::string &name, const std::string &id, Vec4f *color, bool busy);
+    
+  public:
     // Node Graph
     Vec4f graphBgColor     = Vec4f(0.05f, 0.05f, 0.05f,  1.0f);
     bool  drawGraphLines   = true;
@@ -20,6 +28,7 @@ namespace astro
     // Nodes
     Vec4f nodeBgColor      = Vec4f(0.20f, 0.20f, 0.20f,  1.0f);
     bool  mState           = false; // whether window is open
+    
     ViewSettings() { }
 
     bool checkExitPopup(bool hover);

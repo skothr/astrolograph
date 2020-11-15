@@ -45,10 +45,15 @@ namespace astro
     static bool mInsideDegreesLoaded;
     static bool loadInsideDegrees();
 
-    DateTime mDate;
-    Location mLocation;
+    DateTime    mDate;
+    Location    mLocation;
+    HouseSystem mHouseSystem = HOUSE_PLACIDUS;
+    bool        mSidereal    = false;
+    bool        mTruePos     = false;
+    bool        mDraconic    = false;
     
     std::vector<ChartObject*> mObjects;
+    std::vector<ObjData>      mObjectData;
     std::vector<Aspect>       mAspects;
     // global per-aspect params
     std::array<double, ASPECT_COUNT> mAspectOrbs;
@@ -56,7 +61,7 @@ namespace astro
     std::array<bool,   ASPECT_COUNT> mAspectVisible;
     
     Ephemeris mSwe;
-    HouseSystem mHouseSystem = HOUSE_PLACIDUS;
+    
     bool mNeedUpdate = true;
     
   public:
@@ -69,24 +74,32 @@ namespace astro
 
     void setDate(const DateTime &dt);
     void setLocation(const Location &loc);
-    void setHouseSystem(HouseSystem hs) { mHouseSystem = hs; mNeedUpdate = true; }
+    
+    void setHouseSystem(HouseSystem hs) { mNeedUpdate |= (mHouseSystem != hs); mHouseSystem = hs; }
+    HouseSystem getHouseSystem() const  { return mHouseSystem; }
+    // position calculation
+    void setSidereal(bool state)        { mNeedUpdate |= (state != mSidereal); mSidereal = state; }
+    bool getSidereal() const            { return mSidereal; }
+    void setTruePos(bool state)         { mNeedUpdate |= (state != mTruePos);  mTruePos = state; }
+    bool getTruePos() const             { return mTruePos; }
+    void setDraconic(bool state)        { mNeedUpdate |= (state != mDraconic); mDraconic = state; }
+    bool getDraconic() const            { return mDraconic; }
+
     void calcAspects();
     void update();
+
+    double getSingleAngle(ObjType obj);
 
     bool changed() const { return mNeedUpdate; }
     
     int aspectCount(AspectType a);
 
-    void setAspectOrb(AspectType asp, double orb)
-    { if(asp > ASPECT_INVALID && asp < ASPECT_COUNT) { mAspectOrbs[(int)asp] = orb; mNeedUpdate = true; } }
-    double getAspectOrb(AspectType asp)
-    { if(asp > ASPECT_INVALID && asp < ASPECT_COUNT) { return mAspectOrbs[(int)asp]; mNeedUpdate = true; } }
-    void setAspectFocus(AspectType asp, bool focus)
-    { if(asp > ASPECT_INVALID && asp < ASPECT_COUNT) { mAspectFocus[(int)asp] = focus; mNeedUpdate = true; } }
-    void setAspectVisible(AspectType asp, bool visible)
-    { if(asp > ASPECT_INVALID && asp < ASPECT_COUNT) { mAspectVisible[(int)asp] = visible; mNeedUpdate = true; } }
-    bool getAspectFocus(AspectType asp)   { return (asp > ASPECT_INVALID && asp < ASPECT_COUNT) ? mAspectFocus[(int)asp]   : false; }
-    bool getAspectVisible(AspectType asp) { return (asp > ASPECT_INVALID && asp < ASPECT_COUNT) ? mAspectVisible[(int)asp] : false; }
+    void setAspectOrb(AspectType asp, double orb);
+    void setAspectFocus(AspectType asp, bool focus);
+    void setAspectVisible(AspectType asp, bool visible);
+    double getAspectOrb(AspectType asp);
+    bool getAspectFocus(AspectType asp);
+    bool getAspectVisible(AspectType asp);
 
     Ephemeris& swe() { return mSwe; }
     const std::vector<Aspect>&       aspects() const { return mAspects; }
@@ -98,8 +111,6 @@ namespace astro
 
     const DateTime& date() const     { return mDate; }
     const Location& location() const { return mLocation; }
-
-    HouseSystem getHouseSystem()     { return mHouseSystem; }
   };
   
 }

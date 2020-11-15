@@ -92,7 +92,6 @@ namespace astro
     bool mSelected   = true;
     // view settings
     bool mAlignAsc   = false; // rotate chart so ascendant points left
-    
     std::vector<bool> mShowObjects;
     std::vector<bool> mFocusObjects;
     

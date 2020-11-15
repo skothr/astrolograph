@@ -57,6 +57,23 @@ struct Vector
     return *this;
   }
 
+  void ceil()
+  { for(auto &d : data) { d = std::ceil(d); } }
+  Vector<T, N> getCeil() const
+  {
+    Vector<T, N> v = *this;
+    v.ceil();
+    return v;
+  }
+  void floor()
+  { for(auto &d : data) { d = std::floor(d); } }
+  Vector<T, N> getFloor() const
+  {
+    Vector<T, N> v = *this;
+    v.floor();
+    return v;
+  }
+
   T length2() const
   {
     T sqsum = T();
@@ -252,6 +269,23 @@ struct Vector<T, 2>
     return result;
   }
   
+  void ceil()
+  { for(auto &d : data) { d = std::ceil(d); } }
+  Vector<T, N> getCeil() const
+  {
+    Vector<T, N> v = *this;
+    v.ceil();
+    return v;
+  }
+  void floor()
+  { for(auto &d : data) { d = std::floor(d); } }
+  Vector<T, N> getFloor() const
+  {
+    Vector<T, N> v = *this;
+    v.floor();
+    return v;
+  }
+  
   T length2() const
   {
     T sqsum = T();
@@ -360,6 +394,23 @@ struct Vector<T, 3>
     return result;
   }
   
+  void ceil()
+  { for(auto &d : data) { d = std::ceil(d); } }
+  Vector<T, N> getCeil() const
+  {
+    Vector<T, N> v = *this;
+    v.ceil();
+    return v;
+  }
+  void floor()
+  { for(auto &d : data) { d = std::floor(d); } }
+  Vector<T, N> getFloor() const
+  {
+    Vector<T, N> v = *this;
+    v.floor();
+    return v;
+  }
+
   T length2() const
   {
     T sqsum = T();
@@ -476,6 +527,24 @@ struct Vector<T, 4>
       { result.data[i] /= scalar; }
     return result;
   }
+  
+  void ceil()
+  { for(auto &d : data) { d = std::ceil(d); } }
+  Vector<T, N> getCeil() const
+  {
+    Vector<T, N> v = *this;
+    v.ceil();
+    return v;
+  }
+  void floor()
+  { for(auto &d : data) { d = std::floor(d); } }
+  Vector<T, N> getFloor() const
+  {
+    Vector<T, N> v = *this;
+    v.floor();
+    return v;
+  }
+
   T length2() const
   {
     T sqsum = T();
@@ -505,7 +574,6 @@ inline T length2(const Vector<T, N> &v)
 template<typename T, int N>
 inline T length(const Vector<T, N> &v)
 { return v.length(); }
-
 
 template<typename T, int N>
 inline Vector<T, N> operator-(const Vector<T, N> &v)

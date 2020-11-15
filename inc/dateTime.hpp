@@ -30,12 +30,14 @@ namespace astro
     
   public:
     //// STATIC ////
-    static constexpr int MAX_YEAR = 8000;
-    static constexpr int MIN_YEAR = -8000;
+    static const int MAX_YEAR;
+    static const int MIN_YEAR;
     static const std::array<int, 12> MONTH_DAYS;
     static DateTime now();
     static bool isValid(int year, int month, int day, int hour, int minute, double second);         // returns whether given date is valid
     static DateTime correctDate(int year, int month, int day, int hour, int minute, double second); // returns corrected date
+    
+    float diffDays(const DateTime &other);
     
     DateTime() { }
     DateTime(const std::string &saveStr) { fromSaveString(saveStr); }

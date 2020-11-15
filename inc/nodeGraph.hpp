@@ -40,9 +40,10 @@ namespace astro
   private:
     std::unordered_map<int, Node*> mNodes;    // maps ID to pointer
     //std::vector<Node::Connection> mSelectedNodes; // set of nodes that are selected
-    Vec2f  mCenter = Vec2f(0,0); // graph-space point to be centered in view
-    Vec2f  mViewPos;             // screen-space position of nodeGraph view
-    Vec2f  mViewSize;            // screen-space size of nodeGraph view
+    Vec2f  mGraphCenter = Vec2f(0,0); // graph-space point to be centered in view
+    Vec2f  mGraphScale  = Vec2f(1,1); // graph view scaling
+    Vec2f  mViewPos;                  // screen-space position of nodeGraph view
+    Vec2f  mViewSize;                 // screen-space size of nodeGraph view
     bool   mSelecting = false;
     Vec2f  mSelectAnchor;
     Rect2f mSelectRect;
@@ -53,11 +54,6 @@ namespace astro
     std::vector<Node*> mClipboard;
     //Vec2f mClipMousePos;
     
-    //bool  mDrawLines   = true;
-    //Vec4f mLineColor   = Vec4f(1, 1, 1, 0.4f);
-    //Vec2f mLineSpacing = Vec2f(100, 100);
-    //float mLineWidth   = 1.0f;
-
     std::string mProjectDir = DEFAULT_PROJECT_DIR;
     bool mChangedSinceSave  = false;
     bool mOpenSave          = false;
@@ -111,23 +107,31 @@ namespace astro
     
     bool isSelectedHovered();  // returns true if any selected nodes are hovered
     bool isSelectedActive();   // returns true if any selected nodes are active
-    bool isSelectedDragged(); // returns true if any selected nodes are dragged
+    bool isSelectedDragged();  // returns true if any selected nodes are dragged
 
     void setLocked(bool lock) { mLocked = lock; }
     bool setLocked() const    { return mLocked; }
 
-    Vec2f getCenter() const { return mCenter; }
-    bool isPanning() const { return mPanning; }
+    Vec2f getCenter() const   { return mGraphCenter; }
+    bool isPanning() const    { return mPanning; }
 
-    Vec2f viewPos() const  { return mViewPos; }
-    Vec2f viewSize() const { return mViewSize; }
+    Vec2f viewPos() const     { return mViewPos; }
+    Vec2f viewSize() const    { return mViewSize; }
     void setPos(const Vec2i &p);
     void setSize(const Vec2i &s);
+
+    Vec2f graphToScreen(const Vec2f &p) const   { return p + mGraphCenter + mViewSize/2.0f + mViewPos; }
+    Vec2f screenToGraph(const Vec2f &p) const   { return p - mGraphCenter - mViewSize/2.0f - mViewPos; }
+    Rect2f graphToScreen(const Rect2f &r) const { return r + mGraphCenter + mViewSize/2.0f + mViewPos; }
+    Rect2f screenToGraph(const Rect2f &r) const { return r - mGraphCenter - mViewSize/2.0f - mViewPos; }
+    
+    // finds a path from start to end point that doesn't intersect any node rects.
+    std::vector<Vec2f> findOrthogonalPath(const Vec2f &start, const Vec2f &end);
     
     void draw();
 
+    bool isConnecting();
     bool isSelecting() const        { return mSelecting; }
-    bool isConnecting();//             { for(auto n : mNodes) { if(n.second->isConnecting()) { return true; } } return false; }
     bool isSaving() const           { return mOpenSave; }
     bool isLoading() const          { return mOpenLoad; }
     bool unsavedChanges() const     { return mChangedSinceSave; }

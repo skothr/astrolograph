@@ -30,24 +30,44 @@ namespace astro
     
     virtual bool onDraw() override;
     
-    // virtual std::map<std::string, std::string>& getSaveParams(std::map<std::string, std::string> &params) const override
-    // {      
-    //   if(!inputs()[CHARTNODE_INPUT_DATE]->get<DateTime>())
-    //     { params.emplace("date", mChart->date().toSaveString()); }
-    //   if(!inputs()[CHARTNODE_INPUT_LOCATION]->get<DateTime>())
-    //     { params.emplace("location", mChart->location().toSaveString()); }
-    //   return params;
-    // };
+    virtual std::map<std::string, std::string>& getSaveParams(std::map<std::string, std::string> &params) const override
+    {
+      // save object visibility
+      std::string showObjs = "";
+      for(auto show : mShowObjects)
+        { showObjs += (show ? "1" : "0"); }
+      params.emplace("showObjs", showObjs);
+      return params;
+    };
     
-    // virtual std::map<std::string, std::string>& setSaveParams(std::map<std::string, std::string> &params) override
-    // {
-    //   auto iter = params.find("date");
-    //   if(iter != params.end()) { mChart->setDate(DateTime(iter->second)); }
-    //   iter = params.find("location");
-    //   if(iter != params.end()) { mChart->setLocation(Location(iter->second)); }
-    //   mChart->update();
-    //   return params;
-    // };
+    virtual std::map<std::string, std::string>& setSaveParams(std::map<std::string, std::string> &params) override
+    {
+      Chart *chart = inputs()[DATANODE_INPUT_CHART]->get<Chart>();
+      auto iter = params.find("showObjs");
+      if(iter != params.end())
+        {
+          for(int o = OBJ_SUN; o < OBJ_COUNT; o++)
+            {
+              if(iter->second.size() < o) { break; }
+              else
+                {
+                  mShowObjects[o] = (iter->second[o] == '0');
+                  if(chart) { chart->getObject((ObjType)o)->visible = mShowObjects[o]; }
+                }
+            }
+          for(int a = ANGLE_OFFSET; a < ANGLE_END; a++)
+            {
+              if(iter->second.size() < a) { break; }
+              else
+                {
+                  mShowObjects[a] = (iter->second[a] == '0');
+                  if(chart) { chart->getObject((ObjType)a)->visible = mShowObjects[a]; }
+                }
+            }
+        }
+      // mChart->update();
+      return params;
+    };
 
     
   public:

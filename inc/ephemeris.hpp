@@ -78,7 +78,7 @@ namespace astro
     // #define SEFLG_JPLHOR SEFLG_DPSIDEPS_1980
     // #define SEFLG_JPLHOR_APPROX (512*1024)      /* approximate JPL Horizons 1962 - today */
     ///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
-    long mSweFlags = SEFLG_SPEED | SEFLG_TOPOCTR;// | SEFLG_TRUEPOS;
+    long mSweFlags = SEFLG_SWIEPH | SEFLG_SPEED | SEFLG_TOPOCTR;// | SEFLG_TRUEPOS;
     
   public:
     static const std::vector<int> SWE_IDS;
@@ -102,37 +102,51 @@ namespace astro
     }
 
     double getJulianDay() const { return mJulDay_ut; }
-    
-    // treat each year as a day
-    double getJulianDayUT(const DateTime &dt, const Location &loc, bool daylightSavings=false);
-    double getJulianDayET(const DateTime &dt, const Location &loc, bool daylightSavings=false);
-    
-    // nds --> natal daylight savings | tds --> transit daylight savings
-    DateTime getProgressed(const DateTime &ndt, const Location &nloc, const DateTime &tdt, const Location &tloc, bool nds=false, bool tds=false);
 
-    void setLocation(const Location &loc);
-    void setDate(const DateTime &dt, bool daylightSavings=false);
-    ObjData getObjData(ObjType obj) const;
-    double getObjAngle(ObjType obj) const;
-    double getAngle(ObjType angle) const;
+    void setSidereal(bool state)
+    {
+      if(state) { mSweFlags |= SEFLG_SIDEREAL; }
+      else      { mSweFlags &= ~SEFLG_SIDEREAL; }
+    }
+    bool getSidereal() const { return (mSweFlags & SEFLG_SIDEREAL); }
+    void setTruePos(bool state)
+    {
+      if(state) { mSweFlags |= SEFLG_TRUEPOS; }
+      else      { mSweFlags &= ~SEFLG_TRUEPOS; }
+    }
+  bool getTruePos() const { return (mSweFlags & SEFLG_TRUEPOS); }
 
-    void setHouseSystem(HouseSystem system) { mHouseSystem = system; }
-    void calcHouses();
-    double getHouseCusp(int house) const;
-    double getSignCusp(int sign) const;
-    double getSignCusp(const std::string &name) const;
+  // treat each year as a day
+  double getJulianDayUT(const DateTime &dt, const Location &loc, bool daylightSavings=false);
+  double getJulianDayET(const DateTime &dt, const Location &loc, bool daylightSavings=false);
     
-    int getHouse(double longitude) const; // returns house number (1-12)
-    int getSign(double longitude) const;  // returns sign index   (0-11)
-    
-    double getAsc() const { return mAsc; }
-    double getMc() const  { return mMc;  }
-    double getDsc() const { return mDsc; }
-    double getIc() const  { return mIc;  }
+  // nds --> natal daylight savings | tds --> transit daylight savings
+  DateTime getProgressed(const DateTime &ndt, const Location &nloc, const DateTime &tdt, const Location &tloc, bool nds=false, bool tds=false);
 
-    void printHouses() const;
-    void printObjects(const astro::DateTime &dt, const astro::Location &loc) const;
-  };
+  void setLocation(const Location &loc);
+  void setDate(const DateTime &dt, bool daylightSavings=false);
+  ObjData getObjData(ObjType obj) const;
+  //double getObjAngle(ObjType obj) const;
+  double getAngle(ObjType angle) const;
+
+  void setHouseSystem(HouseSystem system) { mHouseSystem = system; }
+
+  void calcHouses();
+  double getHouseCusp(int house) const;
+  double getSignCusp(int sign) const;
+  double getSignCusp(const std::string &name) const;
+    
+  int getHouse(double longitude) const; // returns house number (1-12)
+  int getSign(double longitude) const;  // returns sign index   (0-11)
+    
+  double getAsc() const { return mAsc; }
+  double getMc() const  { return mMc;  }
+  double getDsc() const { return mDsc; }
+  double getIc() const  { return mIc;  }
+
+  void printHouses() const;
+  void printObjects(const astro::DateTime &dt, const astro::Location &loc) const;
+};
 }
 
 #endif // EPHEMERIS_HPP

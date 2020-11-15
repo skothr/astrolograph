@@ -58,7 +58,7 @@ void ChartView::renderZodiac(Chart *chart, const ViewParams &params, ImDrawList 
           ImGui::SetCursorScreenPos(pc-imSize/2.0f);
           Vec4f tintCol(1.0f, 1.0f, 1.0f, 1.0f);
           Vec4f borderCol(0.0f, 0.0f, 0.0f, 0.0f);
-          ImGui::Image((ImTextureID)img->texId, imSize, t0, t1, ImColor(tintCol), borderCol);
+          ImGui::Image(img->id(), imSize, t0, t1, ImColor(tintCol), borderCol);
           if(ImGui::IsItemHovered())
             {
               ImGui::BeginTooltip();
@@ -90,7 +90,7 @@ void ChartView::renderZodiac(Chart *chart, const ViewParams &params, ImDrawList 
                           // object symbol
                           ChartImage *oImg = getWhiteImage(oName);
                           Vec4f oColor = getObjColor(oName);
-                          ImGui::Image((ImTextureID)oImg->texId, Vec2f(20.0f, 20.0f), t0, t1, oColor, borderCol);
+                          ImGui::Image(oImg->id(), Vec2f(20.0f, 20.0f), t0, t1, oColor, borderCol);
                           ImGui::TableNextColumn();
                           // object angle
                           ImGui::TextUnformatted(angle_string(obj->angle - chart->swe().getSignCusp(i), true).c_str());
@@ -146,7 +146,7 @@ void ChartView::renderHouses(Chart *chart, const ViewParams &params, ImDrawList 
       draw_list->AddCircle(tp, ocRadius, ImColor(Vec4f(0.7f, 0.7f, 0.7f, 0.7f)), 12, 1.0f);
       
       ImGui::SetCursorScreenPos(tp - tSize/2.0f);
-      ImGui::TextColored(Vec4f(0.7f, 0.7f, 0.7f, 0.7f), ss.str().c_str());
+      ImGui::TextColored(Vec4f(0.7f, 0.7f, 0.7f, 0.7f), "%s", ss.str().c_str());
       ImGui::SetCursorScreenPos(tp - Vec2f(ocRadius,ocRadius));
       ImGui::InvisibleButton("##hitbox", Vec2f(ocRadius,ocRadius)*2.0f);
       if(ImGui::IsItemHovered())
@@ -166,7 +166,7 @@ void ChartView::renderHouses(Chart *chart, const ViewParams &params, ImDrawList 
               ImGui::Spacing();
               ImGui::TableNextColumn();
               int hSign = chart->swe().getSign(angle1);
-              ImGui::Image((ImTextureID)getWhiteImage(getSignName(hSign))->texId, Vec2f(20.0f, 20.0f), t0, t1,
+              ImGui::Image(getWhiteImage(getSignName(hSign))->id(), Vec2f(20.0f, 20.0f), t0, t1,
                            ImColor(ELEMENT_COLORS[getSignElement(hSign)]), ImColor(Vec4f(0,0,0,0)));
               ImGui::TableNextColumn();
               ImGui::TextUnformatted(angle_string(angle1 - chart->swe().getSignCusp(hSign), true, false).c_str());
@@ -195,7 +195,7 @@ void ChartView::renderHouses(Chart *chart, const ViewParams &params, ImDrawList 
                   // object symbol
                   ChartImage *oImg = getWhiteImage(oName);
                   Vec4f oColor = getObjColor(oName);
-                  ImGui::Image((ImTextureID)oImg->texId, Vec2f(20.0f, 20.0f), t0, t1, oColor, ImColor(Vec4f(0,0,0,0)));
+                  ImGui::Image(oImg->id(), Vec2f(20.0f, 20.0f), t0, t1, oColor, ImColor(Vec4f(0,0,0,0)));
                   ImGui::TableNextColumn();
                   // object angle
                   double houseAngle = obj->angle - chart->swe().getHouseCusp(i);
@@ -221,7 +221,7 @@ void ChartView::renderAngles(Chart *chart, const ViewParams &params, ImDrawList 
     {
       std::string name = ANGLE_NAMES[a-ANGLE_OFFSET];
       std::string longName = ANGLE_NAMES_LONG[a-ANGLE_OFFSET];
-      float angle = screenAngle(chart, (chart->swe().getAngle((ObjType)a)));
+      float angle = screenAngle(chart, (chart->getObject((ObjType)a)->angle));
       Vec2f v = Vec2f(cos(angle), -sin(angle));
       Vec2f p = cc + params.angRadius*v;
       ChartImage *img = getWhiteImage(name);
@@ -231,20 +231,20 @@ void ChartView::renderAngles(Chart *chart, const ViewParams &params, ImDrawList 
           ImGui::SetCursorScreenPos(p - imSize/2.0f);
           Vec4f tintCol  (1.0f, 1.0f, 1.0f, 1.0f);
           Vec4f borderCol(0.0f, 0.0f, 0.0f, 0.0f);
-          ImGui::Image((ImTextureID)img->texId, imSize, t0, t1, ImColor(tintCol), borderCol);
+          ImGui::Image(img->id(), imSize, t0, t1, ImColor(tintCol), borderCol);
           if(ImGui::IsItemHovered())
             {
               ImGui::BeginTooltip();
               ImGui::Text("%s", longName.c_str());
               // sign symbol
               ImGui::SameLine();
-              double oAngle = chart->swe().getAngle((ObjType)a);
+              double oAngle = chart->getObject((ObjType)a)->angle;
               int    oSign = chart->swe().getSign(oAngle);
               double oDegree = oAngle - chart->swe().getSignCusp(oSign);
               ChartImage *sImg = getWhiteImage(getSignName(oSign));
               Vec4f  sColor = ELEMENT_COLORS[getSignElement(oSign)];
               
-              ImGui::Image((ImTextureID)sImg->texId, Vec2f(20.0f, 20.0f), t0, t1, ImColor(sColor), borderCol);
+              ImGui::Image(sImg->id(), Vec2f(20.0f, 20.0f), t0, t1, ImColor(sColor), borderCol);
               // angle
               ImGui::SameLine();
               ImGui::Text("%s", angle_string(oAngle - chart->swe().getSignCusp(chart->swe().getSign(oAngle)), false).c_str());
@@ -388,7 +388,7 @@ void ChartView::renderAspects(Chart *chart, const ViewParams &params, ImDrawList
           Vec4f borderCol(0.0f, 0.0f, 0.0f, 0.0f);
           // draw aspect symbol inside hexagon
           draw_list->AddCircle(pc, lineDist, ImColor(color), 6, 3);
-          ImGui::Image((ImTextureID)img->texId, imSize, t0, t1, color, borderCol);
+          ImGui::Image(img->id(), imSize, t0, t1, color, borderCol);
           
           bool hover = ImGui::IsItemHovered();
           if(hover)
@@ -408,17 +408,17 @@ void ChartView::renderAspects(Chart *chart, const ViewParams &params, ImDrawList
                 ImGui::TextUnformatted(aName.c_str());
                 ImGui::TableNextColumn();
                 // aspect object1 symbol
-                ImGui::Image((ImTextureID)getWhiteImage(getObjName(asp.obj1->type))->texId, Vec2f(20.0f, 20.0f), t0, t1, c1, borderCol);
+                ImGui::Image(getWhiteImage(getObjName(asp.obj1->type))->id(), Vec2f(20.0f, 20.0f), t0, t1, c1, borderCol);
                 // aspect symbol
                 ImGui::SameLine();
                 Vec2f screenPos = Vec2f(ImGui::GetCursorScreenPos()) + Vec2f(10.0f, 10.0f);
                 // draw aspect symbol full-color
-                ImGui::Image((ImTextureID)img->texId, Vec2f(20.0f, 20.0f), t0, t1, ImColor(color.x, color.y, color.z, 0.7f), borderCol);
+                ImGui::Image(img->id(), Vec2f(20.0f, 20.0f), t0, t1, ImColor(color.x, color.y, color.z, 0.7f), borderCol);
                 // weight surrounding hexagon color by aspect strength
                 ImGui::GetWindowDrawList()->AddCircle(screenPos, lineDist*20.0f/params.symbolSize, ImColor(color), 6, 2);
                 // aspect object2 symbol
                 ImGui::SameLine();
-                ImGui::Image((ImTextureID)getWhiteImage(getObjName(asp.obj2->type))->texId, Vec2f(20.0f, 20.0f), t0, t1, c2, borderCol);
+                ImGui::Image(getWhiteImage(getObjName(asp.obj2->type))->id(), Vec2f(20.0f, 20.0f), t0, t1, c2, borderCol);
                 ImGui::TableNextColumn();
                 ImGui::TextUnformatted(angle_string(asp.orb, true).c_str());
                   
@@ -514,7 +514,7 @@ void ChartView::renderCompareAspects(ChartCompare *compare, const ViewParams &pa
           Vec4f borderCol(0.0f, 0.0f, 0.0f, 0.0f);
           // draw aspect symbol inside hexagon
           draw_list->AddCircle(pc, lineDist, ImColor(color), 6, 3);
-          ImGui::Image((ImTextureID)img->texId, imSize, t0, t1, color, borderCol);
+          ImGui::Image(img->id(), imSize, t0, t1, color, borderCol);
           
           bool hover = ImGui::IsItemHovered();
           if(hover)
@@ -536,17 +536,17 @@ void ChartView::renderCompareAspects(ChartCompare *compare, const ViewParams &pa
                   ImGui::TextUnformatted(aName.c_str());
                   ImGui::TableNextColumn();
                   // aspect object1 symbol
-                  ImGui::Image((ImTextureID)getWhiteImage(getObjName(asp.obj1->type))->texId, Vec2f(20.0f, 20.0f), t0, t1, c1, borderCol);
+                  ImGui::Image(getWhiteImage(getObjName(asp.obj1->type))->id(), Vec2f(20.0f, 20.0f), t0, t1, c1, borderCol);
                   // aspect symbol
                   ImGui::SameLine();
                   Vec2f screenPos = Vec2f(ImGui::GetCursorScreenPos()) + Vec2f(10.0f, 10.0f);
                   // draw aspect symbol full-color
-                  ImGui::Image((ImTextureID)img->texId, Vec2f(20.0f, 20.0f), t0, t1, ImColor(color.x, color.y, color.z, 0.7f), borderCol);
+                  ImGui::Image(img->id(), Vec2f(20.0f, 20.0f), t0, t1, ImColor(color.x, color.y, color.z, 0.7f), borderCol);
                   // weight surrounding hexagon color by aspect strength
                   draw_list_tt->AddCircle(screenPos, lineDist*20.0f/params.symbolSize, ImColor(color), 6, 2);
                   // aspect object2 symbol
                   ImGui::SameLine();
-                  ImGui::Image((ImTextureID)getWhiteImage(getObjName(asp.obj2->type))->texId, Vec2f(20.0f, 20.0f), t0, t1, c2, borderCol);
+                  ImGui::Image(getWhiteImage(getObjName(asp.obj2->type))->id(), Vec2f(20.0f, 20.0f), t0, t1, c2, borderCol);
                   ImGui::TableNextColumn();
                   ImGui::TextUnformatted(angle_string(asp.orb, true).c_str());
                 }
@@ -643,7 +643,7 @@ void ChartView::renderObjects(Chart *chart, int level, const ViewParams &params,
               Vec4f borderCol(0.0f, 0.0f, 0.0f, 0.0f);
               
               ImGui::PushStyleVar(ImGuiStyleVar_ChildRounding, imSize.x/2.0f);
-              ImGui::Image((ImTextureID)img->texId, imSize, t0, t1, ImColor(color), borderCol);
+              ImGui::Image(img->id(), imSize, t0, t1, ImColor(color), borderCol);
               ImGui::PopStyleVar();
               
               bool hover = ImGui::IsItemHovered();
@@ -671,7 +671,7 @@ void ChartView::renderObjects(Chart *chart, int level, const ViewParams &params,
                       ImGui::TextUnformatted((oName+"  ").c_str());
                       ImGui::TableNextColumn();
                       // object sign
-                      ImGui::Image((ImTextureID)sImg->texId, Vec2f(20.0f, 20.0f), t0, t1, ImColor(color), borderCol);
+                      ImGui::Image(sImg->id(), Vec2f(20.0f, 20.0f), t0, t1, ImColor(color), borderCol);
                       ImGui::TableNextColumn();
                       // object angle
                       ImGui::TextUnformatted(angle_string(oDegree, true, false).c_str());

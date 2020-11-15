@@ -16,16 +16,16 @@ LocationWidget::LocationWidget(const Location &loc)
 LocationWidget::LocationWidget(const LocationWidget &other)
   : mLocation(other.mLocation), mSavedLocation(other.mSavedLocation), mDST(other.mDST)
 {
-  sprintf(mName, other.mName);
-  sprintf(mSavedName, other.mSavedName);
+  sprintf(mName, "%s", other.mName);
+  sprintf(mSavedName, "%s", other.mSavedName);
 }
 
 LocationWidget& LocationWidget::operator=(const LocationWidget &other)
 {
   mLocation = other.mLocation;
   mSavedLocation = other.mSavedLocation;
-  sprintf(mName, other.mName);
-  sprintf(mSavedName, other.mSavedName);
+  sprintf(mName, "%s", other.mName);
+  sprintf(mSavedName, "%s", other.mSavedName);
   mDST = other.mDST;
   return *this;
 }
@@ -208,7 +208,7 @@ void LocationWidget::draw()
         std::string sName = mName;
         if(mLocation != mSavedLocation)
           { sName = std::string("[") + mName + "]"; }
-        ImGui::TextColored(ImColor(1.0f, 1.0f, 1.0f, 0.5f), sName.c_str());
+        ImGui::TextColored(ImColor(1.0f, 1.0f, 1.0f, 0.5f), "%s", sName.c_str());
       }
     
     // load button
@@ -307,7 +307,7 @@ void LocationWidget::draw()
     double utcOffset = mLocation.utcOffset + (mDST ? 1 : 0);
     std::string offsetStr = (std::string("(UTC")+(utcOffset >= 0.0 ? "+" : "")+to_string(utcOffset, 1)+")");
     ImGui::TextColored(Vec4f(1.0f, 1.0f, 1.0f, 0.25f), "%s", (mLocation.timezoneId.empty() ? "n/a" : mLocation.timezoneId).c_str());
-    ImGui::SameLine(); ImGui::TextColored(Vec4f(1.0f, 1.0f, 1.0f, 0.25f), offsetStr.c_str());
+    ImGui::SameLine(); ImGui::TextColored(Vec4f(1.0f, 1.0f, 1.0f, 0.25f), "%s", offsetStr.c_str());
     // update (NOTE: use springly for now --> ~2500 free queries per username per day)
     if(ImGui::Button("Update")) { mLocation.updateTimezone(); }
     ImGui::SameLine(); ImGui::Checkbox("Daylight Savings", &mDST);
