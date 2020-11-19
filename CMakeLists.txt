@@ -1,7 +1,7 @@
 cmake_minimum_required(VERSION 3.6)
 
 # set the project name and version
-project(astrolograph VERSION 0.3)
+project(astrolograph VERSION 0.4)
 configure_file(inc/version/version.hpp.in ../inc/version/version.hpp)
 
 # includes
