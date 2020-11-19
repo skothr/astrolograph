@@ -16,6 +16,8 @@ CompareNode::~CompareNode()
 
 bool CompareNode::onDraw()
 {
+  float scale = getScale();
+  
   Chart *iChart = inputs()[COMPARENODE_INPUT_CHART_INNER]->get<Chart>();
   Chart *oChart = inputs()[COMPARENODE_INPUT_CHART_OUTER]->get<Chart>();
 
@@ -35,11 +37,11 @@ bool CompareNode::onDraw()
   {
     ImGui::Text("Chart Size:  "); // size of chart area
     ImGui::SameLine();
-    ImGui::SetNextItemWidth(360);
+    ImGui::SetNextItemWidth(360*scale);
     ImGui::SliderFloat("##chartWidth", &mChartWidth, CHART_SIZE_MIN, CHART_SIZE_MAX, "%.0f"); // Minimal displayed value is 5%
 
     // draw chart view
-    mView.draw(mCompare, mChartWidth);
+    mView.draw(mCompare, mChartWidth*scale);
   }
   //ImGui::EndGroup();
 

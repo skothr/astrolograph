@@ -2,6 +2,7 @@
 using namespace astro;
 
 #include "imgui.h"
+#include "nodeGraph.hpp"
 
 
 LocationNode::LocationNode()
@@ -18,7 +19,8 @@ LocationNode::LocationNode(const Location &loc)
 
 bool LocationNode::onDraw()
 {
-  mWidget.draw();
+  float scale = mGraph->getScale();
+  mWidget.draw(scale);
   return true;
 }
 

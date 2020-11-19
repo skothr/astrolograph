@@ -22,9 +22,6 @@
 
 #define SIDEBAR_W   512
 
-#define FONT_PATH   "./res/fonts/UbuntuMono-R.ttf"
-#define DEFAULT_FONT_HEIGHT 16.0f
-
 #define GL_MAJOR 4 // OpenGL 4.4
 #define GL_MINOR 4
 
@@ -162,7 +159,7 @@ int main(int argc, char* argv[])
   
   // imgui context config
   ImGuiIO& io = ImGui::GetIO();
-  io.IniFilename = NULL;                                 // disable .ini file
+  io.IniFilename = nullptr;                              // disable .ini file
 #if ENABLE_IMGUI_VIEWPORTS
   io.ConfigFlags |= ImGuiConfigFlags_ViewportsEnable;
   io.ConfigViewportsNoTaskBarIcon = true;
@@ -172,7 +169,7 @@ int main(int argc, char* argv[])
   //io.ConfigDockingWithShift = true;                      // docking when shift is held
 #endif // ENABLE_IMGUI_DOCKING
   
-  // io.BackendFlags |= ImGuiBackendFlags_HasMouseCursors;  // (?)
+  io.BackendFlags |= ImGuiBackendFlags_HasMouseCursors;  // (?)
   io.BackendFlags |= ImGuiBackendFlags_RendererHasVtxOffset;
   // io.ConfigFlags |= ImGuiConfigFlags_NavEnableKeyboard; // Enable Keyboard Controls
 
@@ -183,10 +180,8 @@ int main(int argc, char* argv[])
   glfwSetWindowCloseCallback(window, windowCloseCallback); // callback when closing window
 
   // load fonts
-  ImFont * defaultFont = io.Fonts->AddFontFromFileTTF(FONT_PATH, DEFAULT_FONT_HEIGHT);
-  if(!defaultFont)
-    { std::cout << "WARNING: Failed to load default font! (" << FONT_PATH << ")"; }
-  
+  // ImFont *defaultFont = io.Fonts->AddFontFromFileTTF(FONT_PATH, DEFAULT_FONT_HEIGHT);
+  // if(!defaultFont) { std::cout << "WARNING: Failed to load default font! (" << FONT_PATH << ")"; }
   // 
   astro::ViewSettings viewSettings;
   graph = new astro::NodeGraph(&viewSettings);
@@ -208,16 +203,17 @@ int main(int argc, char* argv[])
       { GLFW_MOD_CONTROL, GLFW_KEY_X, [](){ graph->cut(); } },                          // CTRL+X       --> cut
       { GLFW_MOD_CONTROL, GLFW_KEY_C, [](){ graph->copy(); } },                         // CTRL+C       --> copy
       { GLFW_MOD_CONTROL, GLFW_KEY_V, [](){ graph->paste(); } },                        // CTRL+V       --> paste
+      { GLFW_MOD_CONTROL, GLFW_KEY_A, [](){ graph->selectAll(); } },                // CTRL+A       --> select all
       //// Node Creation
-      { 0, GLFW_KEY_T, [](){ graph->addNode("TimeNode", true); } },        // T --> new Time Node
-      { 0, GLFW_KEY_S, [](){ graph->addNode("TimeSpanNode", true); } },    // S --> new Time Span Node
-      { 0, GLFW_KEY_L, [](){ graph->addNode("LocationNode", true); } },    // L --> new Location Node
-      { 0, GLFW_KEY_C, [](){ graph->addNode("ChartNode", true); } },       // C --> new Chart Node
-      { 0, GLFW_KEY_P, [](){ graph->addNode("ProgressNode", true); } },    // P --> new Progress Node
-      { 0, GLFW_KEY_V, [](){ graph->addNode("ChartViewNode", true); } },   // V --> new Chart View Node
-      { 0, GLFW_KEY_X, [](){ graph->addNode("ChartCompareNode", true);} }, // X --> new Chart Compare Node
-      { 0, GLFW_KEY_D, [](){ graph->addNode("ChartDataNode", true); } },   // D --> new Chart Data Node
-      { 0, GLFW_KEY_A, [](){ graph->addNode("AspectNode", true); } },      // A --> new Aspect Node
+      { 0, GLFW_KEY_T, [](){ graph->addNode("TimeNode",         true); } }, // T --> new Time Node
+      { 0, GLFW_KEY_S, [](){ graph->addNode("TimeSpanNode",     true); } }, // S --> new Time Span Node
+      { 0, GLFW_KEY_L, [](){ graph->addNode("LocationNode",     true); } }, // L --> new Location Node
+      { 0, GLFW_KEY_C, [](){ graph->addNode("ChartNode",        true); } }, // C --> new Chart Node
+      { 0, GLFW_KEY_P, [](){ graph->addNode("ProgressNode",     true); } }, // P --> new Progress Node
+      { 0, GLFW_KEY_V, [](){ graph->addNode("ChartViewNode",    true); } }, // V --> new Chart View Node
+      { 0, GLFW_KEY_X, [](){ graph->addNode("ChartCompareNode", true); } }, // X --> new Chart Compare Node
+      { 0, GLFW_KEY_D, [](){ graph->addNode("ChartDataNode",    true); } }, // D --> new Chart Data Node
+      { 0, GLFW_KEY_A, [](){ graph->addNode("AspectNode",       true); } }, // A --> new Aspect Node
       //// Debug
       { GLFW_MOD_ALT, GLFW_KEY_D, [&showDemo](){ showDemo = !showDemo; } }, // ALT+D --> open ImGui demo window
     };
@@ -233,7 +229,8 @@ int main(int argc, char* argv[])
       ImGui_ImplOpenGL3_NewFrame();
       ImGui_ImplGlfw_NewFrame();
       ImGui::NewFrame();
-      
+
+      ImGui::PushFont(viewSettings.mainFont);
       // get GLFW window size
       glfwGetFramebufferSize(window, &frameSize.x, &frameSize.y);
             
@@ -270,6 +267,9 @@ int main(int argc, char* argv[])
         graph->setSize(frameSize - 2*framePadding);
         graph->draw();
       }
+
+      
+      graph->update(); // TODO: Move to separate thread?
 
       // menu bar
       if(ImGui::BeginMainMenuBar())
@@ -321,8 +321,6 @@ int main(int argc, char* argv[])
             }
           ImGui::EndMainMenuBar();
         }
-
-
       
       // unsaved changes popup (TODO: improve/fix)
       static bool popupOpen = false;
@@ -375,6 +373,8 @@ int main(int argc, char* argv[])
         { } // closing = false; saving = false; }
       else if(closing && (!graph->unsavedChanges() || noSave)) // close window
         { glfwSetWindowShouldClose(window, GLFW_TRUE); }
+      
+      ImGui::PopFont();
       
       //// RENDERING ////
       ImGui::EndFrame();

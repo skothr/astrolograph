@@ -16,6 +16,8 @@ PlotNode::~PlotNode()
 
 bool PlotNode::onDraw()
 {
+  float scale = getScale();
+  
   Chart *chart = inputs()[PLOTNODE_INPUT_CHART]->get<Chart>();
   // DateTime *dtStartIn = inputs()[PLOTNODE_INPUT_STARTDATE]->get<DateTime>();
   // DateTime *dtEndIn   = inputs()[PLOTNODE_INPUT_ENDDATE]->get<DateTime>();
@@ -35,15 +37,13 @@ bool PlotNode::onDraw()
       if(dtStart.year() != mOldStartDate.year() || dtStart.month() != mOldStartDate.month() || dtStart.day() != mOldStartDate.day() ||
          dtEnd.year()   != mOldEndDate.year()   || dtEnd.month()   != mOldEndDate.month()   || dtEnd.day()   != mOldEndDate.day()   ||
          chart->getHouseSystem() != mOldChart.getHouseSystem() ||
-         chart->getDraconic()    != mOldChart.getDraconic()    ||
-         chart->getSidereal()    != mOldChart.getSidereal()    ||
+         chart->getZodiac()      != mOldChart.getZodiac()      ||
          chart->getTruePos()     != mOldChart.getTruePos())
         {
           mOldChart.setDate(dtOrig);
           mOldChart.setLocation(chart->location());
           mOldChart.setHouseSystem(chart->getHouseSystem());
-          mOldChart.setDraconic(chart->getDraconic());
-          mOldChart.setSidereal(chart->getSidereal());
+          mOldChart.setZodiac(chart->getZodiac());
           mOldChart.setTruePos(chart->getTruePos());
           
           mData.clear();
@@ -60,13 +60,10 @@ bool PlotNode::onDraw()
           mOldEndDate   = dtEnd;
         }
       std::string overlay = dtStart.toString() + " --> " + dtEnd.toString();
-      ImGui::PlotLines(getObjName(obj).c_str(), mData.data(), mData.size(), 0, overlay.c_str(), 0.0f, 360.0f, Vec2f(950, 500));
-      ImGui::GetWindowDrawList()->AddLine(Vec2f(475, 0)+cursorPos, Vec2f(475, 500)+cursorPos, ImColor(Vec4f(1.0f, 0.0f, 0.0f, 1.0f)), 2.0f);
+      ImGui::PlotLines(getObjName(obj).c_str(), mData.data(), mData.size(), 0, overlay.c_str(), 0.0f, 360.0f, Vec2f(950, 500)*scale);
+      ImGui::GetWindowDrawList()->AddLine(Vec2f(475, 0)*scale + cursorPos, Vec2f(475, 500)*scale + cursorPos, ImColor(Vec4f(1.0f, 0.0f, 0.0f, 1.0f)), 2.0f);
     }
-  
   ImGui::InputInt("Day Radius", &mDayRadius, 1, 10);
-  //if(mDayRadius > 365) { mDayRadius = 365; } // clamp number of data points
-  
   return true;
 }
 

@@ -14,7 +14,7 @@ LocationWidget::LocationWidget(const Location &loc)
   : mLocation(loc) { mLocation.fix(); }
 
 LocationWidget::LocationWidget(const LocationWidget &other)
-  : mLocation(other.mLocation), mSavedLocation(other.mSavedLocation), mDST(other.mDST)
+  : mLocation(other.mLocation), mSavedLocation(other.mSavedLocation)//, mDST(other.mDST)
 {
   sprintf(mName, "%s", other.mName);
   sprintf(mSavedName, "%s", other.mSavedName);
@@ -26,7 +26,7 @@ LocationWidget& LocationWidget::operator=(const LocationWidget &other)
   mSavedLocation = other.mSavedLocation;
   sprintf(mName, "%s", other.mName);
   sprintf(mSavedName, "%s", other.mSavedName);
-  mDST = other.mDST;
+  //mDST = other.mDST;
   return *this;
 }
 
@@ -159,7 +159,7 @@ std::vector<LocationSave> LocationWidget::loadAll()
   return data;
 }
 
-void LocationWidget::draw()
+void LocationWidget::draw(float scale)
 {
   mLocation.fix();
   ImGui::BeginGroup();
@@ -178,7 +178,7 @@ void LocationWidget::draw()
     int    altVal = mLocation.altitude;
 
     // latitude input
-    ImGui::PushItemWidth(200);
+    ImGui::PushItemWidth(200*scale);
     ImGui::Text("Latitude  (°)");
     ImGui::SameLine();
     if(ImGui::InputDouble("##Latitude",  &latVal, latStep, latFastStep, "%.12f"))
@@ -186,14 +186,14 @@ void LocationWidget::draw()
     ImGui::PopItemWidth();
     // longitude input
     ImGui::Text("Longitude (°)");
-    ImGui::PushItemWidth(200);
+    ImGui::PushItemWidth(200*scale);
     ImGui::SameLine();
     if(ImGui::InputDouble("##Longitude", &lonVal, lonStep, lonFastStep, "%.12f"))
       { mLocation.longitude = lonVal; }
     ImGui::PopItemWidth();
     // altitude input
     ImGui::Text("Altitude  (m)");
-    ImGui::PushItemWidth(100);
+    ImGui::PushItemWidth(100*scale);
     ImGui::SameLine();
     if(ImGui::InputInt("##Altitude",     &altVal, altStep, altFastStep))
       { mLocation.altitude = altVal; }
@@ -285,7 +285,6 @@ void LocationWidget::draw()
                     std::cout << "Location saved as '" << mName << "'!\n";
                   }
               }
-            
           }
         ImGui::EndPopup();
       }
@@ -304,13 +303,12 @@ void LocationWidget::draw()
     ImGui::Spacing();
     
     // time zone
-    double utcOffset = mLocation.utcOffset + (mDST ? 1 : 0);
+    double utcOffset = mLocation.utcOffset;// + (mDST ? 1 : 0);
     std::string offsetStr = (std::string("(UTC")+(utcOffset >= 0.0 ? "+" : "")+to_string(utcOffset, 1)+")");
     ImGui::TextColored(Vec4f(1.0f, 1.0f, 1.0f, 0.25f), "%s", (mLocation.timezoneId.empty() ? "n/a" : mLocation.timezoneId).c_str());
     ImGui::SameLine(); ImGui::TextColored(Vec4f(1.0f, 1.0f, 1.0f, 0.25f), "%s", offsetStr.c_str());
     // update (NOTE: use springly for now --> ~2500 free queries per username per day)
     if(ImGui::Button("Update")) { mLocation.updateTimezone(); }
-    ImGui::SameLine(); ImGui::Checkbox("Daylight Savings", &mDST);
     ImGui::Spacing();
   }
   ImGui::EndGroup();

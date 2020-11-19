@@ -17,7 +17,7 @@ TimeWidget::TimeWidget(const DateTime &date)
 { mDate.fix(); }
 
 TimeWidget::TimeWidget(const TimeWidget &other)
-  : mDate(other.mDate), mSavedDate(other.mSavedDate)
+  : mDate(other.mDate), mSavedDate(other.mSavedDate), mDST(other.mDST)
 {
   sprintf(mName, "%s", other.mName);
   sprintf(mSavedName, "%s", other.mSavedName);
@@ -29,9 +29,9 @@ TimeWidget& TimeWidget::operator=(const TimeWidget &other)
   mSavedDate = other.mSavedDate;
   sprintf(mName, "%s", other.mName);
   sprintf(mSavedName, "%s", other.mSavedName);
+  mDST = other.mDST;
   return *this;
 }
-
 
 bool TimeWidget::save(const std::string &name)
 {
@@ -164,18 +164,18 @@ std::vector<DateSave> TimeWidget::loadAll()
   return data;
 }
 
-void TimeWidget::draw(const std::string &id)
+void TimeWidget::draw(const std::string &id, float scale)
 {
   ImGui::BeginGroup();
   {
     // textbox widths
-    const float yearWidth   = 100;
-    const float monthWidth  = 100;
-    const float dayWidth    = 100;
-    const float hourWidth   = 100;
-    const float minuteWidth = 100;
-    const float secondWidth = 100;
-    const float tzWidth     = 100;
+    const float yearWidth   = 100*scale;
+    const float monthWidth  = 100*scale;
+    const float dayWidth    = 100*scale;
+    const float hourWidth   = 100*scale;
+    const float minuteWidth = 100*scale;
+    const float secondWidth = 100*scale;
+    const float tzWidth     = 55*scale;
     // steps
     const short  yearStep   = 1;
     const char   monthStep  = 1;
@@ -199,54 +199,44 @@ void TimeWidget::draw(const std::string &id)
     char   hourVal   = mDate.hour();
     char   minuteVal = mDate.minute();
     double secondVal = mDate.second();
-    double tzVal     = mDate.tzOffset();
 
-    // date input
-    ImGui::Spacing();
+    //ImGui::Spacing();
     ImGui::BeginGroup();
     {
-      // ImGui::Text("       Date");
-      // ImGui::Spacing();
-      
-      ImGui::Text("Year ");
+      ImGui::Text("Year");
       ImGui::PushItemWidth(yearWidth);
-      ImGui::SameLine(); if(ImGui::InputScalar(("##year"+id).c_str(),   ImGuiDataType_S16,    &yearVal,   &yearStep,   &yearFastStep, "%d"))
-                           { mDate.setYear(yearVal); }
+      ImGui::SameLine(55*scale); if(ImGui::InputScalar(("##year"+id).c_str(),   ImGuiDataType_S16,    &yearVal,   &yearStep,   &yearFastStep, "%d"))
+                                   { mDate.setYear(yearVal); }
       ImGui::PopItemWidth();
       ImGui::Text("Month");
       ImGui::PushItemWidth(monthWidth);
-      ImGui::SameLine(); if(ImGui::InputScalar(("##month"+id).c_str(),  ImGuiDataType_S8,     &monthVal,  &monthStep,  &monthFastStep, "%d"))
-                           { mDate.setMonth(monthVal); }
+      ImGui::SameLine(55*scale); if(ImGui::InputScalar(("##month"+id).c_str(),  ImGuiDataType_S8,     &monthVal,  &monthStep,  &monthFastStep, "%d"))
+                                   { mDate.setMonth(monthVal); }
       ImGui::PopItemWidth();
-      ImGui::Text("Day  ");
+      ImGui::Text("Day");
       ImGui::PushItemWidth(dayWidth);
-      ImGui::SameLine(); if(ImGui::InputScalar(("##day"+id).c_str(), ImGuiDataType_S8,     &dayVal,    &dayStep,    &dayFastStep, "%d"))
-                           { mDate.setDay(dayVal); }
+      ImGui::SameLine(55*scale); if(ImGui::InputScalar(("##day"+id).c_str(), ImGuiDataType_S8,     &dayVal,    &dayStep,    &dayFastStep, "%d"))
+                                   { mDate.setDay(dayVal); }
       ImGui::PopItemWidth();
     }
     ImGui::EndGroup();
-    
-    // time input
     ImGui::SameLine();
     ImGui::BeginGroup();
     {
-      // ImGui::Text("        Time");
-      // ImGui::Spacing();
-            
-      ImGui::Text("Hour  ");
+      ImGui::Text("Hour");
       ImGui::PushItemWidth(hourWidth);
-      ImGui::SameLine(); if(ImGui::InputScalar(("##hour"+id).c_str(),   ImGuiDataType_S8,     &hourVal,   &hourStep,   &hourFastStep, "%d"))
-                           { mDate.setHour(hourVal); }
+      ImGui::SameLine(55*scale); if(ImGui::InputScalar(("##hour"+id).c_str(),   ImGuiDataType_S8,     &hourVal,   &hourStep,   &hourFastStep, "%d"))
+                                   { mDate.setHour(hourVal); }
       ImGui::PopItemWidth();
       ImGui::Text("Minute");
       ImGui::PushItemWidth(minuteWidth);
-      ImGui::SameLine(); if(ImGui::InputScalar(("##minute"+id).c_str(), ImGuiDataType_S8,     &minuteVal, &minuteStep, &minuteFastStep, "%d"))
-                           { mDate.setMinute(minuteVal); }
+      ImGui::SameLine(55*scale); if(ImGui::InputScalar(("##minute"+id).c_str(), ImGuiDataType_S8,     &minuteVal, &minuteStep, &minuteFastStep, "%d"))
+                                   { mDate.setMinute(minuteVal); }
       ImGui::PopItemWidth();
       ImGui::Text("Second");
       ImGui::PushItemWidth(secondWidth);
-      ImGui::SameLine(); if(ImGui::InputScalar(("##second"+id).c_str(), ImGuiDataType_Double, &secondVal, &secondStep, &secondFastStep, "%2.2f"))
-                           { mDate.setSecond(secondVal); }
+      ImGui::SameLine(55*scale); if(ImGui::InputScalar(("##second"+id).c_str(), ImGuiDataType_Double, &secondVal, &secondStep, &secondFastStep, "%2.2f"))
+                                   { mDate.setSecond(secondVal); }
       ImGui::PopItemWidth();
     }
     ImGui::EndGroup();
@@ -265,17 +255,23 @@ void TimeWidget::draw(const std::string &id)
         ImGui::TextColored(ImColor(1.0f, 1.0f, 1.0f, 0.5f), "%s", sName.c_str());
       }
 
-    // display time zone
-    ImGui::SameLine(180);
+    // display UTC offset
+    double tzVal = mDate.utcOffset()+mDate.dstOffset();
+    ImGui::SameLine(165*scale);
     ImGui::TextUnformatted("UTC");
     ImGui::PushItemWidth(tzWidth);
     ImGui::SameLine();
-    ImGui::InputDouble(("##tzOffset"+id).c_str(), &tzVal, tzStep, tzFastStep, "%2.2f");
-    mDate.setTzOffset(tzVal);
+    ImGui::InputDouble(("##tzOffset"+id).c_str(), &tzVal, 0.0, 0.0, "%+2.2f");
+    mDate.setUtcOffset(tzVal-mDate.dstOffset());
     ImGui::PopItemWidth();
 
-    
-    ImGui::Spacing();
+    bool dst = (mDate.dstOffset() != 0.0);
+    ImGui::SameLine();
+    ImGui::TextUnformatted("DST");
+    ImGui::SameLine(); ImGui::Checkbox("##DST", &dst);
+    if(dst && mDate.dstOffset() == 0.0) { mDate.setDstOffset(1.0); }
+    else if(!dst)                       { mDate.setDstOffset(0.0); }
+
     
     // load button
     ImGui::Button(("Load##date"+id).c_str());
@@ -353,7 +349,6 @@ void TimeWidget::draw(const std::string &id)
                     std::cout << "Date saved as '" << mName << "'!\n";
                   }
               }
-            
           }
         ImGui::EndPopup();
       }
@@ -366,9 +361,6 @@ void TimeWidget::draw(const std::string &id)
         if(ImGui::Button(("Reload##date"+id).c_str()))
           { mDate = mSavedDate; }
       }
-    ImGui::SameLine(280);
-    if(ImGui::Button(("Now##date"+id).c_str()))
-      { mDate = DateTime::now(); }
   }
   ImGui::EndGroup();
   mDate.fix();

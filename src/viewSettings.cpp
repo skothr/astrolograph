@@ -7,6 +7,14 @@ using namespace astro;
 #include "glfwKeys.hpp"
 
 
+ViewSettings::ViewSettings()
+{
+  mainFont = ImGui::GetIO().Fonts->AddFontFromFileTTF(FONT_PATH, MAIN_FONT_HEIGHT);
+  titleFont = ImGui::GetIO().Fonts->AddFontFromFileTTF(FONT_PATH, TITLE_FONT_HEIGHT);
+}
+ViewSettings::~ViewSettings()
+{ }
+
 void ViewSettings::openWindow()
 {
   mState = true;
@@ -102,6 +110,20 @@ bool ViewSettings::draw()
       ImGui::BeginGroup();
       {
         ImGui::TextUnformatted("Node Graph");
+
+        ImGui::TextUnformatted("Draw Graph Lines");
+        ImGui::SameLine(mLabelColWidth);
+        ImGui::Checkbox("##glDrawLn", &drawGraphLines);
+        ImGui::TextUnformatted("Draw Axes");
+        ImGui::SameLine(mLabelColWidth);
+        ImGui::Checkbox("##glDrawAx", &drawGraphAxes);
+        
+        ImGui::TextUnformatted("Graph Line Spacing");
+        ImGui::SameLine(mLabelColWidth);
+        ImGui::InputFloat("##glSpacingX", &graphLineSpacing.x);
+        ImGui::SameLine();
+        ImGui::InputFloat("##glSpacingY", &graphLineSpacing.y);
+        
         busy |= colorSetting("Graph Background Color", "ngBgCol", &graphBgColor,   busy);
         busy |= colorSetting("Graph Line Color",       "ngLnCol", &graphLineColor, busy);
         busy |= colorSetting("Graph Axes Color",       "ngAxCol", &graphAxesColor, busy);

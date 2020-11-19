@@ -63,6 +63,7 @@ std::size_t Location::curlCallback(const char* in, std::size_t size, std::size_t
 // hacky timezone query
 std::string Location::getTimezoneCurl(const astro::Location &loc)
 {
+  std::string timezone = "";
   CURL *curl = curl_easy_init();
   if(curl)
     {
@@ -71,14 +72,17 @@ std::string Location::getTimezoneCurl(const astro::Location &loc)
                          "&username=" + GEONAMES_USERNAME);
 
       std::cout << "Querying timezone using Geonames...\n";
-      std::cout << "  --> URL: " << url << "\n";
+      std::cout << "  (URL: " << url << ")\n";
       
       std::unique_ptr<std::string> httpData(new std::string());
       
       curl_easy_setopt(curl, CURLOPT_URL, url.c_str());
       curl_easy_setopt(curl, CURLOPT_WRITEFUNCTION, curlCallback);
       curl_easy_setopt(curl, CURLOPT_WRITEDATA, httpData.get());
+      std::cout << "...";
       CURLcode res = curl_easy_perform(curl);
+      
+      std::cout << "DONE\n";
       
       long httpCode = 0L;
       curl_easy_getinfo(curl, CURLINFO_RESPONSE_CODE, &httpCode);
@@ -87,6 +91,7 @@ std::string Location::getTimezoneCurl(const astro::Location &loc)
       // TODO: proper JSON parsing
       if(httpCode == 200)
         {
+          std::cout << "  --> Result: " << *httpData.get() << "\n";
           // find "timezoneId" section
           std::string tzLabel = "timezoneId";
           std::size_t labelPos = httpData.get()->find(tzLabel);
@@ -96,11 +101,11 @@ std::string Location::getTimezoneCurl(const astro::Location &loc)
               std::size_t colonPos = rest.find(":");
               std::size_t commaPos = rest.find(",");
               std::string valueStr = rest.substr(colonPos+2, commaPos-(colonPos+2)-1);
-              return valueStr;
+              timezone = valueStr;
             }
         }
     }
-  return "";
+  return timezone;
 }
 
 void Location::updateTimezone()
@@ -111,19 +116,35 @@ void Location::updateTimezone()
 
 void Location::updateUtcOffset()
 {
-  utcOffset = getTimezoneOffset(DateTime::now());
+  if(timezoneId.empty())
+    {
+      utcOffset = 0.0;
+      dstOffset = 0.0;
+      return;
+    }
+  else
+    {
+      DateTime dt = DateTime::now();
+      const date::time_zone* tz = date::locate_zone(timezoneId);
+      auto sysTime = date::sys_time<date::days>{date::year(dt.year()) / date::month(dt.month()) / date::day(dt.day())};
+      // + (dt.hour())h + (dt.minute())n + (dt.second())s;
+      date::sys_info info = tz->get_info(sysTime);
+      utcOffset = ((info.offset).count()/60.0 + info.save.count())/60.0;
+      dstOffset = (info.save.count())/60.0;
+    }
 }
 
-double Location::getTimezoneOffset(const DateTime &dt) const
+double Location::getTimezoneOffset(DateTime &dt) const
 {
   if(timezoneId.empty()) { return 0.0; }
   
   const date::time_zone* tz = date::locate_zone(timezoneId);
-  std::string dateStr = (std::to_string(dt.year())+"-"+std::to_string(dt.month())+"-"+std::to_string(dt.day()) +
-                         "T"+std::to_string(dt.hour())+":"+std::to_string(dt.minute())+":"+std::to_string(dt.second())+"Z");
-  std::istringstream ss(dateStr);
-  date::sys_time<std::chrono::milliseconds> t;
-  ss >> date::parse("%a %b %d %T %z %Y", t);
-  
-  return tz->get_info(t).offset.count() / (60.0*60.0); // convert from seconds to hours
+  auto sysTime = date::sys_time<date::days>{date::year(dt.year()) / date::month(dt.month()) / date::day(dt.day())};
+  // + (dt.hour())h + (dt.minute())n + (dt.second())s;
+  date::sys_info info = tz->get_info(sysTime);
+
+  // offset in seconds, save in minutes --> convert to hours
+  dt.setUtcOffset((info.offset.count()/60.0 - info.save.count())/60.0);
+  dt.setDstOffset(info.save.count()/60.0);
+  return info.offset.count() / (60.0*60.0);
 }

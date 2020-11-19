@@ -29,38 +29,31 @@ ProgressNode::~ProgressNode()
 
 bool ProgressNode::onDraw()
 {
-  //ImGui::BeginGroup();
-  {
-    Chart *inChart = inputs()[PROGRESSNODE_INPUT_CHART]->get<Chart>();
-    
-    if(inChart)
-      {
-        DateTime dtOrig = inChart->date();      // original date
-        Location locOrig = inChart->location(); // original location
+  Chart *inChart = inputs()[PROGRESSNODE_INPUT_CHART]->get<Chart>();
+  if(inChart)
+    {
+      DateTime dtOrig = inChart->date();      // original date
+      Location locOrig = inChart->location(); // original location
         
-        DateTime *dtIn  = inputs()[PROGRESSNODE_INPUT_DATE]->get<DateTime>();
-        Location *locIn = inputs()[PROGRESSNODE_INPUT_LOCATION]->get<Location>();
-        DateTime dtComp = dtOrig;   // compare date
-        Location locComp = locOrig; // compare location
-        if(dtIn)  { dtComp = *dtIn; }
-        if(locIn) { locComp = *locIn; }
+      DateTime *dtIn  = inputs()[PROGRESSNODE_INPUT_DATE]->get<DateTime>();
+      Location *locIn = inputs()[PROGRESSNODE_INPUT_LOCATION]->get<Location>();
+      DateTime dtComp = dtOrig;   // compare date
+      Location locComp = locOrig; // compare location
+      if(dtIn)  { dtComp = *dtIn; }
+      if(locIn) { locComp = *locIn; }
 
-        DateTime dtProg = inChart->swe().getProgressed(dtOrig, locOrig, dtComp, locComp);
+      DateTime dtProg = inChart->swe().getProgressed(dtOrig, locOrig, dtComp, locComp);
 
-        ImGui::TextUnformatted(dtComp.toString().c_str());
-        ImGui::Text(" -->  %s", dtProg.toString().c_str());
-        ImGui::TextUnformatted(locComp.toString().c_str());
-        ImGui::Spacing();
+      ImGui::TextUnformatted(dtComp.toString().c_str());
+      ImGui::Text(" -->  %s", dtProg.toString().c_str());
+      ImGui::TextUnformatted(locComp.toString().c_str());
+      ImGui::Spacing();
 
-        if(mChart->date() != dtProg)      { mChart->setDate(dtProg); }
-        if(mChart->location() != locComp) { mChart->setLocation(locComp); }
-        mChart->update();
-      }
-  }
-  //ImGui::EndGroup();
-  
+      if(mChart->date() != dtProg)      { mChart->setDate(dtProg); }
+      if(mChart->location() != locComp) { mChart->setLocation(locComp); }
+      mChart->update();
+    }
   mChart->update();
-  
   return true;
 }
 

@@ -178,6 +178,29 @@ namespace astro
       HOUSE_WHOLESIGN     = 'W',
     };
   
+  enum ZodiacType
+    {
+      ZODIAC_INVALID = -1,
+      ZODIAC_TROPICAL,
+      ZODIAC_SIDEREAL,
+      ZODIAC_DRACONIC,
+      ZODIAC_COUNT
+    };
+
+  inline std::string getZodiacName(ZodiacType zType)
+  {
+    switch(zType)
+      {
+      case ZODIAC_TROPICAL:
+        return "Tropical";
+      case ZODIAC_SIDEREAL:
+        return "Sidereal";
+      case ZODIAC_DRACONIC:
+        return "Draconic";
+      default:
+        return "<Invalid>";
+      }
+  }
   
   ////////////////////////////////////////////////////////////////////////////
   // object and angle names (order must match enum above)
@@ -294,6 +317,15 @@ namespace astro
       { return OBJECT_NAMES[obj]; }
     else if(obj >= ANGLE_OFFSET && obj < ANGLE_END) // angle
       { return ANGLE_NAMES[obj-ANGLE_OFFSET]; }
+    else
+      { return "<UNKNOWN>"; }
+  }
+  inline std::string getObjNameLong(ObjType obj)
+  {
+    if(obj > OBJ_INVALID && obj < OBJ_COUNT) // object
+      { return OBJECT_NAMES[obj]; }
+    else if(obj >= ANGLE_OFFSET && obj < ANGLE_END) // angle
+      { return ANGLE_NAMES_LONG[obj-ANGLE_OFFSET]; }
     else
       { return "<UNKNOWN>"; }
   }
@@ -438,12 +470,13 @@ namespace astro
   // celestial objects (planets, asteroids, comets, etc(?).)
   struct ObjData
   {
-    double longitude = 0.0; // theta
-    double latitude  = 0.0; // phi
-    double distance  = 0.0; // radius
-    double lonSpeed  = 0.0; // dTheta
-    double latSpeed  = 0.0; // dPhi
-    double distSpeed = 0.0; // dRadius
+    double longitude = 0.0;   // theta
+    double latitude  = 0.0;   // phi
+    double distance  = 0.0;   // radius
+    double lonSpeed  = 0.0;   // dTheta
+    double latSpeed  = 0.0;   // dPhi
+    double distSpeed = 0.0;   // dRadius
+    bool   valid     = false; // valid data
   };
   
 }

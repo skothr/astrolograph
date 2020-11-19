@@ -23,6 +23,11 @@ struct Rect
   const Rect<T> operator+ (const Vector<T, 2> &offset) const { return Rect<T>(p1+offset, p2+offset); }
   Rect<T>&      operator-=(const Vector<T, 2> &offset)       { p1 -= offset; p2 -= offset; return *this; }
   const Rect<T> operator- (const Vector<T, 2> &offset) const { return Rect<T>(p1-offset, p2-offset); }
+  
+  Rect<T>&      operator*=(T scale)       { p1 *= scale; p2 *= scale; return *this; }
+  const Rect<T> operator* (T scale) const { return Rect<T>(p1*scale, p2*scale); }
+  Rect<T>&      operator/=(T scale)       { p1 /= scale; p2 /= scale; return *this; }
+  const Rect<T> operator/ (T scale) const { return Rect<T>(p1/scale, p2/scale); }
 
   const Vector<T, 2>& pos() const { return p1; }
   Vector<T, 2> size() const       { return (p2 - p1); }
@@ -44,6 +49,7 @@ struct Rect
   
   bool contains(const Vector<T, 2> &p) const
   { return (p.x >= p1.x && p.x <= p2.x && p.y > p1.y && p.y <= p2.y); }
+  // rect/rect intersection
   bool intersects(const Rect<T> &other) const
   { return !((p1.x > other.p2.x || other.p1.x > p2.x) || (p1.y > other.p2.y || other.p1.y > p2.y)); }
   Rect<T> intersection(const Rect<T> &other) const

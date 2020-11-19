@@ -24,8 +24,12 @@ namespace astro
 
     ChartView mView;
     float mChartWidth = (CHART_SIZE_MIN + CHART_SIZE_DEFAULT)/2.0f; // start halfways between minimum size and "default"
-    // bool mProgressed = false;
-    // bool mDaylightSavings = false;
+
+    std::vector<bool> mShowObjects;
+    std::vector<bool> mFocusObjects;
+    bool mOptionsOpen = false;
+    bool mDisplayOpen = false;
+    bool mOrbsOpen    = false;
 
     // date modify flags (not saved)
     bool mEditYear   = false; // toggled with 1 key
@@ -61,7 +65,16 @@ namespace astro
     { // copy settings
       if(Node::copyTo(other))
         {
-          ((ChartViewNode*)other)->mChartWidth = mChartWidth;
+          ((ChartViewNode*)other)->mOptionsOpen = mOptionsOpen;
+          ((ChartViewNode*)other)->mDisplayOpen = mDisplayOpen;
+          ((ChartViewNode*)other)->mOrbsOpen    = mOrbsOpen;
+          ((ChartViewNode*)other)->mChartWidth  = mChartWidth;
+
+          for(int i = OBJ_SUN; i < OBJ_COUNT; i++)
+            { ((ChartViewNode*)other)->mShowObjects[i] = mShowObjects[i]; }
+          for(int i = ANGLE_OFFSET; i < ANGLE_END; i++)
+            { ((ChartViewNode*)other)->mShowObjects[i-ANGLE_OFFSET+OBJ_COUNT] = mShowObjects[i-ANGLE_OFFSET+OBJ_COUNT]; }
+          
           // (everything else set by connections)
           return true;
         }

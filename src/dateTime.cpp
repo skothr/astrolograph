@@ -10,8 +10,7 @@ const std::array<int, 12> DateTime::MONTH_DAYS { 31, 28, 31, 30, 31, 30, 31, 31,
 const int DateTime::MAX_YEAR = 8000;
 const int DateTime::MIN_YEAR = -8000;
 
-int monthDays(int month)
-{ return DateTime::MONTH_DAYS[month-1]; }
+int monthDays(int month) { return DateTime::MONTH_DAYS[month-1]; }
 
 bool DateTime::isValid(int year, int month, int day, int hour, int minute, double second)
 {
@@ -106,7 +105,7 @@ DateTime DateTime::now()
 
   auto zoned = date::make_zoned(date::current_zone(), current);
   int offset = zoned.get_info().offset.count();
-  d.mTzOffset = ((double)offset) / 60.0/60.0;
+  d.mUtcOffset = ((double)offset) / 60.0/60.0;
   return d;
 }
 
@@ -114,8 +113,8 @@ DateTime DateTime::now()
 
 
 
-DateTime::DateTime(int year, int month, int day, int hour, int minute, double second, double tz)
-  : mYear(year), mMonth(month), mDay(day), mHour(hour), mMinute(minute), mSecond(second), mTzOffset(tz)
+DateTime::DateTime(int year, int month, int day, int hour, int minute, double second, double utcOffset)
+  : mYear(year), mMonth(month), mDay(day), mHour(hour), mMinute(minute), mSecond(second), mUtcOffset(utcOffset)
 {
   //fix();
 }
@@ -123,7 +122,7 @@ DateTime::DateTime(int year, int month, int day, int hour, int minute, double se
 DateTime::DateTime(const DateTime &other)
   : mYear(other.mYear), mMonth(other.mMonth), mDay(other.mDay),
     mHour(other.mHour), mMinute(other.mMinute), mSecond(other.mSecond),
-    mTzOffset(other.mTzOffset)
+    mUtcOffset(other.mUtcOffset), mDstOffset(other.mDstOffset)
 { }
 
 DateTime::DateTime(const std::array<int, 6> &arr)
@@ -133,13 +132,14 @@ DateTime::DateTime(const std::array<int, 6> &arr)
 
 DateTime& DateTime::operator=(const DateTime &other)
 {
-  mYear   = other.mYear;
-  mMonth  = other.mMonth;
-  mDay    = other.mDay;
-  mHour   = other.mHour;
-  mMinute = other.mMinute;
-  mSecond = other.mSecond;
-  mTzOffset = other.mTzOffset;
+  mYear      = other.mYear;
+  mMonth     = other.mMonth;
+  mDay       = other.mDay;
+  mHour      = other.mHour;
+  mMinute    = other.mMinute;
+  mSecond    = other.mSecond;
+  mUtcOffset = other.mUtcOffset;
+  mDstOffset = other.mDstOffset;
   return *this;
 }
     
@@ -166,20 +166,42 @@ DateTime DateTime::fixed() const
   return dt;
 }
 
-void DateTime::setYear(int year)
-{ mYear = year; }
-void DateTime::setMonth(int month)
-{ mMonth = month; }
-void DateTime::setDay(int day)
-{ mDay = day; }
-void DateTime::setHour(int hour)
-{ mHour = hour; }
-void DateTime::setMinute(int minute)
-{ mMinute = minute; }
-void DateTime::setSecond(int second)
+void DateTime::setYear(double year)
+{
+  mYear = (int)year;
+  double remaining = year - mYear;
+  if(remaining > 0.0) { setDay(mDay + remaining*365.25); }
+}
+void DateTime::setMonth(double month)
+{
+  mMonth = (int)month;
+  double remaining = month - mMonth;
+  if(remaining > 0.0) { setDay(mDay + remaining*monthDays(mMonth)); }
+}
+void DateTime::setDay(double day)
+{
+  mDay = (int)day;
+  double remaining = day - mDay;
+  if(remaining > 0.0) { setHour(mHour + remaining*24.0); }
+}
+void DateTime::setHour(double hour)
+{
+  mHour = (int)hour;
+  double remaining = hour - mHour;
+  if(remaining > 0.0) { setMinute(mMinute + remaining*60.0); }
+}
+void DateTime::setMinute(double minute)
+{
+  mMinute = (int)minute;
+  double remaining = minute - mMinute;
+  if(remaining > 0.0) { setSecond(mSecond + remaining*60.0); }
+}
+void DateTime::setSecond(double second)
 { mSecond = second; }
-void DateTime::setTzOffset(double offset)
-{ mTzOffset = offset; }
+void DateTime::setUtcOffset(double offset)
+{ mUtcOffset = offset; }
+void DateTime::setDstOffset(double offset)
+{ mDstOffset = offset; }
 
 bool DateTime::set(int year, int month, int day, int hour, int minute, double second)
 {

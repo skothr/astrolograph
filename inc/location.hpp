@@ -42,8 +42,9 @@ namespace astro
     double      altitude   = NYSE_ALT;    // meters
     std::string timezoneId = NYSE_TZNAME; // timezone label
     double      utcOffset  = NYSE_OFFSET; // timezone UTC offset
+    double      dstOffset  = 0.0;         // timezone DST offset
     
-    Location();
+    Location() { }
     Location(const std::string &saveStr) { fromSaveString(saveStr); }
     Location(double lat, double lon, double alt);
     Location(const Location &other);
@@ -59,7 +60,7 @@ namespace astro
     void fix();
     Location fixed() const;
     
-    double getTimezoneOffset(const DateTime &dt) const;
+    double getTimezoneOffset(DateTime &dt) const;
 
     std::string toString() const
     {

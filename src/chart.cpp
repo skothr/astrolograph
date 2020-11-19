@@ -203,7 +203,7 @@ void Chart::update()
       mSwe.setLocation(mLocation);
       mSwe.setDate(mDate);
       mSwe.setHouseSystem(mHouseSystem);
-      mSwe.setSidereal(mSidereal);
+      mSwe.setSidereal(mZodiac == ZODIAC_SIDEREAL);
       mSwe.setTruePos(mTruePos);
       mSwe.calcHouses();
       
@@ -214,10 +214,12 @@ void Chart::update()
           if(o >= OBJ_COUNT) { o = (ObjType)(o-OBJ_COUNT+ANGLE_OFFSET); } // correct for angles
           ChartObject *obj = mObjects[i];
           mObjectData.push_back(mSwe.getObjData((ObjType)o));
+          obj->valid = mObjectData.back().valid;
           obj->angle = mObjectData.back().longitude;
+          obj->retrograde = (mObjectData.back().lonSpeed < 0.0);
         }
 
-      if(mDraconic)
+      if(mZodiac == ZODIAC_DRACONIC)
         { // set aries 0-degrees to true node 
           double nnAngle = mObjects[OBJ_NORTHNODE]->angle;
           for(auto obj : mObjects)
@@ -241,11 +243,15 @@ double Chart::getSingleAngle(ObjType obj)
       mSwe.setLocation(mLocation);
       mSwe.setDate(mDate);
       mSwe.setHouseSystem(mHouseSystem);
-      mSwe.setSidereal(mSidereal);
+      mSwe.setSidereal(mZodiac == ZODIAC_SIDEREAL);
       mSwe.setTruePos(mTruePos);
       mSwe.calcHouses();
       
-      return mSwe.getObjData(obj).longitude;
+      double angle = mSwe.getObjData(obj).longitude;
+      if(mZodiac == ZODIAC_DRACONIC) // set aries 0-degrees to true node
+        { angle = fmod(angle - mSwe.getObjData(OBJ_NORTHNODE).longitude + 360.0, 360.0); }
+      
+      return angle;
     }
 }
 

@@ -22,7 +22,7 @@ namespace astro
     { return {}; }
 
     bool mListOpen = true;
-    bool mOrbsOpen = false;
+    bool mOrbsOpen = true;
     std::vector<bool> mAspVisible;
     std::vector<double> mAspOrbs;
     

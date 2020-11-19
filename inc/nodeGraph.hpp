@@ -41,7 +41,7 @@ namespace astro
     std::unordered_map<int, Node*> mNodes;    // maps ID to pointer
     //std::vector<Node::Connection> mSelectedNodes; // set of nodes that are selected
     Vec2f  mGraphCenter = Vec2f(0,0); // graph-space point to be centered in view
-    Vec2f  mGraphScale  = Vec2f(1,1); // graph view scaling
+    float  mGraphScale  = 1.0f;       // graph view scaling
     Vec2f  mViewPos;                  // screen-space position of nodeGraph view
     Vec2f  mViewSize;                 // screen-space size of nodeGraph view
     bool   mSelecting = false;
@@ -49,7 +49,7 @@ namespace astro
     Rect2f mSelectRect;
     bool   mDrawing = false; // set to true if between BeginDraw() and EndDraw()
     bool   mLocked  = false;  // if true, nodes can't be selected or moved around
-    ViewSettings *mSettings = nullptr;
+    ViewSettings *mViewSettings = nullptr;
 
     std::vector<Node*> mClipboard;
     //Vec2f mClipMousePos;
@@ -80,8 +80,10 @@ namespace astro
     static const std::vector<NodeGroup>                    NODE_GROUPS;
     static Node* makeNode(const std::string &nodeType);
     
-    NodeGraph(ViewSettings *settings);
+    NodeGraph(ViewSettings *viewSettings);
     ~NodeGraph();
+
+    ViewSettings* getViewSettings() { return mViewSettings; }
     
     void addNode(Node *n, bool select=true);  // adds node to mNodes
     Node* addNode(const std::string &type, bool select=true);
@@ -95,7 +97,10 @@ namespace astro
     // selection
     void selectNode(Node *n);
     void select(const std::vector<Node*> &nodes);
+    void selectAll();
     void moveSelected(const Vec2f &dpos);
+    void fixPositions();
+    
     std::vector<Node*> getSelected();
     std::vector<Node*> makeCopies(const std::vector<Node*> &group, bool externalConnections=true); // returns new nodes
     void disconnectExternal(const std::vector<Node*> &group, bool disconnectInputs=true, bool disconnectOutputs=true);
@@ -113,6 +118,7 @@ namespace astro
     bool setLocked() const    { return mLocked; }
 
     Vec2f getCenter() const   { return mGraphCenter; }
+    float getScale() const    { return mGraphScale; }
     bool isPanning() const    { return mPanning; }
 
     Vec2f viewPos() const     { return mViewPos; }
@@ -120,15 +126,18 @@ namespace astro
     void setPos(const Vec2i &p);
     void setSize(const Vec2i &s);
 
-    Vec2f graphToScreen(const Vec2f &p) const   { return p + mGraphCenter + mViewSize/2.0f + mViewPos; }
-    Vec2f screenToGraph(const Vec2f &p) const   { return p - mGraphCenter - mViewSize/2.0f - mViewPos; }
-    Rect2f graphToScreen(const Rect2f &r) const { return r + mGraphCenter + mViewSize/2.0f + mViewPos; }
-    Rect2f screenToGraph(const Rect2f &r) const { return r - mGraphCenter - mViewSize/2.0f - mViewPos; }
+    Vec2f graphToScreenVec(const Vec2f &v) const { return v*mGraphScale; }
+    Vec2f screenToGraphVec(const Vec2f &v) const { return v/mGraphScale; }
+    Vec2f graphToScreen(const Vec2f &p) const    { return (p + mGraphCenter)*mGraphScale + mViewSize/2.0f + mViewPos; }
+    Vec2f screenToGraph(const Vec2f &p) const    { return (p - mViewSize/2.0f - mViewPos)/mGraphScale - mGraphCenter; }
+    Rect2f screenToGraph(const Rect2f &r) const  { return Rect2f(screenToGraph(r.p1), screenToGraph(r.p2)); }
+    Rect2f graphToScreen(const Rect2f &r) const  { return Rect2f(graphToScreen(r.p1), graphToScreen(r.p2)); }
     
     // finds a path from start to end point that doesn't intersect any node rects.
     std::vector<Vec2f> findOrthogonalPath(const Vec2f &start, const Vec2f &end);
     
     void draw();
+    void update();
 
     bool isConnecting();
     bool isSelecting() const        { return mSelecting; }

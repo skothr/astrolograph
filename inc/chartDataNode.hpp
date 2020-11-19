@@ -65,7 +65,6 @@ namespace astro
                 }
             }
         }
-      // mChart->update();
       return params;
     };
 

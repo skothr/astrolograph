@@ -155,8 +155,9 @@ namespace astro
     NodeGraph *mGraph  = nullptr; // parent node graph
     Params    *mParams = nullptr;
     bool mFirstFrame   = true;    // true only on first frame
-    bool mState        = true;    // state of node window (imgui)
-    bool mChanged      = true;   // true if node has changed since last save
+    bool mVisible      = true;    // whether node is drawn on screen
+    bool mBodyVisible  = true;    // whether node body is drawn on screen
+    bool mChanged      = true;    // true if node has changed since last save
     bool mSelected     = false;   // true of node is selected
     bool mClicked      = false;   // whether mouse has clicked node window (and is still down)
     bool mHover        = false;   // whether mouse is over node window (window background)
@@ -172,7 +173,8 @@ namespace astro
     std::vector<ConnectorBase*> mOutputs;
 
     // override in child classes to draw node
-    virtual bool onDraw() { return true; }
+    virtual bool onDraw()   { return true; }
+    virtual void onUpdate() { }
 
     virtual std::map<std::string, std::string>& getSaveParams(std::map<std::string, std::string> &params) const { return params; }
     virtual std::map<std::string, std::string>& setSaveParams(std::map<std::string, std::string> &params)       { return params; }
@@ -220,6 +222,9 @@ namespace astro
     // set parent NodeGraph
     void setGraph(NodeGraph *graph) { mGraph = graph; }
     NodeGraph* getGraph() { return mGraph; }
+    float getScale() const; // returns graph scaling
+    bool isVisible() const { return mVisible; }
+    bool isBodyVisible() const { return mVisible && mBodyVisible; }
     
     // Copies child class data to other node (must be same type)
     //  --> override in child class if data needs to be copied
@@ -274,19 +279,19 @@ namespace astro
     
     void setMinSize(const Vec2f &s) { mMinSize = s; }
     Vec2f getMinSize() const        { return mMinSize; }
-    // void setNextPos(const Vec2f &p) { mNextPos = p; }
-    void setRect(const Rect2f &r) { mParams->rect = r; }
+    void setRect(const Rect2f &r)   { mParams->rect = r; }
     void setPos(const Vec2f &p);
-    void setSize(const Vec2f &s)  { mParams->rect.setSize(s); }
+    void setSize(const Vec2f &s)    { mParams->rect.setSize(s); }
     
-    const Rect2f& rect() const    { return mParams->rect; }
-    const Vec2f& pos() const      { return mParams->rect.p1; }
-    Vec2f size() const            { return mParams->rect.size(); }
-    float getZ() const            { return mParams->z; }
-    void setZ(float z) const      { mParams->z = z; }
+    const Rect2f& rect() const      { return mParams->rect; }
+    const Vec2f& pos() const        { return mParams->rect.p1; }
+    Vec2f size() const              { return mParams->rect.size(); }
+    float getZ() const              { return mParams->z; }
+    void setZ(float z) const        { mParams->z = z; }
 
     void drawConnections(ImDrawList *graphDrawList);
-    bool draw(ViewSettings *settings, ImDrawList *graphDrawList, bool blocked);
+    bool draw(ImDrawList *graphDrawList, bool blocked);
+    void update();
   };
 }
 

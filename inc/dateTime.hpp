@@ -15,18 +15,21 @@ namespace astro
   static const std::vector<std::string> MONTH_NAMES =
     { "January", "February", "March",     "April",   "May",      "June",
       "July",    "August",   "September", "October", "November", "December"};
+  static const std::vector<std::string> WEEK_NAMES =
+    { "Sunday", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"};
 
   // DateTime -- defines a point in time (date and time of day) //
   class DateTime
   {
   private:
-    int mYear      = 1;
-    int mMonth     = 1;
-    int mDay       = 1;
-    int mHour      = 1;
-    int mMinute    = 0;
-    double mSecond = 0.0;
-    double mTzOffset = 0.0;
+    int mYear        = 1;
+    int mMonth       = 1;
+    int mDay         = 1;
+    int mHour        = 1;
+    int mMinute      = 0;
+    double mSecond   = 0.0;
+    double mUtcOffset = 0.0;
+    bool mDstOffset  = 0.0;
     
   public:
     //// STATIC ////
@@ -41,7 +44,7 @@ namespace astro
     
     DateTime() { }
     DateTime(const std::string &saveStr) { fromSaveString(saveStr); }
-    DateTime(int year, int month, int day, int hour, int minute, double second, double tz=0.0);
+    DateTime(int year, int month, int day, int hour, int minute, double second, double utcOffset=0.0);
     DateTime(const DateTime &other);
     DateTime(const std::array<int, 6> &arr);
     DateTime& operator=(const DateTime &other);
@@ -50,50 +53,54 @@ namespace astro
     void fix();
     DateTime fixed() const;
     
-    std::string toString() const
+    std::string toString(bool pdate=true, bool ptime=true) const
     {
       std::ostringstream os;
-      os << (*this);
+      if(pdate)          { printDate(os); }
+      if(pdate && ptime) { os << " | "; }
+      if(ptime)          { printTime(os); }
       return os.str();
     }
     std::string toSaveString() const
     {
       std::ostringstream os;
-      os << mYear << " " << mMonth << " " << mDay << " " << mHour << " " << mMinute << " " << mSecond << " " << mTzOffset;
+      os << mYear << " " << mMonth << " " << mDay << " " << mHour << " " << mMinute << " " << mSecond << " " << mUtcOffset << " " << mDstOffset;
       return os.str();
     }
     std::string fromSaveString(const std::string &str)
     {
       std::istringstream is(str);
       std::string name;
-      is >> mYear; is >> mMonth; is >> mDay; is >> mHour; is >> mMinute; is >> mSecond; is >> mTzOffset;
+      is >> mYear; is >> mMonth; is >> mDay; is >> mHour; is >> mMinute; is >> mSecond; is >> mUtcOffset; is >> mDstOffset;
       // return remaining string
       std::stringstream tmp; tmp << is.rdbuf();
       return tmp.str();
     }
     
-    void setYear(int year);
-    void setMonth(int month);
-    void setDay(int day);
-    void setHour(int hour);
-    void setMinute(int minute);
-    void setSecond(int second);
-    void setTzOffset(double offset);
+    void setYear(double year);
+    void setMonth(double month);
+    void setDay(double day);
+    void setHour(double hour);
+    void setMinute(double minute);
+    void setSecond(double second);
+    void setUtcOffset(double offset);
+    void setDstOffset(double offset);
     
     bool set(int year, int month, int day, int hour, int minute, double second);
 
-    int year() const      { return mYear;   }
-    int month() const     { return mMonth;  }
-    int day() const       { return mDay;    }
-    int hour() const      { return mHour;   }
-    int minute() const    { return mMinute; }
-    double second() const { return mSecond; }
-    double tzOffset() const { return mTzOffset; }
+    int year() const         { return mYear;   }
+    int month() const        { return mMonth;  }
+    int day() const          { return mDay;    }
+    int hour() const         { return mHour;   }
+    int minute() const       { return mMinute; }
+    double second() const    { return mSecond; }
+    double utcOffset() const { return mUtcOffset; }
+    double dstOffset() const { return mDstOffset; }
 
     bool operator==(const DateTime &other) const
     { return (mYear == other.mYear && mMonth == other.mMonth && mDay == other.mDay &&
               mHour == other.mHour && mMinute == other.mMinute && mSecond == other.mSecond &&
-              mTzOffset == other.mTzOffset); }
+              mUtcOffset == other.mUtcOffset && mDstOffset == other.mDstOffset); }
     bool operator!=(const DateTime &other) const
     { return !(*this == other); }
     bool operator<(const DateTime &other) const
@@ -196,7 +203,7 @@ namespace astro
   inline std::ostream& operator<<(std::ostream &os, const DateTime &date)
   {
     date.printDate(os);
-    os << "  |  ";
+    os << " | ";
     date.printTime(os);    
     //os << "[" << date.mYear << "/" << date.mMonth << "/" << date.mDay << " | " << date.mHour << ":" << date.mMinute << ":" << date.mSecond << "]";
     return os;

@@ -26,7 +26,7 @@ namespace astro
       params.emplace("savedName", mWidget.getName());
       if(mWidget.getName().empty() || mWidget.get() != mWidget.getSaved())
         { params.emplace("location",  mWidget.get().toSaveString()); }
-      params.emplace("dst",  (mWidget.getDST() ? "1" : "0"));
+      //params.emplace("dst",  (mWidget.getDST() ? "1" : "0"));
       return params;
     };
     virtual std::map<std::string, std::string>& setSaveParams(std::map<std::string, std::string> &params) override
@@ -46,7 +46,7 @@ namespace astro
           mWidget.setName(saveName);
           mWidget.setSaveName(saveName);
         }
-      mWidget.setDST(params["dst"] != "0");
+      // mWidget.setDST(params["dst"] != "0");
       return params;
     };
     virtual bool onDraw() override;    
@@ -64,6 +64,8 @@ namespace astro
         }
       else { return false; }
     }
+    
+    // bool getDST() const { return mWidget.getDST(); }
   };
 
 }

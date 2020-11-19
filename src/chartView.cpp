@@ -113,8 +113,8 @@ void ChartView::renderHouses(Chart *chart, const ViewParams &params, ImDrawList 
   Vec2f t1(1.0f, 1.0f);
   
   // draw houses
-  float numOffset = CHART_HOUSE_NUM_OFFSET;
-  float ocRadius =  CHART_HOUSE_CIRCLE_RADIUS; // radius of circles around outer house numbers
+  float numOffset = CHART_HOUSE_NUM_OFFSET*params.sizeRatio;
+  float ocRadius =  CHART_HOUSE_CIRCLE_RADIUS*params.sizeRatio; // radius of circles around outer house numbers
   for(int i = 1; i <= 12; i++)
     {
       float angle1 = chart->swe().getHouseCusp(i);                    // this house's cusp
@@ -129,7 +129,6 @@ void ChartView::renderHouses(Chart *chart, const ViewParams &params, ImDrawList 
       Vec2f pobj = cc + params.objRadius*v;
       Vec2f pa = cc + (params.oRadius + numOffset - ocRadius)*v;
       draw_list->AddLine(pobj, pa, ImColor(Vec4f(0.7f, 0.7f, 0.7f, 0.5f)), 1.5f);
-      // painter->drawLine(LineDesc{pe, pi, 1.5f, Vec4f(0.25f, 0.25f, 0.25f, 1.0f)}); //, Vec4f(1.0f, 1.0f, 1.0f, 1.0f), 2);
 
       // inner house number text (NOTE: removed -- too messy. Add option in future?)
       float tAngle = screenAngle(chart, (angle1 + houseSize/2.0f)); // center angle of house
@@ -454,7 +453,7 @@ void ChartView::renderCompareAspects(ChartCompare *compare, const ViewParams &pa
   float obj1Radius = params.objRadius - params.objRingW;
   float obj2Radius = (params.objRadius - params.objRingW);// - params.objRingW);
   
-  // draw other aspects (backwards --> ??)
+  // draw other aspects (backwards ordering --> ??)
   //for(int i = compare->aspects().size()-1; i >= 0; i--)
   for(int i = 0; i < compare->aspects().size(); i++)
     {
@@ -622,35 +621,42 @@ void ChartView::renderObjects(Chart *chart, int level, const ViewParams &params,
   // draw objects
   for(int i = 0; i < chart->objects().size(); i++)
     {
-      if(chart->objects()[i]->type < OBJ_COUNT)
+      ChartObject *obj = chart->objects()[i];
+      if(obj->type < OBJ_COUNT)
         { // skip angles
-          std::string oName = getObjName(chart->objects()[i]->type);
-          if(!chart->objects()[i]->visible) { continue; }
+          std::string oName = getObjName(obj->type);
+          if(!obj->visible || !obj->valid) { continue; }
       
-          float rAngle = screenAngle(chart, (chart->objects()[i]->angle));
+          float rAngle = screenAngle(chart, obj->angle);
           Vec2f v(cos(rAngle), -sin(rAngle));
 
           Vec2f pp = cc + ringRadius*v;
           Vec2f objP = pp + (params.sizeRatio*CHART_OBJRING_W/2.0f)*v - Vec2f(params.symbolSize, params.symbolSize)/2.0f;
-
+          
           ChartImage *img = getWhiteImage(oName);
           if(img)
             {
               Vec2f imSize = Vec2f(params.symbolSize, params.symbolSize);
-              ImGui::SetCursorScreenPos(objP);
               Vec4f color = getObjColor(oName);
+
               Vec4f intCol(color.x, color.y, color.z, color.w);
               Vec4f borderCol(0.0f, 0.0f, 0.0f, 0.0f);
-              
-              ImGui::PushStyleVar(ImGuiStyleVar_ChildRounding, imSize.x/2.0f);
+
+              if(obj->retrograde && obj->type != OBJ_NORTHNODE && obj->type != OBJ_SOUTHNODE)
+                { // retrograde flag
+                  Vec2f objRx = pp + (params.sizeRatio*(CHART_OBJRING_W+10.0f))*v; //objP + (Vec2f(params.symbolSize, params.symbolSize)*0.75f);
+                  ImGui::SetCursorScreenPos(objRx - Vec2f(ImGui::CalcTextSize("Rx"))/2.0f);
+                  ImGui::TextColored(Vec4f(1.0f, 0.0f, 0.0f, 1.0f), "Rx");
+                  draw_list->AddCircle(objP+Vec2f(params.symbolSize, params.symbolSize)/2.0f, params.symbolSize*0.6f, ImColor(Vec4f(1,0,0,1)), 7, 2.0f);
+                }
+              ImGui::SetCursorScreenPos(objP);
               ImGui::Image(img->id(), imSize, t0, t1, ImColor(color), borderCol);
-              ImGui::PopStyleVar();
-              
+          
               bool hover = ImGui::IsItemHovered();
               bool focused = false;
               if(hover)
                 {
-                  double oAngle = chart->objects()[i]->angle;
+                  double oAngle = obj->angle;
                   int    oSign = chart->swe().getSign(oAngle);
                   double oDegree = oAngle - chart->swe().getSignCusp(oSign);
                   ChartImage *sImg = getWhiteImage(getSignName(oSign));
@@ -698,12 +704,11 @@ void ChartView::renderObjects(Chart *chart, int level, const ViewParams &params,
                 }
 
               // set focus
-              if(mFocusObjects[i] == chart->objects()[i]->focused)
+              if(mFocusObjects[i] == obj->focused)
                 {
                   mFocusObjects[i] = focused;
                   chart->setObjFocus((ObjType)i, mFocusObjects[i]);
                 }
-              
               
               if(chart->objects()[i]->focused)
                 { draw_list->AddNgon(objP + Vec2f(params.symbolSize, params.symbolSize)/2.0f, params.symbolSize*0.75f, ImColor(Vec4f(1.0f, 1.0f, 1.0f, 1.0f)), 8, 4.0f); }
@@ -717,23 +722,15 @@ void ChartView::renderChart(Chart *chart, const Vec2f &chartSize)
 {
   Vec2f cp = ImGui::GetCursorPos();
   ViewParams params(ImGui::GetCursorScreenPos(), chartSize);
+  
+  ImGuiWindowFlags wFlags = (ImGuiWindowFlags_NoDecoration | ImGuiWindowFlags_NoMove);
   ImGui::PushStyleVar(ImGuiStyleVar_WindowPadding, Vec2f(0.0f, 0.0f));
   ImGui::PushStyleColor(ImGuiCol_ChildBg, Vec4f(0,0,0,1));
-  if(mSelected)
-    {
-      ImGui::PushStyleVar(ImGuiStyleVar_ChildBorderSize, 1.0f);
-      ImGui::PushStyleColor(ImGuiCol_Border, Vec4f(1,0,0,1));
-    }
-  ImGui::BeginChild("Chart View", chartSize, true, 0);
+  ImGui::BeginChild("Chart View", chartSize, true, wFlags);
   {
-    if(mSelected)
-      {
-        ImGui::PopStyleVar();
-        ImGui::PopStyleColor();
-      }
     ImGui::PopStyleColor();
     ImGui::PopStyleVar();
-
+    ImGui::SetWindowFontScale(params.sizeRatio);
     ImDrawList* draw_list = ImGui::GetWindowDrawList();
 
     if(chart)
@@ -761,20 +758,11 @@ void ChartView::renderChartCompare(ChartCompare *compare, const Vec2f &chartSize
 
   Vec2f cp = ImGui::GetCursorPos();
   
+  ImGuiWindowFlags wFlags = (ImGuiWindowFlags_NoDecoration | ImGuiWindowFlags_NoMove);
   ImGui::PushStyleVar(ImGuiStyleVar_WindowPadding, Vec2f(0.0f, 0.0f));
   ImGui::PushStyleColor(ImGuiCol_ChildBg, Vec4f(0,0,0,1));
-  if(mSelected)
-    {
-      ImGui::PushStyleVar(ImGuiStyleVar_ChildBorderSize, 1.0f);
-      ImGui::PushStyleColor(ImGuiCol_Border, Vec4f(1,0,0,1));
-    }
-  ImGui::BeginChild("Chart View", chartSize, true, 0);
+  ImGui::BeginChild("Chart View", chartSize, true, wFlags);
   {
-    if(mSelected)
-      {
-        ImGui::PopStyleVar();
-        ImGui::PopStyleColor();
-      }
     ImGui::PopStyleColor();
     ImGui::PopStyleVar();
     
@@ -786,6 +774,7 @@ void ChartView::renderChartCompare(ChartCompare *compare, const Vec2f &chartSize
     else
       {
         ViewParams params(ImGui::GetCursorScreenPos(), chartSize);
+        ImGui::SetWindowFontScale(params.sizeRatio);
         ImDrawList* draw_list = ImGui::GetWindowDrawList();
             
         renderZodiac ((oChart ? oChart : iChart), params, draw_list);

@@ -1,10 +1,9 @@
-NODE { nodeId : "9", nodeName : "Chart Data Node", nodePos : "<2247, 502>", nodeType : "ChartDataNode", }
-NODE { nodeId : "8", nodeName : "Chart View Node", nodePos : "<947, 339>", nodeType : "ChartViewNode", width : "1195.000000", }
-NODE { nodeId : "7", nodeName : "Chart Node", nodePos : "<537, 130>", nodeType : "ChartNode", }
-NODE { dst : "0", nodeId : "5", nodeName : "Location Node", nodePos : "<137, 328>", nodeType : "LocationNode", savedName : "nyse", }
-NODE { nodeId : "10", nodeName : "Aspect Node", nodePos : "<3137, 341>", nodeType : "AspectNode", }
-NODE { date : "1903 4 22 9 30 0 -5", live : "0", nodeId : "3", nodeName : "Time Node", nodePos : "<137, 125>", nodeType : "TimeNode", savedName : "nyse-natal", }
-CON 8 OUTPUT 0 10 0 9 0
-CON 7 OUTPUT 0 8 0
-CON 5 OUTPUT 0 7 1
+NODE { bodySize : "<880, 698>", inputsSize : "<40, 60>", nodeId : "9", nodeName : "Chart", nodePos : "<349.313, -939.71>", nodeSize : "<940, 718>", nodeType : "ChartDataNode", outputsSize : "<0, 0>", showObjs : "11111111111111111110000", }
+NODE { bodySize : "<1053, 1107>", inputsSize : "<40, 60>", nodeId : "8", nodeName : "Chart", nodePos : "<-846.693, -299.71>", nodeSize : "<1113, 1127>", nodeType : "ChartViewNode", outputsSize : "<0, 0>", width : "1053.000000", }
+NODE { bodySize : "<280, 86>", houseSystem : "Placidus", inputsSize : "<40, 110>", nodeId : "7", nodeName : "Chart", nodePos : "<-626.693, -516.71>", nodeSize : "<380, 130>", nodeType : "ChartNode", optionsOpen : "0", outputsSize : "<40, 60>", truePos : "0", zodiac : "0", }
+NODE { bodySize : "<312, 182>", inputsSize : "<0, 0>", nodeId : "5", nodeName : "Location", nodePos : "<-1458.69, -467.71>", nodeSize : "<372, 202>", nodeType : "LocationNode", outputsSize : "<40, 60>", savedName : "nyse", }
+NODE { bodySize : "<384, 860>", inputsSize : "<40, 60>", listOpen : "1", nodeId : "10", nodeName : "Aspect", nodePos : "<850.321, -199.71>", nodeSize : "<444, 880>", nodeType : "AspectNode", orbsOpen : "1", outputsSize : "<0, 0>", }
+NODE { bodySize : "<318, 170>", date : "1903 4 22 9 30 0 -5 0", inputsSize : "<40, 60>", live : "0", nodeId : "3", nodeName : "Time", nodePos : "<-1066.69, -658.71>", nodeSize : "<418, 190>", nodeType : "TimeNode", outputsSize : "<40, 60>", savedName : "", }
+CON 7 OUTPUT 0 8 0 9 0 10 0
+CON 5 OUTPUT 0 7 1 3 0
 CON 3 OUTPUT 0 7 0

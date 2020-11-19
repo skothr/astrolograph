@@ -16,6 +16,9 @@ namespace astro
     double angle = 0.0;
     bool visible = true;
     bool focused = false;
+
+    bool valid      = false;  // valid data
+    bool retrograde = false; // object is undergoing retrograde motion
   };
   // represents an aspect between chart objects
   struct Aspect
@@ -48,9 +51,8 @@ namespace astro
     DateTime    mDate;
     Location    mLocation;
     HouseSystem mHouseSystem = HOUSE_PLACIDUS;
-    bool        mSidereal    = false;
+    ZodiacType  mZodiac      = ZODIAC_TROPICAL;
     bool        mTruePos     = false;
-    bool        mDraconic    = false;
     
     std::vector<ChartObject*> mObjects;
     std::vector<ObjData>      mObjectData;
@@ -61,7 +63,6 @@ namespace astro
     std::array<bool,   ASPECT_COUNT> mAspectVisible;
     
     Ephemeris mSwe;
-    
     bool mNeedUpdate = true;
     
   public:
@@ -78,12 +79,16 @@ namespace astro
     void setHouseSystem(HouseSystem hs) { mNeedUpdate |= (mHouseSystem != hs); mHouseSystem = hs; }
     HouseSystem getHouseSystem() const  { return mHouseSystem; }
     // position calculation
-    void setSidereal(bool state)        { mNeedUpdate |= (state != mSidereal); mSidereal = state; }
-    bool getSidereal() const            { return mSidereal; }
-    void setTruePos(bool state)         { mNeedUpdate |= (state != mTruePos);  mTruePos = state; }
-    bool getTruePos() const             { return mTruePos; }
-    void setDraconic(bool state)        { mNeedUpdate |= (state != mDraconic); mDraconic = state; }
-    bool getDraconic() const            { return mDraconic; }
+    void setZodiac(ZodiacType zodiac)         { mNeedUpdate |= (zodiac != mZodiac); mZodiac = zodiac; }
+    void setZodiac(const std::string &zodiacStr)
+    { // (string should be a number -- value of zodiac type enum)
+      std::stringstream ss(zodiacStr);
+      int zodiac; ss >> zodiac;
+      setZodiac((ZodiacType)zodiac);
+    }
+    ZodiacType getZodiac() const              { return mZodiac; }
+    void setTruePos(bool state)               { mNeedUpdate |= (state != mTruePos);  mTruePos = state; }
+    bool getTruePos() const                   { return mTruePos; }
 
     void calcAspects();
     void update();

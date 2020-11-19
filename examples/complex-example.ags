@@ -1,22 +1,22 @@
-NODE { bodySize : "<877, 967>", inputsSize : "<40, 60>", nodeId : "12", nodeName : "Chart", nodePos : "<-655, 218>", nodeSize : "<937, 987>", nodeType : "ChartViewNode", outputsSize : "<0, 0>", width : "877.000000", }
-NODE { bodySize : "<963, 989>", inputsSize : "<40, 110>", nodeId : "13", nodeName : "Compare", nodePos : "<363, 197>", nodeSize : "<1023, 1009>", nodeType : "ChartCompareNode", outputsSize : "<0, 0>", width : "963.000000", }
-NODE { bodySize : "<312, 182>", dst : "1", inputsSize : "<0, 0>", nodeId : "11", nodeName : "Location", nodePos : "<-1857, 493>", nodeSize : "<372, 202>", nodeType : "LocationNode", outputsSize : "<40, 60>", savedName : "nyse", }
-NODE { bodySize : "<312, 164>", date : "1903 4 22 9 30 0 -5", inputsSize : "<40, 60>", live : "0", nodeId : "10", nodeName : "Time", nodePos : "<-1857, 280>", nodeSize : "<412, 184>", nodeType : "TimeNode", outputsSize : "<40, 60>", savedName : "", }
-NODE { bodySize : "<512, 602>", inputsSize : "<40, 60>", nodeId : "8", nodeName : "Chart", nodePos : "<-1320, -356>", nodeSize : "<572, 622>", nodeType : "ChartViewNode", outputsSize : "<0, 0>", width : "512.000000", }
-NODE { bodySize : "<280, 86>", draconic : "0", houseSystem : "Placidus", inputsSize : "<40, 110>", nodeId : "9", nodeName : "Chart", nodePos : "<-1462, 545>", nodeSize : "<380, 130>", nodeType : "ChartNode", optionsOpen : "0", outputsSize : "<40, 60>", sidereal : "0", truePos : "0", }
-NODE { bodySize : "<320, 22>", date : "2020 11 14 21 56 38.796 -5", inputsSize : "<40, 60>", live : "1", nodeId : "7", nodeName : "Time", nodePos : "<-1854, -312>", nodeSize : "<420, 80>", nodeType : "TimeNode", outputsSize : "<40, 60>", savedName : "", }
-NODE { bodySize : "<312, 60>", inputsSize : "<40, 160>", location : "40.706833333333 -74.011027777778 200 \"\" 0", nodeId : "6", nodeName : "Progress", nodePos : "<-1457, -598>", nodeSize : "<412, 180>", nodeType : "ProgressNode", outputsSize : "<40, 60>", }
-NODE { bodySize : "<880, 48>", inputsSize : "<40, 60>", nodeId : "5", nodeName : "Chart", nodePos : "<963, -809>", nodeSize : "<940, 80>", nodeType : "ChartDataNode", outputsSize : "<0, 0>", showObjs : "11111111111111111110000", }
-NODE { bodySize : "<384, 48>", inputsSize : "<40, 60>", listOpen : "0", nodeId : "4", nodeName : "Aspect", nodePos : "<439, -715>", nodeSize : "<444, 80>", nodeType : "AspectNode", orbsOpen : "0", outputsSize : "<0, 0>", }
-NODE { bodySize : "<858, 948>", inputsSize : "<40, 60>", nodeId : "3", nodeName : "Chart", nodePos : "<-654, -791>", nodeSize : "<918, 968>", nodeType : "ChartViewNode", outputsSize : "<0, 0>", width : "858.000000", }
-NODE { bodySize : "<280, 86>", draconic : "0", houseSystem : "Placidus", inputsSize : "<40, 110>", nodeId : "2", nodeName : "Chart", nodePos : "<-1483, -809>", nodeSize : "<380, 130>", nodeType : "ChartNode", optionsOpen : "0", outputsSize : "<40, 60>", sidereal : "0", truePos : "0", }
-NODE { bodySize : "<312, 164>", date : "1981 1 5 19 23 11 -7", inputsSize : "<40, 60>", live : "0", nodeId : "0", nodeName : "Time", nodePos : "<-1869, -812>", nodeSize : "<412, 184>", nodeType : "TimeNode", outputsSize : "<40, 60>", savedName : "", }
-NODE { bodySize : "<312, 182>", dst : "0", inputsSize : "<0, 0>", location : "40.706833333333 -74.011027777778 200 \"\" 0", nodeId : "1", nodeName : "Location", nodePos : "<-1871, -609>", nodeSize : "<372, 202>", nodeType : "LocationNode", outputsSize : "<40, 60>", savedName : "ontario", }
-CON 11 OUTPUT 0 9 1
-CON 10 OUTPUT 0 9 0
-CON 9 OUTPUT 0 12 0
-CON 7 OUTPUT 0 6 1
-CON 6 OUTPUT 0 8 0
-CON 2 OUTPUT 0 3 0 6 0
+NODE { bodySize : "<312, 182>", inputsSize : "<0, 0>", nodeId : "1", nodeName : "Location", nodePos : "<-1975, -747>", nodeSize : "<372, 202>", nodeType : "LocationNode", outputsSize : "<40, 60>", savedName : "ontario", }
+NODE { bodySize : "<318, 170>", date : "1981 1 5 19 23 11 -5 0", inputsSize : "<40, 60>", live : "0", nodeId : "0", nodeName : "Time", nodePos : "<-1583, -920>", nodeSize : "<418, 190>", nodeType : "TimeNode", outputsSize : "<40, 60>", savedName : "", }
+NODE { bodySize : "<264, 86>", houseSystem : "Placidus", inputsSize : "<40, 110>", nodeId : "2", nodeName : "Chart", nodePos : "<-1092, -798>", nodeSize : "<364, 130>", nodeType : "ChartNode", optionsOpen : "0", outputsSize : "<40, 60>", truePos : "0", zodiac : "0", }
+NODE { bodySize : "<704, 758>", inputsSize : "<40, 60>", nodeId : "3", nodeName : "Chart", nodePos : "<-629, -746>", nodeSize : "<764, 778>", nodeType : "ChartViewNode", outputsSize : "<0, 0>", width : "704.000000", }
+NODE { bodySize : "<384, 860>", inputsSize : "<40, 60>", listOpen : "1", nodeId : "4", nodeName : "Aspect", nodePos : "<293, -896>", nodeSize : "<444, 880>", nodeType : "AspectNode", orbsOpen : "1", outputsSize : "<0, 0>", }
+NODE { bodySize : "<880, 698>", inputsSize : "<40, 60>", nodeId : "5", nodeName : "Chart", nodePos : "<749, -823>", nodeSize : "<940, 718>", nodeType : "ChartDataNode", outputsSize : "<0, 0>", showObjs : "11111111111111111110000", }
+NODE { bodySize : "<296, 60>", inputsSize : "<40, 160>", nodeId : "6", nodeName : "Progress", nodePos : "<-1206, -546>", nodeSize : "<396, 180>", nodeType : "ProgressNode", outputsSize : "<40, 60>", }
+NODE { bodySize : "<314, 36>", date : "2020 11 19 14 2 46.337 -5 0", inputsSize : "<40, 60>", live : "1", nodeId : "7", nodeName : "Time", nodePos : "<-1856, -494>", nodeSize : "<414, 80>", nodeType : "TimeNode", outputsSize : "<40, 60>", savedName : "", }
+NODE { bodySize : "<280, 86>", houseSystem : "Placidus", inputsSize : "<40, 110>", nodeId : "9", nodeName : "Chart", nodePos : "<-985, 567>", nodeSize : "<380, 130>", nodeType : "ChartNode", optionsOpen : "0", outputsSize : "<40, 60>", truePos : "0", zodiac : "0", }
+NODE { bodySize : "<691, 745>", inputsSize : "<40, 60>", nodeId : "8", nodeName : "Chart", nodePos : "<-1431, -347>", nodeSize : "<751, 765>", nodeType : "ChartViewNode", outputsSize : "<0, 0>", width : "691.000000", }
+NODE { bodySize : "<318, 170>", date : "1903 4 22 9 30 0 -5 0", inputsSize : "<40, 60>", live : "0", nodeId : "10", nodeName : "Time", nodePos : "<-1432, 442>", nodeSize : "<418, 190>", nodeType : "TimeNode", outputsSize : "<40, 60>", savedName : "", }
+NODE { bodySize : "<312, 182>", inputsSize : "<0, 0>", nodeId : "11", nodeName : "Location", nodePos : "<-1828, 617>", nodeSize : "<372, 202>", nodeType : "LocationNode", outputsSize : "<40, 60>", savedName : "nyse", }
+NODE { bodySize : "<963, 989>", inputsSize : "<40, 110>", nodeId : "13", nodeName : "Compare", nodePos : "<446, 41>", nodeSize : "<1023, 1009>", nodeType : "ChartCompareNode", outputsSize : "<0, 0>", width : "963.000000", }
+NODE { bodySize : "<784, 838>", inputsSize : "<40, 60>", nodeId : "12", nodeName : "Chart", nodePos : "<-575, 158>", nodeSize : "<844, 858>", nodeType : "ChartViewNode", outputsSize : "<0, 0>", width : "784.000000", }
+CON 1 OUTPUT 0 2 1 0 0 6 2 7 0
 CON 0 OUTPUT 0 2 0
-CON 1 OUTPUT 0 2 1
+CON 2 OUTPUT 0 3 0 6 0 4 0 5 0 13 0
+CON 6 OUTPUT 0 8 0 13 1
+CON 7 OUTPUT 0 6 1
+CON 9 OUTPUT 0 12 0
+CON 10 OUTPUT 0 9 0
+CON 11 OUTPUT 0 9 1 10 0

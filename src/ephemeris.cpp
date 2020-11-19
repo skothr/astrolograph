@@ -35,7 +35,7 @@ void Ephemeris::setLocation(const Location &loc)
 double Ephemeris::getJulianDayUT(const DateTime &dt, const Location &loc, bool daylightSavings)
 {
   // calculate timezone
-  double d_timezone = dt.tzOffset();
+  double d_timezone = dt.utcOffset()+dt.dstOffset();
   int y, mo, d, h, mi;
   double s;
 
@@ -54,7 +54,7 @@ double Ephemeris::getJulianDayUT(const DateTime &dt, const Location &loc, bool d
 double Ephemeris::getJulianDayET(const DateTime &dt, const Location &loc, bool daylightSavings)
 {
   // calculate timezone
-  double d_timezone = dt.tzOffset();
+  double d_timezone = dt.utcOffset()+dt.dstOffset();
   int y, mo, d, h, mi;
   double s;
 
@@ -104,6 +104,7 @@ ObjData Ephemeris::getObjData(ObjType o) const
   if(o >= ANGLE_OFFSET)
     {
       objData.longitude = getAngle(o);
+      objData.valid = true;
     }
   else
     {
@@ -117,9 +118,20 @@ ObjData Ephemeris::getObjData(ObjType o) const
       double data[6];
       char serr[AS_MAXCH];
       long iflgret = swe_calc(mJulDay_et, p, mSweFlags, data, serr);
-      if(iflgret < 0) { std::cout << "SWE ERROR: " << serr << "\n"; }
+      if(iflgret < 0)
+        {
+          std::cout << "SWE ERROR: " << serr << "\n";
+          objData.valid = false;
+        }
+      else { objData.valid = true; }
   
-      objData = *reinterpret_cast<ObjData*>(data);
+      objData.longitude = data[0];
+      objData.latitude  = data[1];
+      objData.distance  = data[2];
+      objData.lonSpeed  = data[3];
+      objData.latSpeed  = data[4];
+      objData.distSpeed = data[5];
+      
       if(o == OBJ_SOUTHNODE)
         { // calculate south lunar node from true node
           objData.latitude  *= -1; //fmod(objData.latitude+90.0, 180.0);
@@ -130,31 +142,6 @@ ObjData Ephemeris::getObjData(ObjType o) const
     }
   return objData;
 }
-
-// double Ephemeris::getObjAngle(ObjType obj) const
-// {
-//   if(obj >= ANGLE_OFFSET)
-//     {
-//       switch(obj)
-//         {
-//         case ANGLE_ASC:
-//           return mAsc;
-//         case ANGLE_DSC:
-//           return mDsc;
-//         case ANGLE_MC:
-//           return mMc;
-//         case ANGLE_IC:
-//           return mIc;
-//         default:
-//           return -1.0;
-//         }
-//     }
-//   else
-//     {
-//       ObjData data = getObjData(obj);
-//       return data.longitude;
-//     }
-// }
 
 double Ephemeris::getAngle(ObjType angle) const
 {

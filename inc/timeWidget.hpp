@@ -23,6 +23,7 @@ namespace astro
     DateTime mSavedDate;
     char mName[DATE_NAME_BUFLEN] = "";
     char mSavedName[DATE_NAME_BUFLEN] = "";
+    bool mDST = false; // daylight savings time
     
   public:
     TimeWidget();
@@ -46,7 +47,7 @@ namespace astro
     bool reload() { mDate = mSavedDate; return true; }
     std::vector<DateSave> loadAll();
     
-    void draw(const std::string &id="");
+    void draw(const std::string &id, float scale);
   };
 }
 

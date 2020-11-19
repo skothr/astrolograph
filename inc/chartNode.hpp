@@ -28,6 +28,7 @@ namespace astro
     bool   mOptionsOpen = false;
 
     virtual bool onDraw() override;
+    virtual void onUpdate() override;
     
     virtual std::map<std::string, std::string>& getSaveParams(std::map<std::string, std::string> &params) const override
     {
@@ -36,9 +37,8 @@ namespace astro
       if(!inputs()[CHARTNODE_INPUT_LOCATION]->get<Location>())
         { params.emplace("location", mChart->location().toSaveString()); }
       params.emplace("houseSystem", getHouseSystemName(mChart->getHouseSystem()));
-      params.emplace("sidereal",    (mChart->getSidereal() ? "1" : "0"));
+      params.emplace("zodiac",      std::to_string(mChart->getZodiac()));
       params.emplace("truePos",     (mChart->getTruePos()  ? "1" : "0"));
-      params.emplace("draconic",    (mChart->getDraconic() ? "1" : "0"));
       
       params.emplace("optionsOpen", (mOptionsOpen ? "1" : "0"));
       return params;
@@ -49,9 +49,8 @@ namespace astro
       auto iter = params.find("date");   if(iter != params.end()) { mChart->setDate(DateTime(iter->second)); }
       iter = params.find("location");    if(iter != params.end()) { mChart->setLocation(Location(iter->second)); }
       iter = params.find("houseSystem"); if(iter != params.end()) { mChart->setHouseSystem(getHouseSystem(iter->second)); }
-      iter = params.find("sidereal");    if(iter != params.end()) { mChart->setSidereal(iter->second != "0"); }
+      iter = params.find("zodiac");      if(iter != params.end()) { mChart->setZodiac(iter->second); }
       iter = params.find("truePos");     if(iter != params.end()) { mChart->setTruePos(iter->second  != "0"); }
-      iter = params.find("draconic");    if(iter != params.end()) { mChart->setDraconic(iter->second != "0"); }
       mChart->update();
       iter = params.find("optionsOpen"); if(iter != params.end()) { mOptionsOpen = (iter->second != "0"); }
       return params;
@@ -77,8 +76,7 @@ namespace astro
             { ((ChartNode*)other)->mChart->setLocation(*inputs()[CHARTNODE_INPUT_LOCATION]->get<Location>()); }
           
           ((ChartNode*)other)->mChart->setHouseSystem(mChart->getHouseSystem());
-          ((ChartNode*)other)->mChart->setSidereal(mChart->getSidereal());
-          ((ChartNode*)other)->mChart->setDraconic(mChart->getDraconic());
+          ((ChartNode*)other)->mChart->setZodiac(mChart->getZodiac());
           ((ChartNode*)other)->mOptionsOpen = mOptionsOpen;
           // (everything else set by connections)
           return true;

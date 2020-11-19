@@ -26,14 +26,14 @@ namespace astro
 
 #define CHART_RING_W              92.0f   // width of zodiac sign ring
 #define CHART_EARTH_RADIUS        80.0f   // radius of inner reference circle (with house numbers)
-#define CHART_OBJRING_W           38.0f   // radius of ring where objects are shown
+#define CHART_OBJRING_W           50.0f //38.0f   // radius of ring where objects are shown
 
 #define TEXT_HEIGHT               24.0f   // height of text
 #define TEXT_PADDING              32.0f   // spacing between text
 #define TEXT_LINE_PADDING         10.0f   // spacing between text
 
-#define CHART_SYMBOL_SIZE         32.0f   // default size of obejct symbols (should be same as image file size) 
-#define CHART_SYMBOL_SIZE_SMALL   20.0f   // default size of obejct symbols (should be same as image file size) 
+#define CHART_SYMBOL_SIZE         40.0f //32.0f   // default size of obejct symbols
+#define CHART_SYMBOL_SIZE_SMALL   20.0f   // default size of obejct symbols
 
 #define CHART_HOUSE_NUM_OFFSET    14.0f   // offset of house numbers from outer ring
 #define CHART_HOUSE_CIRCLE_RADIUS 14.0f   // radius of circle around hosue numbers
@@ -89,7 +89,6 @@ namespace astro
   class ChartView
   {
   private:
-    bool mSelected   = true;
     // view settings
     bool mAlignAsc   = false; // rotate chart so ascendant points left
     std::vector<bool> mShowObjects;
@@ -102,9 +101,6 @@ namespace astro
     
   public:
     ChartView();
-    
-    bool isSelected() const      { return mSelected; }
-    void setSelected(bool selected) { mSelected = selected; }
     
     void setAlignAsc(bool align) { mAlignAsc = true; }
   
