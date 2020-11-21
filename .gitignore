@@ -1,8 +1,9 @@
 *.o
 *.d
-build
-astrolograph
-saved
-backup
-projects
-screenshots
+/build
+/astrolograph
+/inc/version/version.hpp
+/saved
+/backup
+/projects
+/screenshots
