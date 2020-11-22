@@ -22,7 +22,7 @@ namespace astro
     double mJulDay_ut = 2269000.0; // TODO: Proper defaults?
     double mJulDay_et = 2269000.0;
 
-    HouseSystem mHouseSystem = HOUSE_PLACIDUS;//HOUSE_WHOLESIGN;
+    // HouseSystem mHouseSystem = HOUSE_PLACIDUS;//HOUSE_WHOLESIGN;
     
     ///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
     //       In the array ascmc, the function returns the following values:
@@ -46,12 +46,14 @@ namespace astro
     // #define SE_NASCMC         8
     //       ascmc must be an array of 10 doubles. ascmc[8... 9] are 0 and may be used for additional points in future releases.
     ///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
-    double mCusps[13];
     double mAscmc[10];
     double mAsc = 0.0;
     double mMc  = 0.0;
     double mDsc = 0.0;
     double mIc  = 0.0;
+    
+    double mCusps[13];
+    
     ///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
     //////// SWE FLAGS ////////
     // #define SEFLG_JPLEPH       1L               // use JPL ephemeris
@@ -78,7 +80,7 @@ namespace astro
     // #define SEFLG_JPLHOR SEFLG_DPSIDEPS_1980
     // #define SEFLG_JPLHOR_APPROX (512*1024)      /* approximate JPL Horizons 1962 - today */
     ///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
-    long mSweFlags = SEFLG_SWIEPH | SEFLG_SPEED | SEFLG_TOPOCTR;// | SEFLG_TRUEPOS;
+    long mSweFlags = SEFLG_SWIEPH | SEFLG_SPEED | SEFLG_TOPOCTR;
     
   public:
     static const std::vector<int> SWE_IDS;
@@ -114,39 +116,30 @@ namespace astro
       if(state) { mSweFlags |= SEFLG_TRUEPOS; }
       else      { mSweFlags &= ~SEFLG_TRUEPOS; }
     }
-  bool getTruePos() const { return (mSweFlags & SEFLG_TRUEPOS); }
+    bool getTruePos() const { return (mSweFlags & SEFLG_TRUEPOS); }
 
-  // treat each year as a day
-  double getJulianDayUT(const DateTime &dt, const Location &loc, bool daylightSavings=false);
-  double getJulianDayET(const DateTime &dt, const Location &loc, bool daylightSavings=false);
+    // treat each year as a day
+    double getJulianDayUT(const DateTime &dt, const Location &loc);
+    double getJulianDayET(const DateTime &dt, const Location &loc);
+    DateTime getProgressed(const DateTime &ndt, const Location &nloc, const DateTime &tdt, const Location &tloc);
+
+    void setLocation(const Location &loc);
+    void setDate(const DateTime &dt);
+    ObjData getObjData(ObjType obj) const;
+    //double getObjAngle(ObjType obj) const;
+    double getAngle(ObjType angle) const;
+
+    void calcHouses(HouseSystem hsys);
+    double getHouseCusp(int house) const;
     
-  // nds --> natal daylight savings | tds --> transit daylight savings
-  DateTime getProgressed(const DateTime &ndt, const Location &nloc, const DateTime &tdt, const Location &tloc, bool nds=false, bool tds=false);
+    double getAsc() const { return mAsc; }
+    double getMc() const  { return mMc;  }
+    double getDsc() const { return mDsc; }
+    double getIc() const  { return mIc;  }
 
-  void setLocation(const Location &loc);
-  void setDate(const DateTime &dt, bool daylightSavings=false);
-  ObjData getObjData(ObjType obj) const;
-  //double getObjAngle(ObjType obj) const;
-  double getAngle(ObjType angle) const;
-
-  void setHouseSystem(HouseSystem system) { mHouseSystem = system; }
-
-  void calcHouses();
-  double getHouseCusp(int house) const;
-  double getSignCusp(int sign) const;
-  double getSignCusp(const std::string &name) const;
-    
-  int getHouse(double longitude) const; // returns house number (1-12)
-  int getSign(double longitude) const;  // returns sign index   (0-11)
-    
-  double getAsc() const { return mAsc; }
-  double getMc() const  { return mMc;  }
-  double getDsc() const { return mDsc; }
-  double getIc() const  { return mIc;  }
-
-  void printHouses() const;
-  void printObjects(const astro::DateTime &dt, const astro::Location &loc) const;
-};
+    void printHouses() const;
+    void printObjects(const astro::DateTime &dt, const astro::Location &loc) const;
+  };
 }
 
 #endif // EPHEMERIS_HPP

@@ -1,16 +1,19 @@
 #ifndef NODE_HPP
 #define NODE_HPP
 
-#include "imgui.h"
-
 #include "astro.hpp"
 #include "rect.hpp"
+
+#include "viewSettings.hpp"
 
 #include <vector>
 #include <iomanip>
 #include <sstream>
 #include <unordered_set>
 #include <map>
+
+// forward declarations
+struct ImDrawList;
 
 namespace astro
 {
@@ -54,7 +57,7 @@ namespace astro
   template<typename T> class Connector;
   class NodeGraph;
   class ViewSettings;
-
+  
   // CONNECTOR BASE //
   class ConnectorBase
   {
@@ -163,6 +166,8 @@ namespace astro
     bool mHover        = false;   // whether mouse is over node window (window background)
     bool mActive       = false;   // whether mouse is over node window (interactive ui element)
     bool mDragging     = false;   // whether mouse is dragging window
+
+    bool mBlocked      = false;   // whether mouse is blocked by other nodes
     
     // Vec2f mNextPos = Vec2f(0,0);  // node window pos
     Vec2f mMinSize = Vec2f(1,1);     // min size (to be set by child class)
@@ -222,6 +227,7 @@ namespace astro
     // set parent NodeGraph
     void setGraph(NodeGraph *graph) { mGraph = graph; }
     NodeGraph* getGraph() { return mGraph; }
+    ViewSettings* getViewSettings();
     float getScale() const; // returns graph scaling
     bool isVisible() const { return mVisible; }
     bool isBodyVisible() const { return mVisible && mBodyVisible; }
@@ -276,6 +282,8 @@ namespace astro
     bool isHovered() const  { return mHover; }
     bool isDragging() const { return mDragging; }
     void setDragging(bool drag) { mDragging = drag; }
+    
+    bool isBlocked() const  { return mBlocked; }
     
     void setMinSize(const Vec2f &s) { mMinSize = s; }
     Vec2f getMinSize() const        { return mMinSize; }

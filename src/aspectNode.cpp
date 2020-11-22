@@ -12,7 +12,7 @@ AspectNode::AspectNode()
   for(int a = 0; a < ASPECT_COUNT; a++)
     {
       mAspVisible.push_back(true); // start with all aspects visible
-      mAspOrbs.push_back(getAspect((AspectType)a)->orb); // default orbs
+      mAspOrbs.push_back(getAspectInfo((AspectType)a)->orb); // default orbs
     }
 }
 
@@ -32,33 +32,37 @@ bool AspectNode::onDraw()
     {
       mListOpen = true;
       // update aspect visiblity and count visible aspects
-      long visibleCount = 0;
+      int visibleCount = 0;
       for(int i = 0; i < chart->aspects().size(); i++)
         {
-          mAspVisible[i] = chart->getAspectVisible(chart->aspects()[i].type);
-          if(mAspVisible[i] && chart->aspects()[i].obj1->visible && chart->aspects()[i].obj2->visible)
+          const ChartAspect &asp = chart->aspects()[i];
+          // mAspVisible[asp.type] = chart->getAspectVisible(asp.type);
+          if(mAspVisible[asp.type] && chart->getAspectVisible(asp.type) && asp.visible &&
+             asp.obj1->visible && asp.obj2->visible)
             { visibleCount++; }
         }
         
-      ImGui::Text("Total count: %d (visible: %d)", (int)chart->aspects().size(), (int)visibleCount);
+      ImGui::Text("Total count: %d (visible: %d)", (int)chart->aspects().size(), visibleCount);
       ImGui::Spacing(); ImGui::Separator(); ImGui::Spacing();
 
+      ImGui::PushStyleVar(ImGuiStyleVar_ScrollbarSize,  ImGui::GetStyle().ScrollbarSize*scale);
       ImGui::BeginChild("##listChild", Vec2f(384,512)*scale);
       {
         ImGui::SetWindowFontScale(scale);
         ImDrawList *draw_list = ImGui::GetWindowDrawList();
         for(int i = 0; i < chart->aspects().size(); i++)
           {
-            const Aspect &asp = chart->aspects()[i];
+            const ChartAspect &asp = chart->aspects()[i];
             // skip north/south node opposition, and non-visible aspects
             if((asp.obj1->type == OBJ_NORTHNODE && asp.obj2->type == OBJ_SOUTHNODE) ||
                (asp.obj2->type == OBJ_NORTHNODE && asp.obj1->type == OBJ_SOUTHNODE) ||
-               !mAspVisible[i] || !asp.visible || !asp.obj1->visible || !asp.obj2->visible) { continue; }
+               !mAspVisible[asp.type] || !chart->getAspectVisible(asp.type) || !asp.visible ||
+               !asp.obj1->visible || !asp.obj2->visible) { continue; }
               
             std::string aName = getAspectName(asp.type);
             std::string o1Name = getObjName(asp.obj1->type);
             std::string o2Name = getObjName(asp.obj2->type);
-            Vec4f aColor = getAspect(asp.type)->color;
+            Vec4f aColor = getAspectInfo(asp.type)->color;
             Vec4f scaledColor = aColor;
             scaledColor.w *= asp.strength;//*asp.strength; // weight surrounding hexagon color by aspect strength
             Vec4f o1Color = getObjColor(o1Name);
@@ -78,6 +82,7 @@ bool AspectNode::onDraw()
           }
       }
       ImGui::EndChild();
+      ImGui::PopStyleVar();
     }
   else if(chart && isBodyVisible())
     { mListOpen = false; }
@@ -96,19 +101,20 @@ bool AspectNode::onDraw()
           for(int i = 0; i < ASPECT_COUNT; i++)
             {
               std::string name = getAspectName((AspectType)i);
-              float orbVal = chart->getAspectOrb((AspectType)i);
+              float orbVal = mAspOrbs[i]; //chart->getAspectOrb((AspectType)i);
               float orbStep = 0.1f;
               float orbFastStep = 1.0f;
           
               ImGui::TableNextRow();
               ImGui::TableSetColumnIndex(0);
 
-              bool enabled = chart->getAspectVisible((AspectType)i);
+              bool enabled = mAspVisible[i]; //chart->getAspectVisible((AspectType)i);
               if(ImGui::Checkbox(("##enableCheck-"+name).c_str(), &enabled))
-                { chart->setAspectVisible((AspectType)i, enabled); }
+                { mAspVisible[i] = enabled; }
+              chart->setAspectVisible((AspectType)i, enabled);
                 
               ImGui::TableSetColumnIndex(1);
-              Vec4f color = getAspect((AspectType)i)->color;
+              Vec4f color = getAspectInfo((AspectType)i)->color;
               ChartImage *img = getImage(name);
               ImGui::Image(reinterpret_cast<ImTextureID*>(img->texId), symSize, Vec2f(0,0), Vec2f(1,1), color, Vec4f(0,0,0,0));
                 
@@ -120,14 +126,15 @@ bool AspectNode::onDraw()
               if(ImGui::InputFloat(("##aspOrbInput-"+name).c_str(), &orbVal, orbStep, orbFastStep, "%.2f°"))
                 {
                   std::cout << "ASPECT --> Setting orb: " << i << " : " << orbVal << "\n";
-                  chart->setAspectOrb((AspectType)i, orbVal);
+                  mAspOrbs[i] = orbVal;
                   changed = true;
                 }
+              chart->setAspectOrb((AspectType)i, orbVal);
             }
           ImGui::EndTable();
         }
         
-      if(changed) { chart->update(); }
+      // if(changed) { chart->update(); }
     }
   else if(chart && isBodyVisible())
     { mOrbsOpen = false; }

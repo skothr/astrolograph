@@ -24,24 +24,20 @@ void ChartView::renderZodiac(Chart *chart, const ViewParams &params, ImDrawList 
   Vec2f mp = (cp1+cp2)/2.0f;                                         // midpoint
   float sr = params.oRadius - mp.length();                           // distance from edge of dodecagon to midpoint of side
 
-  draw_list->AddNgon(cc, params.oRadius, ImColor(Vec4f(1.0f, 1.0f, 1.0f, 1.0f)), 12, OUTLINE_W); // outer dodecagon
-  draw_list->AddNgon(cc, params.iRadius, ImColor(Vec4f(1.0f, 1.0f, 1.0f, 1.0f)), 90, OUTLINE_W); // inner circle
+  // draw object ring (before tick marks)
+  draw_list->AddNgon(cc, params.objRadius, ImColor(Vec4f(1.0f, 1.0f, 1.0f, 1.0f)), 128, OBJRING_OUTLINE_W*params.sizeRatio);
   
-  // draw object ring
-  draw_list->AddNgon(cc, params.objRadius, ImColor(Vec4f(1.0f, 1.0f, 1.0f, 1.0f)), 128, OBJRING_OUTLINE_W);
-
-  // draw sign symbols
+  // draw sign cusps and symbols
   float signRadius = (params.iRadius+params.oRadius-sr)/2.0f;
   for(int i = 0; i < 12; i++)
     {
-      float angle = screenAngle(chart, chart->swe().getSignCusp(i));
+      float angle = screenAngle(chart, chart->getSignCusp(i));
       Vec2f v(cos(angle), -sin(angle));
 
       // draw sign division
       Vec2f pi = cc + params.objRadius*v;
       Vec2f po = cc + (params.oRadius)*v;
-      // painter->drawLine(LineDesc{pi, po, 2.0f, Vec4f(0.5f, 0.5f, 0.5f, 1.0f)});
-      draw_list->AddLine(pi, po, ImColor(Vec4f(0.5f, 0.5f, 0.5f, 1.0f)), OUTLINE_W);
+      draw_list->AddLine(pi, po, ImColor(Vec4f(0.8f, 0.8f, 0.8f, 1.0f)), OUTLINE_W*params.sizeRatio);
       
       // draw sign symbol
       angle += M_PI/180.0f*15.0f;
@@ -59,8 +55,13 @@ void ChartView::renderZodiac(Chart *chart, const ViewParams &params, ImDrawList 
           Vec4f tintCol(1.0f, 1.0f, 1.0f, 1.0f);
           Vec4f borderCol(0.0f, 0.0f, 0.0f, 0.0f);
           ImGui::Image(img->id(), imSize, t0, t1, ImColor(tintCol), borderCol);
-          if(ImGui::IsItemHovered())
+          if(!params.blocked && ImGui::IsItemHovered())
             {
+              // set style spacing to default (same size at any scale)
+              ImGui::PushStyleVar(ImGuiStyleVar_FramePadding,  Vec2f(ImGui::GetStyle().FramePadding)/params.sizeRatio);
+              ImGui::PushStyleVar(ImGuiStyleVar_ItemSpacing,   Vec2f(ImGui::GetStyle().ItemSpacing)/params.sizeRatio);
+              ImGui::PushStyleVar(ImGuiStyleVar_WindowPadding, Vec2f(ImGui::GetStyle().WindowPadding)/params.sizeRatio);
+              ImGui::PushStyleVar(ImGuiStyleVar_IndentSpacing, ImGui::GetStyle().IndentSpacing/params.sizeRatio);
               ImGui::BeginTooltip();
               {
                 ImGui::BeginTable("##tooltip-sign", 3, ImGuiTableFlags_SizingPolicyStretchX);
@@ -78,7 +79,7 @@ void ChartView::renderZodiac(Chart *chart, const ViewParams &params, ImDrawList 
                   // contained objects
                   for(auto obj : chart->objects())
                     {
-                      int si = chart->swe().getSign(obj->angle);
+                      int si = chart->getSign(obj->angle);
                       if(si == i)
                         {
                           ImGui::TableNextRow();
@@ -93,16 +94,38 @@ void ChartView::renderZodiac(Chart *chart, const ViewParams &params, ImDrawList 
                           ImGui::Image(oImg->id(), Vec2f(20.0f, 20.0f), t0, t1, oColor, borderCol);
                           ImGui::TableNextColumn();
                           // object angle
-                          ImGui::TextUnformatted(angle_string(obj->angle - chart->swe().getSignCusp(i), true).c_str());
+                          ImGui::TextUnformatted(angle_string(obj->angle - chart->getSignCusp(i), true).c_str());
                         }
                     }
                 }
                 ImGui::EndTable();
               }
               ImGui::EndTooltip();
+              ImGui::PopStyleVar(4);
             }
         }
     }
+  
+  // outer dodecagon
+  // draw_list->AddNgon(cc, params.oRadius, ImColor(Vec4f(1.0f, 1.0f, 1.0f, 1.0f)), 12, OUTLINE_W);
+  std::vector<Vec2f> polyPoints;
+  for(int i = 0; i < 12; i++)
+    {
+      float a = screenAngle(chart, i*30.0);
+      Vec2f v(cos(a), -sin(a));
+      Vec2f p = cc + v*params.oRadius;
+      polyPoints.push_back(p);
+    }
+  draw_list->AddPolyline((const ImVec2*)polyPoints.data(), (int)polyPoints.size(), ImColor(Vec4f(0.8f, 0.8f, 0.8f, 1.0f)), true, OUTLINE_W*params.sizeRatio);
+  // for(int i = 0; i < 12; i++)
+  //   {
+  //     float a = screenAngle(chart, i*30.0);
+  //     Vec2f v(cos(a), sin(a));
+  //     Vec2f p = cc + v*params.oRadius;
+  //     draw_list->AddCircleFilled(p, OUTLINE_W, ImColor(Vec4f(1.0f, 1.0f, 1.0f, 1.0f)), 64);
+  //   }
+  // inner circle
+  draw_list->AddNgon(cc, params.iRadius, ImColor(Vec4f(0.7f, 0.7f, 0.7f, 1.0f)), 90, OUTLINE_W*params.sizeRatio);
 }
 
 //// HOUSES ////
@@ -117,8 +140,8 @@ void ChartView::renderHouses(Chart *chart, const ViewParams &params, ImDrawList 
   float ocRadius =  CHART_HOUSE_CIRCLE_RADIUS*params.sizeRatio; // radius of circles around outer house numbers
   for(int i = 1; i <= 12; i++)
     {
-      float angle1 = chart->swe().getHouseCusp(i);                    // this house's cusp
-      float angle2 = chart->swe().getHouseCusp((i < 12 ? (i+1) : 1)); // next house's cusp
+      float angle1 = chart->getHouseCusp(i);                    // this house's cusp
+      float angle2 = chart->getHouseCusp((i < 12 ? (i+1) : 1)); // next house's cusp
       float houseSize = astro::angleDiffDegrees(angle2, angle1);      // angular size of house
 
       // house cusp line
@@ -134,22 +157,25 @@ void ChartView::renderHouses(Chart *chart, const ViewParams &params, ImDrawList 
       float tAngle = screenAngle(chart, (angle1 + houseSize/2.0f)); // center angle of house
       Vec2f tSize = ImGui::CalcTextSize(std::to_string(i).c_str());
       Vec2f tp = cc + (params.eRadius+numOffset)*Vec2f(cos(tAngle), -sin(tAngle)) - tSize/2.0f;
-      std::stringstream ss; ss << i;
-      // ImGui::SetCursorScreenPos(tp);
-      // ImGui::TextColored(Vec4f(0.7f, 0.7f, 0.7f, 0.7f), ss.str().c_str());
+      // ImGui::SetCursorScreenPos(tp); ImGui::TextColored(Vec4f(0.7f, 0.7f, 0.7f, 0.7f), "%d", i);
 
       // outer house number text
       tAngle = screenAngle(chart, angle1); // angle of house cusp
-      tp = cc + (params.oRadius + numOffset)*Vec2f(cos(tAngle), -sin(tAngle));// - Vec2f(8.0f, 8.0f);
+      tp = cc + (params.oRadius + numOffset)*Vec2f(cos(tAngle), -sin(tAngle));
       
       draw_list->AddCircle(tp, ocRadius, ImColor(Vec4f(0.7f, 0.7f, 0.7f, 0.7f)), 12, 1.0f);
       
       ImGui::SetCursorScreenPos(tp - tSize/2.0f);
-      ImGui::TextColored(Vec4f(0.7f, 0.7f, 0.7f, 0.7f), "%s", ss.str().c_str());
+      ImGui::TextColored(Vec4f(0.7f, 0.7f, 0.7f, 0.7f), "%d", i);
       ImGui::SetCursorScreenPos(tp - Vec2f(ocRadius,ocRadius));
       ImGui::InvisibleButton("##hitbox", Vec2f(ocRadius,ocRadius)*2.0f);
-      if(ImGui::IsItemHovered())
+      if(!params.blocked && ImGui::IsItemHovered())
         {
+          // set style spacing to default (same size at any scale)
+          ImGui::PushStyleVar(ImGuiStyleVar_FramePadding,  Vec2f(ImGui::GetStyle().FramePadding)/params.sizeRatio);
+          ImGui::PushStyleVar(ImGuiStyleVar_ItemSpacing,   Vec2f(ImGui::GetStyle().ItemSpacing)/params.sizeRatio);
+          ImGui::PushStyleVar(ImGuiStyleVar_WindowPadding, Vec2f(ImGui::GetStyle().WindowPadding)/params.sizeRatio);
+          ImGui::PushStyleVar(ImGuiStyleVar_IndentSpacing, ImGui::GetStyle().IndentSpacing/params.sizeRatio);
           ImGui::BeginTooltip();
           {
             ImGui::BeginTable("##tooltip-house", 3, ImGuiTableFlags_SizingPolicyStretchX);
@@ -164,18 +190,18 @@ void ChartView::renderHouses(Chart *chart, const ViewParams &params, ImDrawList 
               ImGui::Separator();
               ImGui::Spacing();
               ImGui::TableNextColumn();
-              int hSign = chart->swe().getSign(angle1);
+              int hSign = chart->getSign(angle1);
               ImGui::Image(getWhiteImage(getSignName(hSign))->id(), Vec2f(20.0f, 20.0f), t0, t1,
                            ImColor(ELEMENT_COLORS[getSignElement(hSign)]), ImColor(Vec4f(0,0,0,0)));
               ImGui::TableNextColumn();
-              ImGui::TextUnformatted(angle_string(angle1 - chart->swe().getSignCusp(hSign), true, false).c_str());
+              ImGui::TextUnformatted(angle_string(angle1 - chart->getSignCusp(hSign), true, false).c_str());
 
               // contained objects
               std::vector<ChartObject*> inHouse;
               for(int i2 = OBJ_SUN; i2 < OBJ_COUNT; i2++) // (angles already at house cusps)
                 {
                   ChartObject *obj = chart->getObject((ObjType)i2);
-                  int hi = chart->swe().getHouse(obj->angle);
+                  int hi = chart->getHouse(obj->angle);
                   if(hi == i) { inHouse.push_back(obj); }
                 }
 
@@ -197,13 +223,14 @@ void ChartView::renderHouses(Chart *chart, const ViewParams &params, ImDrawList 
                   ImGui::Image(oImg->id(), Vec2f(20.0f, 20.0f), t0, t1, oColor, ImColor(Vec4f(0,0,0,0)));
                   ImGui::TableNextColumn();
                   // object angle
-                  double houseAngle = obj->angle - chart->swe().getHouseCusp(i);
+                  double houseAngle = obj->angle - chart->getHouseCusp(i);
                   if(houseAngle < 0.0) { houseAngle += 360.0; }
                   ImGui::TextUnformatted(angle_string(houseAngle, true, false).c_str());
                 }
               ImGui::EndTable();
             }
             ImGui::EndTooltip();
+            ImGui::PopStyleVar(4);
           }
         }
     }
@@ -231,46 +258,53 @@ void ChartView::renderAngles(Chart *chart, const ViewParams &params, ImDrawList 
           Vec4f tintCol  (1.0f, 1.0f, 1.0f, 1.0f);
           Vec4f borderCol(0.0f, 0.0f, 0.0f, 0.0f);
           ImGui::Image(img->id(), imSize, t0, t1, ImColor(tintCol), borderCol);
-          if(ImGui::IsItemHovered())
+          if(!params.blocked && ImGui::IsItemHovered())
             {
+              // set style spacing to default (same size at any scale)
+              ImGui::PushStyleVar(ImGuiStyleVar_FramePadding,  Vec2f(ImGui::GetStyle().FramePadding)/params.sizeRatio);
+              ImGui::PushStyleVar(ImGuiStyleVar_ItemSpacing,   Vec2f(ImGui::GetStyle().ItemSpacing)/params.sizeRatio);
+              ImGui::PushStyleVar(ImGuiStyleVar_WindowPadding, Vec2f(ImGui::GetStyle().WindowPadding)/params.sizeRatio);
+              ImGui::PushStyleVar(ImGuiStyleVar_IndentSpacing, ImGui::GetStyle().IndentSpacing/params.sizeRatio);
               ImGui::BeginTooltip();
-              ImGui::Text("%s", longName.c_str());
-              // sign symbol
-              ImGui::SameLine();
-              double oAngle = chart->getObject((ObjType)a)->angle;
-              int    oSign = chart->swe().getSign(oAngle);
-              double oDegree = oAngle - chart->swe().getSignCusp(oSign);
-              ChartImage *sImg = getWhiteImage(getSignName(oSign));
-              Vec4f  sColor = ELEMENT_COLORS[getSignElement(oSign)];
+              {
+                ImGui::Text("%s", longName.c_str());
+                // sign symbol
+                ImGui::SameLine();
+                double oAngle = chart->getObject((ObjType)a)->angle;
+                int    oSign = chart->getSign(oAngle);
+                double oDegree = oAngle - chart->getSignCusp(oSign);
+                ChartImage *sImg = getWhiteImage(getSignName(oSign));
+                Vec4f  sColor = ELEMENT_COLORS[getSignElement(oSign)];
               
-              ImGui::Image(sImg->id(), Vec2f(20.0f, 20.0f), t0, t1, ImColor(sColor), borderCol);
-              // angle
-              ImGui::SameLine();
-              ImGui::Text("%s", angle_string(oAngle - chart->swe().getSignCusp(chart->swe().getSign(oAngle)), false).c_str());
+                ImGui::Image(sImg->id(), Vec2f(20.0f, 20.0f), t0, t1, ImColor(sColor), borderCol);
+                // angle
+                ImGui::SameLine();
+                ImGui::Text("%s", angle_string(oAngle - chart->getSignCusp(chart->getSign(oAngle)), false).c_str());
 
-              if(ImGui::GetIO().KeyAlt) // ALT --> show inside degrees text
-                {
-                  // display inside degrees text underneath
-                  ImGui::Spacing();
-                  int iDegree = (int)std::floor(oDegree);
-                  ImGui::Text("%s:%d -- %s", getSignName(oSign).c_str(), iDegree+1, Chart::getInsideDegreeTextShort(oSign, iDegree).c_str());
+                if(ImGui::GetIO().KeyAlt) // ALT --> show inside degrees text
+                  {
+                    // display inside degrees text underneath
+                    ImGui::Spacing();
+                    int iDegree = (int)std::floor(oDegree);
+                    ImGui::Text("%d° %s -- %s", iDegree+1, getSignName(oSign).c_str(), Chart::getInsideDegreeTextShort(oSign, iDegree).c_str());
                         
-                  if(ImGui::GetIO().KeyShift) // ALT+SHIFT --> show long text
-                    {
-                      // display inside degrees text underneath
-                      int iDegree = (int)std::floor(oDegree);
-                      ImGui::TextWrapped("Explanation: %s", Chart::getInsideDegreeTextLong(oSign, iDegree).c_str());
-                    }
-                }
-              
+                    if(ImGui::GetIO().KeyShift) // ALT+SHIFT --> show long text
+                      {
+                        // display inside degrees text underneath
+                        int iDegree = (int)std::floor(oDegree);
+                        ImGui::TextWrapped("Explanation: %s", Chart::getInsideDegreeTextLong(oSign, iDegree).c_str());
+                      }
+                  }
+              }
               ImGui::EndTooltip();
+              ImGui::PopStyleVar(4);
             }
           if(chart->objects()[getObjId(name)-ANGLE_OFFSET+OBJ_COUNT]->focused)
-            { draw_list->AddNgon(p, params.symbolSize*0.75f, ImColor(Vec4f(1.0f, 1.0f, 1.0f, 1.0f)), 8, 4.0f); }
+            { draw_list->AddNgon(p, params.symbolSize*0.75f, ImColor(Vec4f(1.0f, 1.0f, 1.0f, 1.0f)), 8, 4.0f*params.sizeRatio); }
         }
       // draw axis line (ascendent tinted red)
       Vec4f lineColor = (a == ANGLE_ASC ? Vec4f(1.0f, 0.4f, 0.4f, 0.4f) : Vec4f(1.0f, 1.0f, 1.0f, 0.4f));
-      float lineWidth = (a == ANGLE_ASC ? 5.0f : 3.0f);
+      float lineWidth = (a == ANGLE_ASC ? 5.0f : 3.0f)*params.sizeRatio;
       draw_list->AddLine(cc+(params.objRadius)*v, cc+(params.oRadius+CHART_HOUSE_NUM_OFFSET - CHART_HOUSE_CIRCLE_RADIUS)*v, ImColor(lineColor), lineWidth);
     }
 }
@@ -291,12 +325,11 @@ void ChartView::renderAspects(Chart *chart, const ViewParams &params, ImDrawList
   for(int i = 0; i < ASPECT_COUNT; i++)
     { anyFocused |= (showFocus && chart->getAspectFocus((AspectType)i)); }
 
-  
-  // get lunar node opposition aspect
-  const Aspect *lAsp = nullptr;
+  // treat lunar node opposition aspect separately (since it's always exact)
+  const ChartAspect *lAsp = nullptr;
   for(int i = chart->aspects().size()-1; i >= 0; i--)
     {
-      const Aspect &asp = chart->aspects()[i];
+      const ChartAspect &asp = chart->aspects()[i];
       if((asp.obj1->type == OBJ_NORTHNODE && asp.obj2->type == OBJ_SOUTHNODE) ||
          (asp.obj1->type == OBJ_SOUTHNODE && asp.obj2->type == OBJ_NORTHNODE) )
         { lAsp = &asp; break; } // skip lunar node opposition (drawn differently)
@@ -328,7 +361,7 @@ void ChartView::renderAspects(Chart *chart, const ViewParams &params, ImDrawList
   //for(int i = chart->aspects().size()-1; i >= 0; i--)
   for(int i = 0; i < chart->aspects().size(); i++)
     {
-      const Aspect &asp = chart->aspects()[i];
+      const ChartAspect &asp = chart->aspects()[i];
       if((asp.obj1->type == OBJ_NORTHNODE && asp.obj2->type == OBJ_SOUTHNODE) ||
          (asp.obj1->type == OBJ_SOUTHNODE && asp.obj2->type == OBJ_NORTHNODE) )
         { lAsp = &asp; continue; } // skip lunar node opposition (drawn differently)
@@ -352,7 +385,7 @@ void ChartView::renderAspects(Chart *chart, const ViewParams &params, ImDrawList
       const bool sq = true;
       float stren = (sq ? asp.strength*asp.strength : asp.strength);
       
-      Vec4f color = getAspect(asp.type)->color;
+      Vec4f color = getAspectInfo(asp.type)->color;
       color.w = ((anyFocused && !(asp.focused || chart->getAspectFocus(asp.type) ||
                                   asp.obj1->focused || asp.obj2->focused)) ? 0.0 : 0.8)*stren;
       
@@ -365,7 +398,7 @@ void ChartView::renderAspects(Chart *chart, const ViewParams &params, ImDrawList
       if(bgColor.w < 0.01f) { continue; }
 
       float lineDist = symSize*0.7f;
-      float lWidth = 5.0f*sqStrength + 1.0f;
+      float lWidth = (5.0f*sqStrength*params.sizeRatio + 1.0f);
       if((p1-p2).length() <= symSize*1.2f)
         { // (currently only conjunction aspects)
           p1 = cc + (params.objRadius-symSize)*v1;
@@ -385,15 +418,30 @@ void ChartView::renderAspects(Chart *chart, const ViewParams &params, ImDrawList
         {
           ImGui::SetCursorScreenPos(pc-imSize/2.0f);
           Vec4f borderCol(0.0f, 0.0f, 0.0f, 0.0f);
+          
           // draw aspect symbol inside hexagon
-          draw_list->AddCircle(pc, lineDist, ImColor(color), 6, 3);
+          // draw_list->AddCircle(pc, lineDist, ImColor(color), 6, 3.0*params.sizeRatio);
           ImGui::Image(img->id(), imSize, t0, t1, color, borderCol);
+          double angle0 = (angle1+angle2)/2.0 + M_PI/2.0;
+          std::vector<Vec2f> polyPoints;
+          for(int i = 0; i < 6; i++)
+            {
+              double a = angle0 + (i*60.0)*(M_PI/180.0);
+              polyPoints.push_back(pc + Vec2f(cos(a), -sin(a))*lineDist);
+            }
+          draw_list->AddPolyline((const ImVec2*)polyPoints.data(), (int)polyPoints.size(), ImColor(color), true, 3.0*params.sizeRatio);
           
           bool hover = ImGui::IsItemHovered();
-          if(hover)
+          if(!params.blocked && hover)
             { // display tooltip with aspect info
               Vec4f c1 = getObjColor(getObjName(asp.obj1->type));
               Vec4f c2 = getObjColor(getObjName(asp.obj2->type));
+              
+              // set style spacing to default (same size at any scale)
+              ImGui::PushStyleVar(ImGuiStyleVar_FramePadding,  Vec2f(ImGui::GetStyle().FramePadding)/params.sizeRatio);
+              ImGui::PushStyleVar(ImGuiStyleVar_ItemSpacing,   Vec2f(ImGui::GetStyle().ItemSpacing)/params.sizeRatio);
+              ImGui::PushStyleVar(ImGuiStyleVar_WindowPadding, Vec2f(ImGui::GetStyle().WindowPadding)/params.sizeRatio);
+              ImGui::PushStyleVar(ImGuiStyleVar_IndentSpacing, ImGui::GetStyle().IndentSpacing/params.sizeRatio);
               ImGui::BeginTooltip();
               {
                 ImGui::BeginTable("#tooltip-aspects", 3, ImGuiTableFlags_NoClip);
@@ -414,7 +462,7 @@ void ChartView::renderAspects(Chart *chart, const ViewParams &params, ImDrawList
                 // draw aspect symbol full-color
                 ImGui::Image(img->id(), Vec2f(20.0f, 20.0f), t0, t1, ImColor(color.x, color.y, color.z, 0.7f), borderCol);
                 // weight surrounding hexagon color by aspect strength
-                ImGui::GetWindowDrawList()->AddCircle(screenPos, lineDist*20.0f/params.symbolSize, ImColor(color), 6, 2);
+                ImGui::GetWindowDrawList()->AddCircle(screenPos, lineDist*20.0f/params.symbolSize, ImColor(color), 6, 2.0);
                 // aspect object2 symbol
                 ImGui::SameLine();
                 ImGui::Image(getWhiteImage(getObjName(asp.obj2->type))->id(), Vec2f(20.0f, 20.0f), t0, t1, c2, borderCol);
@@ -424,6 +472,7 @@ void ChartView::renderAspects(Chart *chart, const ViewParams &params, ImDrawList
                 ImGui::EndTable();
               }
               ImGui::EndTooltip();
+              ImGui::PopStyleVar(4);
             }
         }
     }
@@ -457,7 +506,7 @@ void ChartView::renderCompareAspects(ChartCompare *compare, const ViewParams &pa
   //for(int i = compare->aspects().size()-1; i >= 0; i--)
   for(int i = 0; i < compare->aspects().size(); i++)
     {
-      const Aspect &asp = compare->aspects()[i];
+      const ChartAspect &asp = compare->aspects()[i];
       if(((!compare->getAspectVisible(asp.type)) || (!asp.obj1->visible) || (!asp.obj2->visible)))// && !showFocus)
         { continue; } // skip if switched off (but always show if in focus)
 
@@ -477,7 +526,7 @@ void ChartView::renderCompareAspects(ChartCompare *compare, const ViewParams &pa
       const bool sq = true;
       float stren = (sq ? asp.strength*asp.strength : asp.strength);
       
-      Vec4f color = getAspect(asp.type)->color;
+      Vec4f color = getAspectInfo(asp.type)->color;
       color.w = ((anyFocused && !(asp.focused || compare->getAspectFocus(asp.type) ||
                                   asp.obj1->focused || asp.obj2->focused)) ? 0.0 : 0.8)*stren;
       
@@ -491,7 +540,7 @@ void ChartView::renderCompareAspects(ChartCompare *compare, const ViewParams &pa
         { continue; }
 
       float lineDist = symSize*0.7f;
-      float lWidth = 5.0f*sqStrength + 1.0f;
+      float lWidth = (5.0f*sqStrength*params.sizeRatio + 1.0f);
       if((p1-p2).length() <= symSize*1.2f + params.objRingW)
         { // (currently only conjunction aspects)
           p1 = cc + (obj2Radius-symSize)*v1;
@@ -511,15 +560,30 @@ void ChartView::renderCompareAspects(ChartCompare *compare, const ViewParams &pa
         {
           ImGui::SetCursorScreenPos(pc-imSize/2.0f);
           Vec4f borderCol(0.0f, 0.0f, 0.0f, 0.0f);
+
           // draw aspect symbol inside hexagon
-          draw_list->AddCircle(pc, lineDist, ImColor(color), 6, 3);
+          //draw_list->AddCircle(pc, lineDist, ImColor(color), 6, 3.0*params.sizeRatio);
           ImGui::Image(img->id(), imSize, t0, t1, color, borderCol);
-          
+          double angle0 = (angle1+angle2)/2.0 + M_PI/2.0;
+          std::vector<Vec2f> polyPoints;
+          for(int i = 0; i < 6; i++)
+            {
+              double a = angle0 + (i*60.0)*(M_PI/180.0);
+              polyPoints.push_back(pc + Vec2f(cos(a), -sin(a))*lineDist);
+            }
+          draw_list->AddPolyline((const ImVec2*)polyPoints.data(), (int)polyPoints.size(), ImColor(color), true, 3.0*params.sizeRatio);
+
           bool hover = ImGui::IsItemHovered();
-          if(hover)
+          if(!params.blocked && hover)
             { // display tooltip with aspect info
               Vec4f c1 = getObjColor(getObjName(asp.obj1->type));
               Vec4f c2 = getObjColor(getObjName(asp.obj2->type));
+              
+              // set style spacing to default (same size at any scale)
+              ImGui::PushStyleVar(ImGuiStyleVar_FramePadding,  Vec2f(ImGui::GetStyle().FramePadding)/params.sizeRatio);
+              ImGui::PushStyleVar(ImGuiStyleVar_ItemSpacing,   Vec2f(ImGui::GetStyle().ItemSpacing)/params.sizeRatio);
+              ImGui::PushStyleVar(ImGuiStyleVar_WindowPadding, Vec2f(ImGui::GetStyle().WindowPadding)/params.sizeRatio);
+              ImGui::PushStyleVar(ImGuiStyleVar_IndentSpacing, ImGui::GetStyle().IndentSpacing/params.sizeRatio);
               ImGui::BeginTooltip();
               {
                 ImDrawList *draw_list_tt = ImGui::GetWindowDrawList();
@@ -542,7 +606,7 @@ void ChartView::renderCompareAspects(ChartCompare *compare, const ViewParams &pa
                   // draw aspect symbol full-color
                   ImGui::Image(img->id(), Vec2f(20.0f, 20.0f), t0, t1, ImColor(color.x, color.y, color.z, 0.7f), borderCol);
                   // weight surrounding hexagon color by aspect strength
-                  draw_list_tt->AddCircle(screenPos, lineDist*20.0f/params.symbolSize, ImColor(color), 6, 2);
+                  draw_list_tt->AddCircle(screenPos, lineDist*20.0f/params.symbolSize, ImColor(color), 6, 2.0);
                   // aspect object2 symbol
                   ImGui::SameLine();
                   ImGui::Image(getWhiteImage(getObjName(asp.obj2->type))->id(), Vec2f(20.0f, 20.0f), t0, t1, c2, borderCol);
@@ -552,6 +616,7 @@ void ChartView::renderCompareAspects(ChartCompare *compare, const ViewParams &pa
                 ImGui::EndTable();
               }
               ImGui::EndTooltip();
+              ImGui::PopStyleVar(4);
             }
         }
     }
@@ -570,7 +635,7 @@ void ChartView::renderObjects(Chart *chart, int level, const ViewParams &params,
   float ringRadius = params.objRadius - params.objRingW*level;
   //if(level == 0)
     {
-      draw_list->AddNgon(cc, ringRadius, ImColor(Vec4f(1.0f, 1.0f, 1.0f, 1.0f)), 128, OBJRING_OUTLINE_W);
+      //draw_list->AddNgon(cc, ringRadius, ImColor(Vec4f(1.0f, 1.0f, 1.0f, 1.0f)), 128, OBJRING_OUTLINE_W);
 
       // draw degree ticks
       for(int i = 0; i < 360; i++)
@@ -654,16 +719,21 @@ void ChartView::renderObjects(Chart *chart, int level, const ViewParams &params,
           
               bool hover = ImGui::IsItemHovered();
               bool focused = false;
-              if(hover)
+              if(!params.blocked && hover)
                 {
                   double oAngle = obj->angle;
-                  int    oSign = chart->swe().getSign(oAngle);
-                  double oDegree = oAngle - chart->swe().getSignCusp(oSign);
+                  int    oSign = chart->getSign(oAngle);
+                  double oDegree = oAngle - chart->getSignCusp(oSign);
                   ChartImage *sImg = getWhiteImage(getSignName(oSign));
                   Vec4f  sColor = ELEMENT_COLORS[getSignElement(oSign)];
                   color = Vec4f(sColor.x, sColor.y, sColor.z, sColor.w);
 
                   
+                  // set style spacing to default (same size at any scale)
+                  ImGui::PushStyleVar(ImGuiStyleVar_FramePadding,  Vec2f(ImGui::GetStyle().FramePadding)/params.sizeRatio);
+                  ImGui::PushStyleVar(ImGuiStyleVar_ItemSpacing,   Vec2f(ImGui::GetStyle().ItemSpacing)/params.sizeRatio);
+                  ImGui::PushStyleVar(ImGuiStyleVar_WindowPadding, Vec2f(ImGui::GetStyle().WindowPadding)/params.sizeRatio);
+                  ImGui::PushStyleVar(ImGuiStyleVar_IndentSpacing, ImGui::GetStyle().IndentSpacing/params.sizeRatio);
                   ImGui::BeginTooltip();
                   {
                     ImGui::BeginTable("##tooltip-obj", 3, ImGuiTableFlags_SizingPolicyStretchX);
@@ -700,6 +770,7 @@ void ChartView::renderObjects(Chart *chart, int level, const ViewParams &params,
                       }
                   }
                   ImGui::EndTooltip();
+                  ImGui::PopStyleVar(4);
                   focused = ImGui::GetIO().KeyShift; // focus when shift key held
                 }
 
@@ -718,10 +789,10 @@ void ChartView::renderObjects(Chart *chart, int level, const ViewParams &params,
 }
 
 //// FULL CHART ////
-void ChartView::renderChart(Chart *chart, const Vec2f &chartSize)
+void ChartView::renderChart(Chart *chart, const Vec2f &chartSize, bool blocked)
 {
   Vec2f cp = ImGui::GetCursorPos();
-  ViewParams params(ImGui::GetCursorScreenPos(), chartSize);
+  ViewParams params(ImGui::GetCursorScreenPos(), chartSize, blocked);
   
   ImGuiWindowFlags wFlags = (ImGuiWindowFlags_NoDecoration | ImGuiWindowFlags_NoMove);
   ImGui::PushStyleVar(ImGuiStyleVar_WindowPadding, Vec2f(0.0f, 0.0f));
@@ -735,23 +806,24 @@ void ChartView::renderChart(Chart *chart, const Vec2f &chartSize)
 
     if(chart)
       {
-        renderZodiac (chart, params, draw_list);
-        renderHouses (chart, params, draw_list);
+        renderZodiac(chart, params, draw_list);
+        if(mShowHouses)
+          { renderHouses(chart, params, draw_list); }
         renderObjects(chart, 0, params, draw_list);
         renderAspects(chart, params, draw_list);
-        renderAngles (chart, params, draw_list);
+        renderAngles(chart, params, draw_list);
       }
     else
       {
         Chart temp(DateTime::now(), Location(NYSE_LAT, NYSE_LON, NYSE_ALT));
-        renderZodiac(&temp, ViewParams(ImGui::GetCursorScreenPos(), chartSize), ImGui::GetWindowDrawList());
+        renderZodiac(&temp, ViewParams(ImGui::GetCursorScreenPos(), chartSize, blocked), ImGui::GetWindowDrawList());
       }
   }
   ImGui::EndChild();
   ImGui::SetCursorPos(cp + Vec2f(0, chartSize.y));
 }
 
-void ChartView::renderChartCompare(ChartCompare *compare, const Vec2f &chartSize)
+void ChartView::renderChartCompare(ChartCompare *compare, const Vec2f &chartSize, bool blocked)
 {
   Chart *oChart = compare->getOuterChart();
   Chart *iChart = compare->getInnerChart();
@@ -769,16 +841,17 @@ void ChartView::renderChartCompare(ChartCompare *compare, const Vec2f &chartSize
     if(!iChart && !oChart) // only render zodiac if no input charts
       {
         Chart temp(DateTime::now(), Location(NYSE_LAT, NYSE_LON, NYSE_ALT));
-        renderZodiac(&temp, ViewParams(ImGui::GetCursorScreenPos(), chartSize), ImGui::GetWindowDrawList());
+        renderZodiac(&temp, ViewParams(ImGui::GetCursorScreenPos(), chartSize, blocked), ImGui::GetWindowDrawList());
       }
     else
       {
-        ViewParams params(ImGui::GetCursorScreenPos(), chartSize);
+        ViewParams params(ImGui::GetCursorScreenPos(), chartSize, blocked);
         ImGui::SetWindowFontScale(params.sizeRatio);
         ImDrawList* draw_list = ImGui::GetWindowDrawList();
             
         renderZodiac ((oChart ? oChart : iChart), params, draw_list);
-        renderHouses ((iChart ? iChart : oChart), params, draw_list); // use inner chart houses (?)
+        if(mShowHouses)                                               // use inner chart houses (?)
+          { renderHouses ((iChart ? iChart : oChart), params, draw_list); }
         renderAngles ((iChart ? iChart : oChart), params, draw_list); // use inner chart angles (?)
         
         if(iChart && oChart) { renderCompareAspects(compare, params, draw_list); }
@@ -790,16 +863,16 @@ void ChartView::renderChartCompare(ChartCompare *compare, const Vec2f &chartSize
   ImGui::SetCursorPos(cp);
 }
 
-bool ChartView::draw(Chart *chart, float chartWidth)
+bool ChartView::draw(Chart *chart, float chartWidth, bool blocked)
 {
-  renderChart(chart, Vec2f(chartWidth, chartWidth));
+  renderChart(chart, Vec2f(chartWidth, chartWidth), blocked);
   return true;
 }
 
-bool ChartView::draw(ChartCompare *compare, float chartWidth)
+bool ChartView::draw(ChartCompare *compare, float chartWidth, bool blocked)
 {
   if(compare)
-    { renderChartCompare(compare, Vec2f(chartWidth, chartWidth)); }
+    { renderChartCompare(compare, Vec2f(chartWidth, chartWidth), blocked); }
   return true;
 }
 

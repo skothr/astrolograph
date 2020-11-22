@@ -3,11 +3,9 @@
 
 #include "vector.hpp"
 
-
 #define FONT_PATH   "./res/fonts/UbuntuMono-R.ttf"
 #define MAIN_FONT_HEIGHT 16.0f
 #define TITLE_FONT_HEIGHT 20.0f
-
 
 struct ImFont;
 

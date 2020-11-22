@@ -14,6 +14,8 @@ ChartViewNode::ChartViewNode()
     { mShowObjects.push_back(true); }
   for(int i = ANGLE_OFFSET; i < ANGLE_END; i++)
     { mShowObjects.push_back(false); }
+  for(int i = OBJ_SUN; i < OBJ_END; i++)
+    { mObjectOrbs.push_back(5.0); }
 }
 
 
@@ -78,6 +80,8 @@ void ChartViewNode::processInput(Chart *chart)
         }
       // if(changed)
       //   { inputs()[CHARTVIEWNODE_INPUT_CHART]->setReset(true); }
+      
+      mActive |= (changed || mEditYear || mEditMonth || mEditDay || mEditHour || mEditMinute || mEditSecond || mEditLat || mEditLon || mEditAlt);
     }
 }
 
@@ -85,30 +89,34 @@ void ChartViewNode::processInput(Chart *chart)
 bool ChartViewNode::onDraw()
 {
   float scale = getScale();
+  ViewSettings *viewSettings = getViewSettings();
   
   bool changed = false;
   Chart *chart = inputs()[CHARTVIEWNODE_INPUT_CHART]->get<Chart>();
   //outputs()[CHARTVIEWNODE_OUTPUT_CHART]->set(chart);
-
+  
   // size of chart
-  ImGui::SetCursorPos(Vec2f(ImGui::GetCursorPos()) + Vec2f(0.0f, 2.0f));
-  ImGui::TextUnformatted("Chart Size ");
-  ImGui::SameLine();
-  ImGui::SetCursorPos(Vec2f(ImGui::GetCursorPos()) - Vec2f(0.0f, 2.0f));
-  ImGui::SetNextItemWidth(360*scale);
-  ImGui::PushStyleVar(ImGuiStyleVar_FramePadding, Vec2f(2.0f, 2.0f));
-  ImGui::SliderFloat("##chartWidth", &mChartWidth, CHART_SIZE_MIN, CHART_SIZE_MAX, "%.0f");
-  ImGui::PopStyleVar();
+  // if(mOptionsOpen)
+    {
+      ImGui::SetCursorPos(Vec2f(ImGui::GetCursorPos()) + Vec2f(0.0f, 2.0f));
+      ImGui::TextUnformatted("Chart Size ");
+      ImGui::SameLine();
+      ImGui::SetCursorPos(Vec2f(ImGui::GetCursorPos()) - Vec2f(0.0f, 2.0f));
+      ImGui::SetNextItemWidth(360*scale);
+      ImGui::PushStyleVar(ImGuiStyleVar_FramePadding, Vec2f(2.0f, 2.0f));
+      ImGui::SliderFloat("##chartWidth", &mChartWidth, CHART_SIZE_MIN, CHART_SIZE_MAX, "%.0f");
+      ImGui::PopStyleVar();
+    }
 
   if(chart)
     { // draw chart view
-      mView.draw(chart, mChartWidth*scale);
+      mView.draw(chart, mChartWidth*scale, isBlocked());
       processInput(chart);
-      ImGui::Spacing();
-      ImGui::Spacing();
+      // ImGui::Spacing();
+      // ImGui::Spacing();
     }
   else // draw empty chart
-    { mView.draw((Chart*)nullptr, mChartWidth*scale); }
+    { mView.draw((Chart*)nullptr, mChartWidth*scale, isBlocked()); }
 
   ImGuiIO& io = ImGui::GetIO();
   float symSize = 20.0f*scale;
@@ -118,77 +126,167 @@ bool ChartViewNode::onDraw()
   if(ImGui::CollapsingHeader("Options", nullptr, flags))
     {
       mOptionsOpen = true;
+      ImGui::Indent();
 
+      // align ascendant
+      ImGui::TextUnformatted("Align Ascendant");
+      ImGui::SameLine();
+      bool align = mAlignAsc;
+      if(ImGui::Checkbox("##align", &align))
+        {
+          mAlignAsc = align;
+          mView.setAlignAsc(mAlignAsc);
+        }
+      // show houses 
+      ImGui::TextUnformatted("Show Houses    ");
+      ImGui::SameLine();
+      bool show = mShowHouses;
+      if(ImGui::Checkbox("##show", &show))
+        {
+          mShowHouses = show;
+          mView.setShowHouses(mShowHouses);
+        }
+
+      
       // display settings (toggle object/angle visibility)
-      ImGui::SetCursorPos(Vec2f(ImGui::GetCursorPos()) + Vec2f(20*scale, 0.0f));
-      ImGui::BeginGroup();
+      float columnW = 180.0f*scale;
+      // ImGui::SetCursorPos(Vec2f(ImGui::GetCursorPos()) + Vec2f(20*scale, 0.0f));
+      //ImGui::BeginGroup();
       ImGui::SetNextTreeNodeOpen(mDisplayOpen);
-      if(ImGui::CollapsingHeader("Display", nullptr, flags))
+      if(ImGui::CollapsingHeader("Visibility", nullptr, flags))
         {
           mDisplayOpen = true;
-          // angles
-          for(int a = ANGLE_OFFSET; a < ANGLE_END; a++)
-            {
-              int i = OBJ_COUNT+a-ANGLE_OFFSET; // obj index
-              std::string name = getObjName((astro::ObjType)a);
-              std::string longName = getObjNameLong((astro::ObjType)a);
-              ChartImage *img = getWhiteImage(name);
-              Vec4f color = getObjColor(name);
-              ImVec4 tintCol = ImVec4(color.x, color.y, color.z, color.w);
 
-              if(chart)
-                { mShowObjects[i] = chart->getObject((ObjType)a)->visible; }
-              bool checked = mShowObjects[i];
-              if(a > ANGLE_OFFSET) { ImGui::SameLine(); }
-              ImGui::Checkbox(("##show-"+name).c_str(), &checked);
-              mShowObjects[i] = checked;
-              if(chart) { chart->showObject((ObjType)a, checked); }
+          ImGui::Indent();
+          // ImGui::PushFont(viewSettings->titleFont);
+          // ImGui::TextUnformatted("Visibility");
+          // ImGui::PopFont();
+          ImGui::Separator();
+          // ImGui::Indent();
+          
+          ImGui::BeginTable("##angVis", 4, ImGuiTableFlags_SizingPolicyStretchX | ImGuiTableFlags_NoClip);
+          ImGui::TableSetupColumn("", ImGuiTableColumnFlags_WidthStretch);
+          ImGui::TableSetupColumn("", ImGuiTableColumnFlags_WidthStretch);
+          ImGui::TableSetupColumn("", ImGuiTableColumnFlags_WidthStretch);
+          ImGui::TableSetupColumn("", ImGuiTableColumnFlags_WidthStretch);
+          {
+            ImGui::TableNextRow(); ImGui::TableSetColumnIndex(0);
+            // angles
+            for(int a = ANGLE_OFFSET; a < ANGLE_END; a++)
+              {
+                int i = OBJ_COUNT+a-ANGLE_OFFSET; // obj index
+                std::string name = getObjName((astro::ObjType)a);
+                std::string longName = getObjNameLong((astro::ObjType)a);
+                ChartImage *img = getWhiteImage(name);
+                Vec4f color = getObjColor(name);
+                ImVec4 tintCol = ImVec4(color.x, color.y, color.z, color.w);
 
-              ImGui::SetNextItemWidth(symSize+10.0f*scale);
-              ImGui::SameLine(); ImGui::Image(img->id(), ImVec2(symSize, symSize), ImVec2(0,0), ImVec2(1,1), tintCol, ImVec4(0,0,0,0));
-              bool hover = ImGui::IsItemHovered();
-              if(chart && hover) { ImGui::SetTooltip("%s - %s", name.c_str(), angle_string(chart->getObject((ObjType)a)->angle).c_str()); }
-              if(chart)
-                { // set focus
-                  bool focused = (hover && io.KeyShift); // focus on this object with SHIFT+hover
-                  if(mFocusObjects[i] == chart->objects()[a]->focused)
+                ImGui::BeginGroup();
+                {
+                  bool checked = mShowObjects[i];
+                  // if(a > ANGLE_OFFSET) { ImGui::SameLine(columnW*(a-ANGLE_OFFSET)); }
+                  if(ImGui::Checkbox(("##show-"+name).c_str(), &checked))
                     {
-                      mFocusObjects[i] = focused;
-                      chart->setObjFocus((ObjType)a, mFocusObjects[i]);
+                      mShowObjects[i] = checked;
+                      if(chart) { chart->showObject((ObjType)a, checked); }
                     }
+
+                  ImGui::SetNextItemWidth(symSize+10.0f*scale);
+                  ImGui::SameLine(); ImGui::Image(img->id(), ImVec2(symSize, symSize), ImVec2(0,0), ImVec2(1,1), tintCol, ImVec4(0,0,0,0));
+                  ImGui::SameLine(); ImGui::Text("%s", longName.c_str());
                 }
-              ImGui::SameLine(); ImGui::Text("%s", longName.c_str());
-            }
-          // objects
-          for(int i = OBJ_SUN; i < OBJ_COUNT; i++)
-            {
-              std::string name = getObjName((astro::ObjType)i);
-              ChartImage *img = getWhiteImage(name);
-              Vec4f color = getObjColor(name);
-              ImVec4 tintCol = ImVec4(color.x, color.y, color.z, color.w);
-
-              if(chart) { mShowObjects[i] = chart->getObject((ObjType)i)->visible; }
-              bool checked = mShowObjects[i];
-              ImGui::Checkbox(("##show-"+name).c_str(), &checked);
-              mShowObjects[i] = checked;
-              if(chart) { chart->showObject((ObjType)i, checked); }
-
-              ImGui::SetNextItemWidth(symSize+10.0f*scale);
-              ImGui::SameLine(); ImGui::Image(img->id(), ImVec2(symSize, symSize), ImVec2(0,0), ImVec2(1,1), tintCol, ImVec4(0,0,0,0));
-              bool hover = ImGui::IsItemHovered();
-              if(chart && hover) { ImGui::SetTooltip("%s - %s", name.c_str(), angle_string(chart->getObject((ObjType)i)->angle).c_str()); }
+                ImGui::EndGroup();
+                
+                bool hover = ImGui::IsItemHovered();
+                if(chart)
+                  {
+                    if(hover)
+                      { // angle tooltip
+                        ChartObject *obj = chart->getObject((ObjType)i);
+                        ImGui::PushStyleVar(ImGuiStyleVar_FramePadding,  Vec2f(ImGui::GetStyle().FramePadding)/scale);
+                        ImGui::PushStyleVar(ImGuiStyleVar_ItemSpacing,   Vec2f(ImGui::GetStyle().ItemSpacing)/scale);
+                        ImGui::PushStyleVar(ImGuiStyleVar_WindowPadding, Vec2f(ImGui::GetStyle().WindowPadding)/scale);
+                        ImGui::PushStyleVar(ImGuiStyleVar_IndentSpacing, ImGui::GetStyle().IndentSpacing/scale);
+                        ImGui::SetTooltip("%s - %s %s", name.c_str(), getSignName(chart->getSign(obj->angle)).c_str(),
+                                          angle_string(fmod(obj->angle, 30.0), false).c_str());
+                        ImGui::PopStyleVar(4);
+                      }   
+                    // set focus
+                    bool focused = (hover && io.KeyShift); // focus on this object with SHIFT+hover
+                    if(mFocusObjects[i] == chart->objects()[a]->focused)
+                      {
+                        mFocusObjects[i] = focused;
+                        chart->setObjFocus((ObjType)a, mFocusObjects[i]);
+                      }
+                  }
+              
+                ImGui::TableNextColumn();
+              }
             
-              if(chart)
-                { // set focus
-                  bool focused = (hover && io.KeyShift); // focus on this object with SHIFT+hover
-                  if(mFocusObjects[i] == chart->objects()[i]->focused)
+            // objects
+            int numPerColumn = 5;
+            for(int i = OBJ_SUN; i < OBJ_COUNT; i++)
+              {
+                if(i % numPerColumn == 0)
+                  { ImGui::BeginGroup(); }
+              
+                std::string name = getObjName((astro::ObjType)i);
+                ChartImage *img = getWhiteImage(name);
+                Vec4f color = getObjColor(name);
+                ImVec4 tintCol = ImVec4(color.x, color.y, color.z, color.w);
+
+                ImGui::BeginGroup();
+                {
+                  // if(chart) { mShowObjects[i] = chart->getObject((ObjType)i)->visible; }
+                  bool checked = mShowObjects[i];
+                  if(ImGui::Checkbox(("##show-"+name).c_str(), &checked))
                     {
-                      mFocusObjects[i] = focused;
-                      chart->setObjFocus((ObjType)i, mFocusObjects[i]);
+                      mShowObjects[i] = checked;
+                      if(chart) { chart->showObject((ObjType)i, checked); }
                     }
+              
+                  ImGui::SetNextItemWidth(symSize+10.0f*scale);
+                  ImGui::SameLine(); ImGui::Image(img->id(), ImVec2(symSize, symSize), ImVec2(0,0), ImVec2(1,1), tintCol, ImVec4(0,0,0,0));
+                
+                  std::string capName = name; // capitalize first letter
+                  capName[0] = toupper(capName[0]);
+                  ImGui::SameLine(); ImGui::Text("%s", capName.c_str());
                 }
-              ImGui::SameLine(); ImGui::Text("%s", name.c_str());
-            }
+                ImGui::EndGroup();
+                
+                bool hover = !isBlocked() && ImGui::IsItemHovered();
+                if(chart)
+                  {
+                    if(hover)
+                      { // object tooltip
+                        ChartObject *obj = chart->getObject((ObjType)i);
+                        ImGui::PushStyleVar(ImGuiStyleVar_FramePadding,  Vec2f(ImGui::GetStyle().FramePadding)/scale);
+                        ImGui::PushStyleVar(ImGuiStyleVar_ItemSpacing,   Vec2f(ImGui::GetStyle().ItemSpacing)/scale);
+                        ImGui::PushStyleVar(ImGuiStyleVar_WindowPadding, Vec2f(ImGui::GetStyle().WindowPadding)/scale);
+                        ImGui::PushStyleVar(ImGuiStyleVar_IndentSpacing, ImGui::GetStyle().IndentSpacing/scale);
+                        ImGui::SetTooltip("%s - %s %s", name.c_str(), getSignName(chart->getSign(obj->angle)).c_str(),
+                                          angle_string(fmod(obj->angle, 30.0), false).c_str());
+                        ImGui::PopStyleVar(4);
+                      }
+                    // set focus
+                    bool focused = (hover && io.KeyShift); // focus on this object with SHIFT+hover
+                    if(mFocusObjects[i] == chart->objects()[i]->focused)
+                      {
+                        mFocusObjects[i] = focused;
+                        chart->setObjFocus((ObjType)i, mFocusObjects[i]);
+                      }
+                  }
+
+                if(i % numPerColumn == (numPerColumn-1))
+                  {
+                    ImGui::EndGroup();
+                    ImGui::TableNextColumn();
+                  }
+              }
+          }
+          ImGui::EndTable();
+          // ImGui::Unindent();
+          ImGui::Unindent();
         }
       else if(isBodyVisible()) { mDisplayOpen = false; }
       
@@ -196,9 +294,78 @@ bool ChartViewNode::onDraw()
       if(ImGui::CollapsingHeader("Orbs", nullptr, flags))
         {
           mOrbsOpen = true;
+          ImGui::Indent();
+          // ImGui::PushFont(viewSettings->titleFont);
+          // ImGui::TextUnformatted("Orbs");
+          // ImGui::PopFont();
+          ImGui::Separator();
+          // ImGui::Indent();
+          
+          ImGui::BeginTable("##orbs", 4, ImGuiTableFlags_SizingPolicyStretchX | ImGuiTableFlags_NoClip);
+          ImGui::TableSetupColumn("", ImGuiTableColumnFlags_WidthStretch);
+          ImGui::TableSetupColumn("", ImGuiTableColumnFlags_WidthStretch);
+          ImGui::TableSetupColumn("", ImGuiTableColumnFlags_WidthStretch);
+          ImGui::TableSetupColumn("", ImGuiTableColumnFlags_WidthStretch);
+          {
+            ImGui::TableNextRow(); ImGui::TableSetColumnIndex(0);
+          
+            // objects
+            int numPerColumn = 5;
+            for(int i = OBJ_SUN; i < OBJ_COUNT; i++)
+              {
+                if(i % numPerColumn == 0)
+                  { ImGui::BeginGroup(); }
+              
+                std::string name = getObjName((astro::ObjType)i);
+                ChartImage *img = getWhiteImage(name);
+                Vec4f color = getObjColor(name);
+                ImVec4 tintCol = ImVec4(color.x, color.y, color.z, color.w);
+
+                ImGui::BeginGroup();
+                {
+                  ImGui::SetNextItemWidth(50*scale);
+                  ImGui::InputDouble(("##setorb"+std::to_string(i)).c_str(), &mObjectOrbs[i], 0.0, 0.0, "%.2f", ImGuiInputTextFlags_None);//ImGuiInputTextFlags_AutoSelectAll);
+                  ImGui::SetNextItemWidth(symSize+10.0f*scale);
+                  ImGui::SameLine(); ImGui::Image(img->id(), ImVec2(symSize, symSize), ImVec2(0,0), ImVec2(1,1), tintCol, ImVec4(0,0,0,0));
+                  
+                  std::string capName = name; // capitalize first letter
+                  capName[0] = toupper(capName[0]);
+                  ImGui::SameLine(); ImGui::Text("%s", capName.c_str());
+                }
+                ImGui::EndGroup();
+                
+                bool hover = !isBlocked() && ImGui::IsItemHovered();
+                if(chart)
+                  {
+                    if(hover)
+                      { // object tooltip
+                        ChartObject *obj = chart->getObject((ObjType)i);
+                        ImGui::SetTooltip("%s - %s %s", name.c_str(), getSignName(chart->getSign(obj->angle)).c_str(),
+                                          angle_string(fmod(obj->angle, 30.0), false).c_str());
+                      }
+                    // set focus
+                    bool focused = (hover && io.KeyShift); // focus on this object with SHIFT+hover
+                    if(mFocusObjects[i] == chart->objects()[i]->focused)
+                      {
+                        mFocusObjects[i] = focused;
+                        chart->setObjFocus((ObjType)i, mFocusObjects[i]);
+                      }
+                  }
+
+                if(i % numPerColumn == (numPerColumn-1))
+                  {
+                    ImGui::EndGroup();
+                    ImGui::TableNextColumn();
+                  }
+              }
+          }
+          ImGui::EndTable();
+          // ImGui::Unindent();
+          ImGui::Unindent();
         }
       else if(isBodyVisible()) { mOrbsOpen = false; }
-      ImGui::EndGroup();
+      //ImGui::EndGroup();
+      ImGui::Unindent();
     }
   else if(isBodyVisible()) { mOptionsOpen = false; }
   

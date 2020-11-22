@@ -5,6 +5,7 @@ using namespace astro;
 
 #include <string>
 
+#include "imgui.h"
 #include "chart.hpp"
 #include "nodeGraph.hpp"
 #include "viewSettings.hpp"
@@ -174,8 +175,8 @@ void ConnectorBase::drawConnections(ImDrawList *nodeDrawList, ImDrawList *graphD
 
   NodeGraph *graph = mParent->getGraph();
   
-  Vec2f offsetPos = graphPos;// + mParent->getGraph()->getCenter();
-  Vec2f protrudePos = getProtrudePos();// + mParent->getGraph()->getCenter();
+  Vec2f offsetPos = graphPos;
+  Vec2f protrudePos = getProtrudePos();
   
   std::vector<Vec2f> connectLines;
   // connecting (draw line to mouse)
@@ -187,9 +188,9 @@ void ConnectorBase::drawConnections(ImDrawList *nodeDrawList, ImDrawList *graphD
         { connectLines = graph->findOrthogonalPath(graph->screenToGraph(ImGui::GetMousePos()), offsetPos); }
       
       for(int i = 0; i < connectLines.size()-1; i++)
-        { graphDrawList->AddLine(graph->graphToScreen(connectLines[i]), graph->graphToScreen(connectLines[i+1]), ImColor(connectingColor), connectingW); }
+        { ImGui::GetForegroundDrawList()->AddLine(graph->graphToScreen(connectLines[i]), graph->graphToScreen(connectLines[i+1]), ImColor(connectingColor), connectingW); }
       for(int i = 1; i < connectLines.size()-1; i++)
-        { graphDrawList->AddCircleFilled(graph->graphToScreen(connectLines[i]), 3.0f*scale, ImColor(connectDotColor), 20); }
+        { ImGui::GetForegroundDrawList()->AddCircleFilled(graph->graphToScreen(connectLines[i]), 3.0f*scale, ImColor(connectDotColor), 20); }
     }
   else if(mConnected.size() > 0)
     { // draw connection line(s)
@@ -243,12 +244,15 @@ Node::~Node()
 
 void Node::setPos(const Vec2f &p)
 {
-  mParams->rect.setPos(p);//p.getFloor());
+  mParams->rect.setPos(p);
   bringToFront();
 }
 
 float Node::getScale() const
 { return mGraph->getScale(); }
+
+ViewSettings* Node::getViewSettings()
+{ return mGraph->getViewSettings(); }
 
 void Node::bringToFront()
 {
@@ -316,10 +320,6 @@ void Node::drawConnections(ImDrawList *graphDrawList)
         for(auto con : mInputs) { con->drawConnections(conDrawList, graphDrawList); }
         ImGui::EndChild();
       }
-
-    // // over node and graph windows (TODO: find path through node rects via orthogonal lines)
-    // for(auto con : mOutputs) { con->drawConnections(winDrawList, graphDrawList); }
-    // for(auto con : mInputs)  { con->drawConnections(winDrawList, graphDrawList); }
     
     // draw over border
     Rect2f graphRect(mGraph->viewPos(), mGraph->viewPos()+mGraph->viewSize());
@@ -350,7 +350,6 @@ bool Node::BeginDraw()
       ImGui::PushStyleVar(ImGuiStyleVar_FramePadding, Vec2f(0,0));
       ImGui::PushStyleVar(ImGuiStyleVar_ItemSpacing, Vec2f(0,0));
       ImGui::PushStyleVar(ImGuiStyleVar_ChildRounding, NODE_ROUNDING*mGraph->getScale());
-      //ImGui::PushStyleVar(ImGuiStyleVar_ChildBorderSize, 0.0f);
       Vec2f childSize = mGraph->graphToScreenVec(Vec2f(std::max(size().x, mMinSize.x), std::max(size().y, mMinSize.y)));
       
       mVisible = ImGui::BeginChild((name()+" ("+std::to_string(id())+")").c_str(), childSize, false, wFlags);
@@ -368,19 +367,21 @@ void Node::EndDraw()
 
 bool Node::draw(ImDrawList *graphDrawList, bool blocked)
 {
+  mBlocked = blocked;
   ViewSettings *vs = mGraph->getViewSettings();
   float scale = getScale();
   Rect2f sRect = mGraph->graphToScreen(rect());
-  ImGui::SetNextWindowPos(sRect.p1);
+  ImGui::SetNextWindowPos(sRect.p1.getFloor());
   BeginDraw();
   if(mVisible || mFirstFrame || mDragging || mClicked || (mSelected && mGraph->isSelectedDragged()))
   {
-    ImGui::SetWindowFontScale(scale); // TODO: better font scaling
+    ImGui::SetWindowFontScale(scale); // TODO: better font scaling (size/alignment jitter)
     Vec2f nodePadding = NODE_PADDING*scale;
     
     // // right click menu (cut/copy selected)
     if(!mActive && ImGui::BeginPopupContextWindow("nodeContext"))
       {
+        ImGui::SetWindowFontScale(1.0f/scale);
         if(ImGui::MenuItem("Cut"))   { mGraph->cut(); }
         if(ImGui::MenuItem("Copy"))  { mGraph->copy(); }
         ImGui::EndPopup();
@@ -413,8 +414,8 @@ bool Node::draw(ImDrawList *graphDrawList, bool blocked)
           ImGui::PushStyleVar(ImGuiStyleVar_ItemSpacing, nodePadding);
           ImGui::BeginGroup(); DrawInputs(blocked); ImGui::EndGroup();
           ImGui::SameLine();
-          ImGui::SetCursorPos(Vec2f(ImGui::GetCursorPos()) + Vec2f(0.0f, nodePadding.y));
           ImGui::PopStyleVar(3);
+          ImGui::SetCursorPos(Vec2f(ImGui::GetCursorPos()) + Vec2f(0.0f, nodePadding.y));
         }
       else // add padding for node body
         { ImGui::SetCursorPos(Vec2f(ImGui::GetCursorPos()) + nodePadding); }
@@ -430,28 +431,34 @@ bool Node::draw(ImDrawList *graphDrawList, bool blocked)
             ImGuiWindowFlags bodyFlags = (ImGuiWindowFlags_NoDecoration | ImGuiWindowFlags_NoScrollWithMouse);
             Vec2f bodySize = mGraph->graphToScreenVec(Vec2f(std::max(mBodySize.x, mMinSize.x), std::max(mBodySize.y, mMinSize.y)));
             mBodyVisible = ImGui::BeginChild("##bodyChild", bodySize, false, bodyFlags);
-              {
-                ImGui::BeginGroup();
-                ImGui::PopStyleVar(3);
-                ImGui::PushStyleVar(ImGuiStyleVar_FramePadding, Vec2f(ImGui::GetStyle().FramePadding)*scale);
-                ImGui::PushStyleVar(ImGuiStyleVar_ItemSpacing, Vec2f(ImGui::GetStyle().ItemSpacing)*scale);
-                ImGui::PushStyleVar(ImGuiStyleVar_WindowPadding, Vec2f(ImGui::GetStyle().WindowPadding)*scale);
-                onDraw();
-                ImGui::PopStyleVar(3);
-                ImGui::EndGroup();
-                if(mVisible && mBodyVisible)
-                  {
-                    mBodySize = mGraph->screenToGraphVec(Vec2f(ImGui::GetItemRectMax()) - ImGui::GetItemRectMin());
-                    mBodySize = Vec2f(std::max(mBodySize.x, mMinSize.x), std::max(mBodySize.y, mMinSize.y));
-                  }
-                ImGui::SetWindowSize(mGraph->graphToScreenVec(mBodySize));
-              }
-              ImGui::EndChild();
+            ImGui::BeginGroup();
+            {
+              ImGui::PopStyleVar(3);
+              ImGui::PushStyleVar(ImGuiStyleVar_FramePadding,  Vec2f(ImGui::GetStyle().FramePadding)*scale);
+              ImGui::PushStyleVar(ImGuiStyleVar_ItemSpacing,   Vec2f(ImGui::GetStyle().ItemSpacing)*scale);
+              ImGui::PushStyleVar(ImGuiStyleVar_WindowPadding, Vec2f(ImGui::GetStyle().WindowPadding)*scale);
+              ImGui::PushStyleVar(ImGuiStyleVar_IndentSpacing, ImGui::GetStyle().IndentSpacing*scale);
+              onDraw();
+              ImGui::PopStyleVar(4);
+              ImGui::EndGroup();
+              if(mVisible && mBodyVisible)
+                {
+                  mBodySize = mGraph->screenToGraphVec(Vec2f(ImGui::GetItemRectMax()) - ImGui::GetItemRectMin());
+                  mBodySize = Vec2f(std::max(mBodySize.x, mMinSize.x), std::max(mBodySize.y, mMinSize.y));
+                }
+              ImGui::SetWindowSize(mGraph->graphToScreenVec(mBodySize));
+            }
+            ImGui::EndChild();
           }
           ImGui::EndGroup();
+          mActive |= ImGui::IsItemActive();
+          
           // right click menu over body (cut/copy selected -- menus already added at top)
           if(!mActive && ImGui::BeginPopupContextItem("nodeContext"))
-            { ImGui::EndPopup(); }
+            {
+              ImGui::SetWindowFontScale(1.0f/scale);
+              ImGui::EndPopup();
+            }
         }
       if(mOutputs.size() > 0)
         {
@@ -465,7 +472,7 @@ bool Node::draw(ImDrawList *graphDrawList, bool blocked)
     ImGui::EndGroup();
     
     mActive |= ImGui::IsItemActive();
-    mHover  |= !blocked && (ImGui::IsItemHovered() || ImGui::IsWindowHovered(ImGuiHoveredFlags_ChildWindows));
+    mHover  = !blocked && (ImGui::IsItemHovered() || ImGui::IsWindowHovered(ImGuiHoveredFlags_ChildWindows));
     
     //if(mVisible)
       { // calculate size

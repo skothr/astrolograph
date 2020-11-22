@@ -50,7 +50,7 @@ namespace astro
       OBJ_PALLAS,
       OBJ_VESTA,
       OBJ_LILITH,    // (sweID = SE_AST_OFFSET + 1181)
-      //OBJ_FORTUNA,   // (sweID = SE_AST_OFFSET + 19)
+      OBJ_FORTUNA,   // (sweID = SE_AST_OFFSET + 19)
       // lunar nodes
       OBJ_NORTHNODE, // (sweID = SE_TRUE_NODE) TODO: differentiate from true node?
       OBJ_SOUTHNODE,
@@ -65,7 +65,8 @@ namespace astro
       ANGLE_DSC,
       ANGLE_IC,
       
-      ANGLE_END
+      ANGLE_END,
+      OBJ_END = ANGLE_END
     };
   
   enum AspectType
@@ -208,12 +209,12 @@ namespace astro
     { //"earth",
       "sun", "moon",
       "mercury", "venus", "mars", "jupiter", "saturn", "uranus", "neptune", "pluto", "quaoar",
-      "chiron", "ceres", "juno", "pallas", "vesta", "lilith", // "fortuna", "true-node",
+      "chiron", "ceres", "juno", "pallas", "vesta", "lilith", "fortuna", //"true-node",
       "true-node", "south-node" };
   static const std::vector<std::string> ANGLE_NAMES =
     { "asc", "mc", "dsc", "ic" };
   static const std::vector<std::string> ANGLE_NAMES_LONG =
-    { "Ascendant", "Medium Coeli (Midheaven)", "Descendant", "Imum Coeli" };
+    { "Ascendant", "Medium Coeli", "Descendant", "Imum Coeli" };
   static const std::vector<std::string> SIGN_NAMES =
     { "aries", "taurus", "gemini", "cancer", "leo", "virgo",
       "libra", "scorpio", "sagittarius", "capricorn", "aquarius", "pisces" };
@@ -360,7 +361,7 @@ namespace astro
   { return (ElementType)(index % ELEMENT_COUNT); }
 
   //// ASPECTS
-  inline AspectInfo* getAspect(const std::string &name)
+  inline AspectInfo* getAspectInfo(const std::string &name)
   {
     auto iter = ASPECTS.find(name);
     if(iter != ASPECTS.end())
@@ -368,7 +369,7 @@ namespace astro
     else
       { return nullptr; }
   }
-  inline AspectInfo* getAspect(AspectType type)
+  inline AspectInfo* getAspectInfo(AspectType type)
   {
     if(type > ASPECT_INVALID && type < ASPECT_COUNT)
       { return &ASPECTS[ASPECT_NAMES[(int)type]]; }

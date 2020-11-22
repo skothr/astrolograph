@@ -10,10 +10,10 @@
 #include <unordered_map>
 #include <functional>
 
-class ImDrawList;
 
 // forward declarations
 namespace imgui_addons { class ImGuiFileBrowser; }
+struct ImDrawList;
 
 #define DEFAULT_PROJECT_DIR "./projects"
 #define FILE_DIALOG_SIZE Vec2f(960, 690)
@@ -21,7 +21,6 @@ namespace imgui_addons { class ImGuiFileBrowser; }
 namespace astro
 {
   class ViewSettings;
-
   
   struct NodeType
   {
@@ -49,10 +48,13 @@ namespace astro
     Rect2f mSelectRect;
     bool   mDrawing = false; // set to true if between BeginDraw() and EndDraw()
     bool   mLocked  = false;  // if true, nodes can't be selected or moved around
+
+    bool   mShowIds = false;
+    
     ViewSettings *mViewSettings = nullptr;
 
     std::vector<Node*> mClipboard;
-    //Vec2f mClipMousePos;
+    bool mClickCopied = false; // set to true when selected nodes are copied (CTRL+click+drag). Reset when mouse released.
     
     std::string mProjectDir = DEFAULT_PROJECT_DIR;
     bool mChangedSinceSave  = false;
@@ -61,7 +63,6 @@ namespace astro
 
     bool mPanning     = false;
     Vec2f mPanClick;
-    bool mClickCopied = false; // set to true when selected nodes are copied (CTRL+click+drag). Reset when mouse released.
     
     bool mSaveDialogOpen = false;
     bool mLoadDialogOpen = false;
@@ -86,8 +87,7 @@ namespace astro
     ViewSettings* getViewSettings() { return mViewSettings; }
     
     void addNode(Node *n, bool select=true);  // adds node to mNodes
-    Node* addNode(const std::string &type, bool select=true);
-    void prepNode(Node *n); // prepares node to be added
+    Node* addNode(const std::string &type, bool select=true); // if select is true, deselect other nodes)
     void clear();
     
     void cut();
@@ -108,8 +108,7 @@ namespace astro
     void deselectAll();
     void deselect(const std::vector<Node*> &nodes);
 
-    bool isHovered() const { return Rect2f(mViewPos, mViewSize).contains(ImGui::GetMousePos()); }
-    
+    bool isHovered() const;
     bool isSelectedHovered();  // returns true if any selected nodes are hovered
     bool isSelectedActive();   // returns true if any selected nodes are active
     bool isSelectedDragged();  // returns true if any selected nodes are dragged
@@ -139,6 +138,8 @@ namespace astro
     void draw();
     void update();
 
+    void showIds(bool show) { mShowIds = show; }
+    
     bool isConnecting();
     bool isSelecting() const        { return mSelecting; }
     bool isSaving() const           { return mOpenSave; }

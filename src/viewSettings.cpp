@@ -9,8 +9,15 @@ using namespace astro;
 
 ViewSettings::ViewSettings()
 {
-  mainFont = ImGui::GetIO().Fonts->AddFontFromFileTTF(FONT_PATH, MAIN_FONT_HEIGHT);
-  titleFont = ImGui::GetIO().Fonts->AddFontFromFileTTF(FONT_PATH, TITLE_FONT_HEIGHT);
+  ImFontConfig config;
+  config.OversampleH = 4;
+  config.OversampleV = 4;
+  mainFont = ImGui::GetIO().Fonts->AddFontFromFileTTF(FONT_PATH, MAIN_FONT_HEIGHT, &config);
+  titleFont = ImGui::GetIO().Fonts->AddFontFromFileTTF(FONT_PATH, TITLE_FONT_HEIGHT, &config);
+
+  // set modal dim overlay color
+  ImGuiStyle& style = ImGui::GetStyle();
+  style.Colors[ImGuiCol_ModalWindowDimBg] = Vec4f(0,0,0,0.6);
 }
 ViewSettings::~ViewSettings()
 { }
@@ -56,7 +63,7 @@ bool ViewSettings::colorSetting(const std::string &name, const std::string &id, 
   if(ImGui::ColorButton((std::string("##")+id).c_str(), *color,
                         ImGuiColorEditFlags_NoOptions|ImGuiColorEditFlags_DisplayRGB|ImGuiColorEditFlags_NoAlpha, ImVec2(20, 20)) && !busy)
     {
-      style.Colors[ImGuiCol_ModalWindowDimBg] = ImVec4(0,0,0,0);
+      style.Colors[ImGuiCol_ModalWindowDimBg] = Vec4f(0,0,0,0);
       lastColor = *color;
       ImGui::OpenPopup(popupName.c_str());
     }
@@ -120,9 +127,19 @@ bool ViewSettings::draw()
         
         ImGui::TextUnformatted("Graph Line Spacing");
         ImGui::SameLine(mLabelColWidth);
-        ImGui::InputFloat("##glSpacingX", &graphLineSpacing.x);
-        ImGui::SameLine();
-        ImGui::InputFloat("##glSpacingY", &graphLineSpacing.y);
+        ImGui::BeginGroup();
+        {
+          ImGui::TextUnformatted("X:");
+          ImGui::SameLine();
+          ImGui::SetNextItemWidth(100);
+          ImGui::InputFloat("##glSpacingX", &graphLineSpacing.x);
+          ImGui::SameLine();
+          ImGui::TextUnformatted("Y:");
+          ImGui::SameLine();
+          ImGui::SetNextItemWidth(100);
+          ImGui::InputFloat("##glSpacingY", &graphLineSpacing.y);
+        }
+        ImGui::EndGroup();
         
         busy |= colorSetting("Graph Background Color", "ngBgCol", &graphBgColor,   busy);
         busy |= colorSetting("Graph Line Color",       "ngLnCol", &graphLineColor, busy);
@@ -137,7 +154,7 @@ bool ViewSettings::draw()
 
       if(!busy)
         { // check for close
-          style.Colors[ImGuiCol_ModalWindowDimBg] = ImVec4(0,0,0,0.6);
+          style.Colors[ImGuiCol_ModalWindowDimBg] = Vec4f(0,0,0,0.6);
           if(checkExitPopup(hover)) { mState = false; }
         }
       ImGui::EndPopup();

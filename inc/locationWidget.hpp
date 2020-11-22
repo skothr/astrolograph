@@ -50,7 +50,7 @@ namespace astro
     bool remove(const std::string &name);
     std::vector<LocationSave> loadAll();
     
-    void draw(float scale);
+    void draw(float scale, bool blocked);
   };
 }
 

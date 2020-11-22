@@ -8,9 +8,9 @@ namespace astro
   class GroupNode : public Node
   {
   protected:
-
     std::vector<Node*> mContents;
 
+    
   public:
     GroupNode();
     ~GroupNode();

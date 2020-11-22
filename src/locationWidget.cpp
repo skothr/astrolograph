@@ -159,7 +159,7 @@ std::vector<LocationSave> LocationWidget::loadAll()
   return data;
 }
 
-void LocationWidget::draw(float scale)
+void LocationWidget::draw(float scale, bool blocked)
 {
   mLocation.fix();
   ImGui::BeginGroup();
@@ -213,7 +213,7 @@ void LocationWidget::draw(float scale)
     
     // load button
     ImGui::Button("Load##loc");
-    if(ImGui::BeginPopupContextItem("loadPopup", ImGuiMouseButton_Left))
+    if(!blocked && ImGui::BeginPopupContextItem("loadPopup", ImGuiMouseButton_Left))
       {
         std::vector<LocationSave> loaded = loadAll();
         for(auto &loc : loaded)
@@ -234,7 +234,7 @@ void LocationWidget::draw(float scale)
     ImGui::Button("Save##loc");
     
     // save menu
-    if(ImGui::BeginPopupContextItem("savePopup", ImGuiMouseButton_Left))
+    if(!blocked && ImGui::BeginPopupContextItem("savePopup", ImGuiMouseButton_Left))
       {
         // text input for new save
         ImGui::Text("New");

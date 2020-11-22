@@ -41,7 +41,7 @@ bool CompareNode::onDraw()
     ImGui::SliderFloat("##chartWidth", &mChartWidth, CHART_SIZE_MIN, CHART_SIZE_MAX, "%.0f"); // Minimal displayed value is 5%
 
     // draw chart view
-    mView.draw(mCompare, mChartWidth*scale);
+    mView.draw(mCompare, mChartWidth*scale, isBlocked());
   }
   //ImGui::EndGroup();
 

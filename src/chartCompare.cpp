@@ -6,7 +6,7 @@ ChartCompare::ChartCompare()
 {
   for(int asp = ASPECT_CONJUNCTION; asp < ASPECT_COUNT; asp++)
     {
-      mAspectOrbs[(int)asp]    = astro::getAspect((astro::AspectType)asp)->orb;
+      mAspectOrbs[(int)asp]    = getAspectInfo((astro::AspectType)asp)->orb;
       mAspectVisible[(int)asp] = true;
       mAspectFocus[(int)asp]   = false;
     }
@@ -51,7 +51,7 @@ void ChartCompare::calcAspects()
                     {
                       if(strength < mAspects[i].strength)
                         {
-                          mAspects.insert(mAspects.begin()+i, Aspect(mChartOuter->objects()[i1], mChartInner->objects()[i2], iter.second.type, aDiff, strength));
+                          mAspects.insert(mAspects.begin()+i, ChartAspect(mChartOuter->objects()[i1], mChartInner->objects()[i2], iter.second.type, aDiff, strength));
                           added = true; break;
                         }
                     }
@@ -82,7 +82,7 @@ void ChartCompare::calcAspects()
                     {
                       if(strength < mAspects[i].strength)
                         {
-                          mAspects.insert(mAspects.begin()+i, Aspect(mChartOuter->objects()[i1], mChartInner->objects()[i2], iter.second.type, aDiff, strength));
+                          mAspects.insert(mAspects.begin()+i, ChartAspect(mChartOuter->objects()[i1], mChartInner->objects()[i2], iter.second.type, aDiff, strength));
                           added = true; break;
                         }
                     }
@@ -95,7 +95,7 @@ void ChartCompare::calcAspects()
 
   // sort aspects by orb (reverse?)
   std::sort(mAspects.begin(), mAspects.end(),
-            [](const Aspect &a, const Aspect &b) -> bool
+            [](const ChartAspect &a, const ChartAspect &b) -> bool
             { return a.orb < b.orb; } ); // sort by orb (ascending)
 }
 

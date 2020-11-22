@@ -169,8 +169,8 @@ int main(int argc, char* argv[])
   //io.ConfigDockingWithShift = true;                      // docking when shift is held
 #endif // ENABLE_IMGUI_DOCKING
   
-  io.BackendFlags |= ImGuiBackendFlags_HasMouseCursors;  // (?)
-  io.BackendFlags |= ImGuiBackendFlags_RendererHasVtxOffset;
+  //io.BackendFlags |= ImGuiBackendFlags_HasMouseCursors;  // (?)
+  //io.BackendFlags |= ImGuiBackendFlags_RendererHasVtxOffset;
   // io.ConfigFlags |= ImGuiConfigFlags_NavEnableKeyboard; // Enable Keyboard Controls
 
   // imgui context init
@@ -265,11 +265,12 @@ int main(int argc, char* argv[])
 
         graph->setPos(graphPos + framePadding);
         graph->setSize(frameSize - 2*framePadding);
+        graph->showIds(showDemo);
         graph->draw();
+        
+        // graph->update(); // TODO: separate thread?
       }
 
-      
-      graph->update(); // TODO: Move to separate thread?
 
       // menu bar
       if(ImGui::BeginMainMenuBar())

@@ -20,7 +20,7 @@ LocationNode::LocationNode(const Location &loc)
 bool LocationNode::onDraw()
 {
   float scale = mGraph->getScale();
-  mWidget.draw(scale);
+  mWidget.draw(scale, isBlocked());
   return true;
 }
 

@@ -164,7 +164,7 @@ std::vector<DateSave> TimeWidget::loadAll()
   return data;
 }
 
-void TimeWidget::draw(const std::string &id, float scale)
+void TimeWidget::draw(const std::string &id, float scale, bool blocked)
 {
   ImGui::BeginGroup();
   {
@@ -275,7 +275,7 @@ void TimeWidget::draw(const std::string &id, float scale)
     
     // load button
     ImGui::Button(("Load##date"+id).c_str());
-    if(ImGui::BeginPopupContextItem(("loadPopup##"+id).c_str(), ImGuiMouseButton_Left))
+    if(!blocked && ImGui::BeginPopupContextItem(("loadPopup##"+id).c_str(), ImGuiMouseButton_Left))
       {
         std::vector<DateSave> loaded = loadAll();
         for(auto &dt : loaded)
@@ -296,7 +296,7 @@ void TimeWidget::draw(const std::string &id, float scale)
     ImGui::Button(("Save##date"+id).c_str());
 
     // save menu
-    if(ImGui::BeginPopupContextItem(("savePopup##"+id).c_str(), ImGuiMouseButton_Left))
+    if(!blocked && ImGui::BeginPopupContextItem(("savePopup##"+id).c_str(), ImGuiMouseButton_Left))
       {
         // text input for new save
         ImGui::Text("New");

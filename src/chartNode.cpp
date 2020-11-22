@@ -61,7 +61,7 @@ bool ChartNode::onDraw()
   
   DateTime dt   = mChart->date();
   Location loc  = mChart->location();
-  double julDay = mChart->swe().getJulianDayET(dt, loc, false);
+  double julDay = mChart->swe().getJulianDayET(dt, loc);
 
   ImGui::TextUnformatted(dt.toString().c_str());
   ImGui::Text("(jd_ET = %.6f)", julDay);
@@ -74,9 +74,12 @@ bool ChartNode::onDraw()
   if(ImGui::CollapsingHeader("Options", nullptr, flags))
     {
       mOptionsOpen = true;
-      ImGui::TextUnformatted("Houses    ");
-      ImGui::SameLine();
-      ImGui::SetNextItemWidth(150*scale);
+      float labelColW = 120*scale;
+      float comboW = 135*scale;
+      // House System
+      ImGui::TextUnformatted("Houses");
+      ImGui::SameLine(labelColW);
+      ImGui::SetNextItemWidth(comboW);
       HouseSystem hsCurrent = mChart->getHouseSystem();
       if(ImGui::BeginCombo("##houseSystem", getHouseSystemName(hsCurrent).c_str()))
         {
@@ -88,12 +91,11 @@ bool ChartNode::onDraw()
             }
           ImGui::EndCombo();
         }
-
-      // sidereal/tropical system
-      ImGui::TextUnformatted("Zodiac    ");
+      // Zodiac System
+      ImGui::TextUnformatted("Zodiac");
       int zType = (int)mChart->getZodiac();
-      ImGui::SameLine();
-      ImGui::SetNextItemWidth(150*scale);
+      ImGui::SameLine(labelColW);
+      ImGui::SetNextItemWidth(comboW);
       if(ImGui::BeginCombo("##zopdiacType", getZodiacName((ZodiacType)zType).c_str()))
         {
           ImGui::SetWindowFontScale(scale);
@@ -104,13 +106,13 @@ bool ChartNode::onDraw()
             }
           ImGui::EndCombo();
         }
-      // ImGui::BeginGroup();
-      // ImGui::TextUnformatted("Tropical"); ImGui::SameLine(); ImGui::RadioButton("##tropRB", &zType, (int)ZODIAC_TROPICAL);
-      // ImGui::TextUnformatted("Sidereal"); ImGui::SameLine(); ImGui::RadioButton("##realRB", &zType, (int)ZODIAC_SIDEREAL);
-      // ImGui::TextUnformatted("Draconic"); ImGui::SameLine(); ImGui::RadioButton("##dracRB", &zType, (int)ZODIAC_DRACONIC);
-      // ImGui::EndGroup();
-      // mChart->setZodiac((ZodiacType)zType);
-        
+      // True Positions
+      ImGui::TextUnformatted("True Positions");
+      ImGui::SameLine(labelColW);
+      bool truePos = mChart->getTruePos();
+      if(ImGui::Checkbox("##", &truePos))
+        { mChart->setTruePos(truePos); }
+
     }
   else if(isBodyVisible()) { mOptionsOpen = false; }
   return true;

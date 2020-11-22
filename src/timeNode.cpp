@@ -55,12 +55,10 @@ bool TimeNode::onDraw()
     { mLiveMode = !mLiveMode; }
   
   if(mLiveMode) { mWidget.set(DateTime::now()); mWidget.setName(""); }
-  else          { mWidget.draw("", scale); }
+  else          { mWidget.draw("", scale, isBlocked()); }
     
   return true;
 }
-
-
 
 
 const std::vector<std::string> TimeSpanNode::SPEED_UNITS = {{"secs", "mins", "hours", "days", "years"}};
@@ -179,7 +177,7 @@ bool TimeSpanNode::onDraw()
   ImGui::TextUnformatted("Start Date:");
   ImGui::Spacing();
   if(!startConnected)
-    { mStartWidget.draw("start", scale); }
+    { mStartWidget.draw("start", scale, isBlocked()); }
   else
     { ImGui::Text("  %s", dtStart.toString().c_str()); }
   
@@ -187,7 +185,7 @@ bool TimeSpanNode::onDraw()
   ImGui::TextUnformatted("End Date:");
   ImGui::Spacing();
   if(!endConnected)
-    { mEndWidget.draw("end", scale); }
+    { mEndWidget.draw("end", scale, isBlocked()); }
   else
     { ImGui::Text("  %s", dtEnd.toString().c_str()); }
   
