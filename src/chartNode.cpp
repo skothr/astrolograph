@@ -37,17 +37,13 @@ void ChartNode::onUpdate()
   Location *locIn = inputs()[CHARTNODE_INPUT_LOCATION]->get<Location>();
   if(dtIn && *dtIn != mChart->date())
     {
-      if(mChart->changed())
-        { *dtIn = mChart->date(); }
-      else
-        { mChart->setDate(*dtIn); }
+      if(mChart->changed()) { *dtIn = mChart->date(); }
+      else                  { mChart->setDate(*dtIn); }
     }
   if(locIn && *locIn != mChart->location())
     {
-      if(mChart->changed())
-        { *locIn = mChart->location(); }
-      else
-        { mChart->setLocation(*locIn); }
+      if(mChart->changed()) { *locIn = mChart->location(); }
+      else                  { mChart->setLocation(*locIn); }
     }
   mChart->update();
 }

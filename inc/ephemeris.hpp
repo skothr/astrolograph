@@ -122,6 +122,7 @@ namespace astro
     double getJulianDayUT(const DateTime &dt, const Location &loc);
     double getJulianDayET(const DateTime &dt, const Location &loc);
     DateTime getProgressed(const DateTime &ndt, const Location &nloc, const DateTime &tdt, const Location &tloc);
+    DateTime getUnprogressed(const DateTime &ndt, const Location &nloc, const DateTime &pdt, const Location &ploc);
 
     void setLocation(const Location &loc);
     void setDate(const DateTime &dt);

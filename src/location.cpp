@@ -3,6 +3,7 @@ using namespace astro;
 
 #include "dateTime.hpp"
 #include "date/tz.h"
+#include <curl/curl.h>
 
 //// LOCATION ////
 // Location::Location() : Location(NYSE_LAT, NYSE_LON, NYSE_ALT) { }

@@ -14,19 +14,21 @@ set(CMAKE_CXX_FLAGS_RELEASE_INIT "-O3 -Wall")      # release
 
 # global flags
 set(EXTRA_FLAGS_CXX17 "-std=gnu++17")
-set(GLOBAL_LIB_FLAGS "-DCURL_STATICLIB -DGLEW_STATIC -DIMGUI_IMPL_OPENGL_LOADER_GLEW -DHAS_REMOTE_API=0 -DAUTO_DOWNLOAD=0")
+set(GLOBAL_LIB_FLAGS "-DGLEW_STATIC -DIMGUI_IMPL_OPENGL_LOADER_GLEW -DHAS_REMOTE_API=0 -DAUTO_DOWNLOAD=0")
 set(CMAKE_CXX_FLAGS_GLOBAL "${CMAKE_CXX_FLAGS} ${GLOBAL_LIB_FLAGS}")
 set(CMAKE_EXE_LINKER_FLAGS_GLOBAL "${CMAKE_EXE_LINKER_FLAGS} ${GLOBAL_LIB_FLAGS}")
 set(CMAKE_LIBRARY_LINKER_FLAGS_GLOBAL "${CMAKE_LIBRARY_LINKER_FLAGS} ${GLOBAL_LIB_FLAGS}")
 
+set(CMAKE_C_FLAGS "${CMAKE_CXX_FLAGS_GLOBAL}")
+
 if (WIN32)
-set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -I/usr/x86_64-w64-mingw32")
+  set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -I/usr/x86_64-w64-mingw32/include -L/usr/x86_64-w64-mingw32/lib")
 endif (WIN32)
 
 # build internal libs
 set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS_GLOBAL} ${EXTRA_FLAGS_CXX17}")
 set(CMAKE_EXE_LINKER_FLAGS "${CMAKE_EXE_LINKER_FLAGS_GLOBAL} ${EXTRA_FLAGS_CXX17}")
-set(CMAKE_LIBRARY_LINKER_FLAGS "${CMAKE_LIBRARY_LINKER_FLAGS_GLOBAL} ${EXTRA_FLAGS_CXX17}")
+set(CMAKE_LIBRARY_LINKER_FLAGS "${CMAKE_LIBRARY_LINKER_FLAGS_GLOBAL} ${EXTRA_FLAGS_CXX17}") # -static")
 add_library(astro STATIC
   src/aspectNode.cpp
   src/astro.cpp
@@ -57,17 +59,22 @@ set(GLEW_ROOT_DIR "libs/glew-2.1.0")
 
 set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS_GLOBAL}")
 set(CMAKE_EXE_LINKER_FLAGS "${CMAKE_EXE_LINKER_FLAGS_GLOBAL}")
-set(CMAKE_LIBRARY_LINKER_FLAGS "${CMAKE_LIBRARY_LINKER_FLAG_GLOBALS}")
+set(CMAKE_LIBRARY_LINKER_FLAGS "${CMAKE_LIBRARY_LINKER_FLAG_GLOBAL}")
 include_directories(
   libs/imgui
   ${GLEW_ROOT_DIR}/include
+  ${GLFW_ROOT_DIR}/include
   libs/stb
   libs/swe/src
   libs/date
   )
 add_subdirectory(libs)
 
-find_library(LIB_CURL curl)
+#find_library(LIB_CURL curl)
+set(LIB_CURL curl)
+# set(LIB_SSL /usr/x86_64-w64-mingw32/lib/libssl.a) #openssl)
+# set(LIB_ZLIB /usr/x86_64-w64-mingw32/lib/libz.a) #zlib)
+#set(LIB_CURL /usr/x86_64-w64-mingw32/lib/libcurl.a)
 
 # glfw
 # find_package(glfw3 REQUIRED)
@@ -84,9 +91,12 @@ set(GLEW_LIBRARIES glew)
 # link_libraries(${GLEW_LIBRARY_DIRS})
 # set(GLEW_LIBRARIES GLEWd)
 message(STATUS "GLEW LIBS: ${GLEW_LIBRARIES}")
+message(STATUS "GL LIBS:   ${OPENGL_LIBRARIES}")
 message(STATUS "CURL LIBS: ${LIB_CURL}")
+# message(STATUS "SSL LIBS:  ${LIB_SSL}")
+# message(STATUS "ZLIB LIBS: ${LIB_ZLIB}")
 
-target_link_libraries(astro stdc++fs imgui ${GLEW_LIBRARIES} swe datetz curl) # ${LIB_CURL})
+target_link_libraries(astro imgui swe datetz ${LIB_CURL} ${OPENGL_LIBRARIES} ${GLEW_LIBRARIES})
 
 # if (APPLE)
 #     find_library(COCOA_LIBRARY Cocoa)
@@ -102,12 +112,9 @@ target_link_libraries(astro stdc++fs imgui ${GLEW_LIBRARIES} swe datetz curl) # 
 add_executable(${TARGET} main.cpp)
 target_link_libraries(
   ${TARGET}
-  stdc++fs
   astro
   imgui
   glfw
-  datetz
-  ${OPENGL_LIBRARIES}
-  ${GLEW_LIBRARIES}
-  curl
+  #datetz
+  ${LIB_CURL} # ${LIB_SSL} ${LIB_ZLIB}
   )

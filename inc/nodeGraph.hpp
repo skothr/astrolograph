@@ -34,10 +34,35 @@ namespace astro
     std::vector<std::string> types; // names of types within group
   };
 
+
+  // TODO: Action stack for undoing with Ctrl-Z
+  // enum ActionType
+  //   {
+  //     ACTION_INVALID = -1,
+  //     ACTION_ADD_NODE,
+  //     ACTION_REMOVE_NODE,
+  //     ACTION_MOVE_NODE,   // (set after full node move -- mouse press, drag, release)
+  //     ACTION_DELETE_NODE,
+  //     ACTION_CUT,
+  //     ACTION_COPY,
+  //     ACTION_PASTE,
+  //     ACTION_CHANGE_VALUE,
+  //   };
+  // struct GraphAction
+  // {
+  //   ActionType type = ACTION_INVALID;
+  // };
+
+  
+  
+  
   class NodeGraph
   {
   private:
-    std::unordered_map<int, Node*> mNodes;    // maps ID to pointer
+    // TODO: Action stack for undoing with Ctrl-Z
+    // std::deque<GraphAction*> mActionStack;  // for undoing
+
+    std::unordered_map<int, Node*> mNodes; // maps ID to pointer
     //std::vector<Node::Connection> mSelectedNodes; // set of nodes that are selected
     Vec2f  mGraphCenter = Vec2f(0,0); // graph-space point to be centered in view
     float  mGraphScale  = 1.0f;       // graph view scaling
@@ -48,7 +73,6 @@ namespace astro
     Rect2f mSelectRect;
     bool   mDrawing = false; // set to true if between BeginDraw() and EndDraw()
     bool   mLocked  = false;  // if true, nodes can't be selected or moved around
-
     bool   mShowIds = false;
     
     ViewSettings *mViewSettings = nullptr;
@@ -93,6 +117,7 @@ namespace astro
     void cut();
     void copy();
     void paste();
+    bool undo();
     
     // selection
     void selectNode(Node *n);

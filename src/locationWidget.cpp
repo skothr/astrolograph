@@ -2,11 +2,9 @@
 using namespace astro;
 
 #include <fstream>
-#include <experimental/filesystem>
-namespace fs = std::experimental::filesystem;
-
 #include "imgui.h"
 
+#include "tools.hpp"
 
 LocationWidget::LocationWidget()
 { }
@@ -30,21 +28,26 @@ LocationWidget& LocationWidget::operator=(const LocationWidget &other)
   return *this;
 }
 
-bool LocationWidget::save(const std::string &name)
+bool LocationWidget::saveDirCheck()
 {
-  if(!fs::exists(LOCATION_SAVE_DIR))
+  if(!directoryExists(LOCATION_SAVE_DIR)) // fs::exists(LOCATION_SAVE_DIR))
     { // make sure save directory exists
       std::cout << "Creating save directory (" << LOCATION_SAVE_DIR << ")...\n";
-      if(!fs::create_directory(LOCATION_SAVE_DIR))
+      if(!makeDirectory(LOCATION_SAVE_DIR)) // fs::create_directory(LOCATION_SAVE_DIR))
         { std::cout << "ERROR: Could not create location save directory.\n"; return false; }
     }
-  if(name.empty())
-    { std::cout << "LocationWidget::save() --> Please enter a name!\n"; return false; }
+  return true;
+}
+
+bool LocationWidget::save(const std::string &name)
+{
+  if(!saveDirCheck()) { std::cout << "ERROR: Could not create location save directory.\n"; return false; }
+  if(name.empty())    { std::cout << "LocationWidget::save() --> Please enter a name!\n";  return false; }
 
   // read saved locations
   std::vector<LocationSave> data;
   bool update = false; // if true, updating saved location
-  if(fs::exists(LOCATION_SAVE_PATH) && fs::is_regular_file(LOCATION_SAVE_PATH))
+  if(fileExists(LOCATION_SAVE_PATH)) // fs::exists(LOCATION_SAVE_PATH) && fs::is_regular_file(LOCATION_SAVE_PATH))
     {
       std::ifstream locationFile(LOCATION_SAVE_PATH, std::ifstream::in);
       std::string line  = "";
@@ -53,33 +56,27 @@ bool LocationWidget::save(const std::string &name)
           Location loc;
           std::string n = popName(line);
           loc.fromSaveString(line);
-          if(n == name)
-            { data.push_back({n, mLocation}); update = true; }
-          else
-            { data.push_back({n, loc}); }
+          if(n == name) { data.push_back({n, mLocation}); update = true; }
+          else          { data.push_back({n, loc}); }
         }
     }
-
-  if(!update)
-    { // append new location
-      data.push_back({name, mLocation});
-    }
   
+  if(!update) // append new location
+    { data.push_back({name, mLocation}); }
   // write location to file
   std::ofstream locationFile(LOCATION_SAVE_PATH, std::ios::out);
   for(int i = 0; i < data.size(); i++)
     { locationFile << std::quoted(data[i].name) << " " << data[i].location.toSaveString() << "\n"; }
-
   mSavedLocation = mLocation;
   return true;
 }
 
 bool LocationWidget::load(const std::string &name)
 {
-  if(!fs::exists(LOCATION_SAVE_DIR)) { return false; }
+  if(!saveDirCheck()) { std::cout << "ERROR: Could not create location save directory.\n"; return false; }
   
   // read saved locations
-  if(fs::exists(LOCATION_SAVE_PATH) && fs::is_regular_file(LOCATION_SAVE_PATH))
+  if(fileExists(LOCATION_SAVE_PATH)) //fs::exists(LOCATION_SAVE_PATH) && fs::is_regular_file(LOCATION_SAVE_PATH))
     {
       std::ifstream locationFile(LOCATION_SAVE_PATH, std::ifstream::in);
       std::string line  = "";
@@ -102,19 +99,13 @@ bool LocationWidget::load(const std::string &name)
 
 bool LocationWidget::remove(const std::string &name)
 {
-  if(!fs::exists(LOCATION_SAVE_DIR))
-    { // make sure save directory exists
-      std::cout << "Creating save directory (" << LOCATION_SAVE_DIR << ")...\n";
-      if(!fs::create_directory(LOCATION_SAVE_DIR))
-        { std::cout << "ERROR: Could not create location save directory.\n"; return false; }
-    }
-  if(name.empty())
-    { std::cout << "LocationWidget::remove() --> Empty name!\n"; return false; }
+  if(!saveDirCheck()) { std::cout << "ERROR: Could not create location save directory.\n"; return false; }
+  if(name.empty())    { std::cout << "LocationWidget::remove() --> Empty name!\n"; return false; }
 
   // read saved locations
   std::vector<LocationSave> data;
   bool found = false; // if true, updating saved location
-  if(fs::exists(LOCATION_SAVE_PATH) && fs::is_regular_file(LOCATION_SAVE_PATH))
+  if(fileExists(LOCATION_SAVE_PATH)) // fs::exists(LOCATION_SAVE_PATH) && fs::is_regular_file(LOCATION_SAVE_PATH))
     {
       std::ifstream locationFile(LOCATION_SAVE_PATH, std::ifstream::in);
       std::string line  = "";
@@ -123,28 +114,24 @@ bool LocationWidget::remove(const std::string &name)
           Location loc;
           std::string n = popName(line);
           loc.fromSaveString(line);
-          if(n == name) // remove by skipping
-            { found = true; }
-          else
-            { data.push_back({n, loc}); }
+          if(n == name) { found = true; } // remove by skipping
+          else          { data.push_back({n, loc}); }
         }
     }
   
   // write location to file
   std::ofstream locationFile(LOCATION_SAVE_PATH, std::ios::out);
-  for(auto d : data)
-    { locationFile << std::quoted(d.name) << " " << d.location.toSaveString() << "\n"; }
-
+  for(auto d : data) { locationFile << std::quoted(d.name) << " " << d.location.toSaveString() << "\n"; }
   return true;
 }
 
 std::vector<LocationSave> LocationWidget::loadAll()
 {
-  if(!fs::exists(LOCATION_SAVE_DIR)) { return {}; }
+  if(!saveDirCheck()) { std::cout << "ERROR: Could not create location save directory.\n"; return {}; }
   
   // read all saved locations
   std::vector<LocationSave> data;
-  if(fs::exists(LOCATION_SAVE_PATH) && fs::is_regular_file(LOCATION_SAVE_PATH))
+  if(fileExists(LOCATION_SAVE_PATH)) // fs::exists(LOCATION_SAVE_PATH) && fs::is_regular_file(LOCATION_SAVE_PATH))
     {
       std::ifstream locationFile(LOCATION_SAVE_PATH, std::ifstream::in);
       std::string line  = "";
@@ -219,7 +206,7 @@ void LocationWidget::draw(float scale, bool blocked)
         for(auto &loc : loaded)
           {
             if(ImGui::MenuItem(loc.name.c_str()))
-             { 
+              { 
                 sprintf(mName, "%s", loc.name.c_str());
                 mLocation = loc.location;
                 mSavedLocation = loc.location;

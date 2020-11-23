@@ -244,14 +244,13 @@ int main(int argc, char* argv[])
                     (io.KeySuper ? GLFW_MOD_SUPER   : 0));
         for(auto s : shortcuts)
           {
-            if(mods == s.mods && ImGui::IsKeyPressed(s.key))
+            if(mods == s.mods && ImGui::IsKeyPressed(s.key) && !ImGui::GetIO().WantCaptureKeyboard)
               { s.action(); }
           }
       }
 
       //// DRAWING ////
       bool settingsOpen = viewSettings.draw();
-
       {
         static const Vec2i framePadding(50,50);
         Vec2i graphPos = Vec2i(0,0);
@@ -268,7 +267,7 @@ int main(int argc, char* argv[])
         graph->showIds(showDemo);
         graph->draw();
         
-        // graph->update(); // TODO: separate thread?
+        // graph->update(); // TEMP: currently called in graph->draw().  TODO: separate thread?
       }
 
 

@@ -133,8 +133,6 @@ bool AspectNode::onDraw()
             }
           ImGui::EndTable();
         }
-        
-      // if(changed) { chart->update(); }
     }
   else if(chart && isBodyVisible())
     { mOrbsOpen = false; }

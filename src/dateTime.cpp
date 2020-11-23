@@ -7,8 +7,8 @@ using namespace astro;
 
 // static
 const std::array<int, 12> DateTime::MONTH_DAYS { 31, 28, 31, 30, 31, 30, 31, 31, 30, 31, 30, 31 }; // (non-leap years)
-const int DateTime::MAX_YEAR = 8000;
-const int DateTime::MIN_YEAR = -8000;
+const int DateTime::MAX_YEAR = 999999999; //8000;
+const int DateTime::MIN_YEAR = -999999999; //-8000;
 
 int monthDays(int month) { return DateTime::MONTH_DAYS[month-1]; }
 

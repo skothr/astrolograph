@@ -17,20 +17,10 @@ ViewSettings::ViewSettings()
 
   // set modal dim overlay color
   ImGuiStyle& style = ImGui::GetStyle();
-  style.Colors[ImGuiCol_ModalWindowDimBg] = Vec4f(0,0,0,0.6);
+  style.Colors[ImGuiCol_ModalWindowDimBg] = Vec4f(0.0f, 0.0f, 0.0f, 0.6f);
 }
 ViewSettings::~ViewSettings()
 { }
-
-void ViewSettings::openWindow()
-{
-  mState = true;
-}
-
-void ViewSettings::closeWindow()
-{
-  mState = false;
-}
 
 void ViewSettings::toggleWindow()
 {
@@ -39,12 +29,7 @@ void ViewSettings::toggleWindow()
 }
 
 bool ViewSettings::checkExitPopup(bool hover)
-{
-  if(ImGui::IsKeyPressed(GLFW_KEY_ESCAPE) || (!hover && ImGui::IsMouseClicked(ImGuiMouseButton_Left)))
-    { return true; }
-  else
-    { return false; }
-}
+{ return (ImGui::IsKeyPressed(GLFW_KEY_ESCAPE) || (!hover && ImGui::IsMouseClicked(ImGuiMouseButton_Left))); }
 
 bool ViewSettings::colorSetting(const std::string &name, const std::string &id, Vec4f *color, bool busy)
 {

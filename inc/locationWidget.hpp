@@ -2,7 +2,7 @@
 #define LOCATION_WIDGET_HPP
 
 #include "astro.hpp"
-#include <bits/stdc++.h>
+// #include <bits/stdc++.h>
 
 namespace astro
 {
@@ -24,6 +24,8 @@ namespace astro
     char mName[LOCATION_NAME_BUFLEN] = "";
     char mSavedName[LOCATION_NAME_BUFLEN] = "";
     // bool mDST = false; // daylight savings time
+
+    bool saveDirCheck();
     
   public:
     LocationWidget();

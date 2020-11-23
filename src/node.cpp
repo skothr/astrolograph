@@ -1,5 +1,3 @@
-
-
 #include "node.hpp"
 using namespace astro;
 

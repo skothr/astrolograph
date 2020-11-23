@@ -8,8 +8,7 @@ using namespace astro;
 using namespace imgui_addons;
 
 #include <fstream>
-#include <experimental/filesystem>
-namespace fs = std::experimental::filesystem;
+#include "tools.hpp"
 
 #include "geometry.hpp"
 #include "viewSettings.hpp"
@@ -52,10 +51,10 @@ Node* NodeGraph::makeNode(const std::string &nodeType)
 NodeGraph::NodeGraph(ViewSettings *viewSettings)
   : mViewSettings(viewSettings)
 {
-  if(!fs::exists(mProjectDir))
+  if(!directoryExists(mProjectDir)) // fs::exists(mProjectDir))
     { // make sure project directory exists
       std::cout << "Creating project directory (" << mProjectDir << ")...\n";
-      if(!fs::create_directory(mProjectDir))
+      if(!makeDirectory(mProjectDir)) // fs::create_directory(mProjectDir))
         { std::cout << "ERROR: Could not create project directory!\n"; }
     }
   mFileDialog = new ImGuiFileBrowser(mProjectDir);
@@ -123,7 +122,7 @@ bool NodeGraph::saveToFile(const std::string &path)
 
 bool NodeGraph::loadFromFile(const std::string &path)
 {
-  if(fs::exists(path) && fs::is_regular_file(path))
+  if(fileExists(path)) // fs::exists(path) && fs::is_regular_file(path))
     {
       setLocked(false);
       clear();
@@ -290,7 +289,7 @@ void NodeGraph::copy()
   if(selected.size() > 0)
     {
       // disconnect cut group from other nodes
-      disconnectExternal(selected, false, true);
+      // disconnectExternal(selected, false, true);
       
       std::cout << "CLEARING CLIPBOARD...\n";
       for(auto n : mClipboard) { delete n; }
@@ -644,10 +643,13 @@ void NodeGraph::draw()
     ImGuiIO &io = ImGui::GetIO();
     ImDrawList *winDrawList = ImGui::GetWindowDrawList();
     ImDrawList *fgDrawList = ImGui::GetForegroundDrawList();
-
+    
     // reset click copy flag if mouse released
     if(ImGui::IsMouseReleased(ImGuiMouseButton_Left))
       { mClickCopied = false; }
+    
+    // update nodes (TODO: call in main loop? (main.cpp))
+    update();
     
     // draw background graph lines
     drawLines(winDrawList);
@@ -679,7 +681,6 @@ void NodeGraph::draw()
         blocked[i] = mouseBlocked;
         mouseBlocked |= b;
       }
-
     // draw nodes
     for(int i = 0; i < sorted.size(); i++) // draw from back to front
       {
@@ -693,9 +694,6 @@ void NodeGraph::draw()
     // draw node connections
     for(auto n : sorted)
       { n.second->drawConnections(winDrawList); }
-
-    // update nodes (TODO: call in main loop? (main.cpp))
-    update();
 
     // determine if mouse is hovering over a node, or if node UI is active
     bool active = false;
@@ -838,9 +836,10 @@ void NodeGraph::draw()
 
   if(mFileDialog->showFileDialog("Save File", ImGuiFileBrowser::DialogMode::SAVE, FILE_DIALOG_SIZE, ".ags"))
     {
-      fs::path fp = mFileDialog->selected_path;
-      if(fp.extension() != ".ags") { fp += ".ags"; } // fix extension
-      saveToFile(fp.string());
+      // fs::path fp = mFileDialog->selected_path;
+      std::string path = mFileDialog->selected_path;
+      if(getFileExtension(path) != ".ags") { path += ".ags"; } // fix extension
+      saveToFile(path);
       mSaveDialogOpen = false;
     }
   else if(mFileDialog->isClosed)

@@ -47,8 +47,8 @@ namespace astro
 
     bool checkExitPopup(bool hover);
     
-    void openWindow();
-    void closeWindow();
+    void openWindow()  { mState = true; }
+    void closeWindow() { mState = false; }
     void toggleWindow();
     bool draw();
   };

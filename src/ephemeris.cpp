@@ -32,10 +32,9 @@ void Ephemeris::setLocation(const Location &loc)
 
 double Ephemeris::getJulianDayUT(const DateTime &dt, const Location &loc)
 {
-  // calculate timezone
+  // calculate timezone offset
   double d_timezone = dt.utcOffset()+dt.dstOffset();
-  int y, mo, d, h, mi;
-  double s;
+  int y, mo, d, h, mi; double s;
   swe_set_topo(loc.longitude, loc.latitude, loc.altitude);
   swe_utc_time_zone(dt.year(), dt.month(), dt.day(), dt.hour(), dt.minute(), dt.second(), d_timezone, &y, &mo, &d, &h, &mi, &s);
   
@@ -50,10 +49,9 @@ double Ephemeris::getJulianDayUT(const DateTime &dt, const Location &loc)
 
 double Ephemeris::getJulianDayET(const DateTime &dt, const Location &loc)
 {
-  // calculate timezone
+  // calculate timezone offset
   double d_timezone = dt.utcOffset()+dt.dstOffset();
-  int y, mo, d, h, mi;
-  double s;
+  int y, mo, d, h, mi; double s;
   swe_set_topo(loc.longitude, loc.latitude, loc.altitude);
   swe_utc_time_zone(dt.year(), dt.month(), dt.day(), dt.hour(), dt.minute(), dt.second(), d_timezone, &y, &mo, &d, &h, &mi, &s);
   
@@ -69,9 +67,8 @@ double Ephemeris::getJulianDayET(const DateTime &dt, const Location &loc)
 DateTime Ephemeris::getProgressed(const DateTime &ndt, const Location &nloc, const DateTime &tdt, const Location &tloc)
 {
   // transit-natal differences
-  double jdNatal = getJulianDayUT(ndt, nloc);
+  double jdNatal   = getJulianDayUT(ndt, nloc);
   double jdTransit = getJulianDayUT(tdt, tloc);
-
   double dayDiff = jdTransit - jdNatal;
   
   if(dayDiff <= 0.0) // transit should be greater than natal
@@ -79,10 +76,26 @@ DateTime Ephemeris::getProgressed(const DateTime &ndt, const Location &nloc, con
   else
     {
       double jdProg = jdNatal + dayDiff/365.25;
-      
-      int y, mo, d, h, mi;
-      double s;
+      int y, mo, d, h, mi; double s;
       swe_jdut1_to_utc(jdProg, SE_GREG_CAL, &y, &mo, &d, &h, &mi, &s);
+      return DateTime(y, mo, d, h, mi, s, 0.0);
+    }
+}
+
+DateTime Ephemeris::getUnprogressed(const DateTime &ndt, const Location &nloc, const DateTime &pdt, const Location &ploc)
+{
+  // transit-natal differences
+  double jdNatal = getJulianDayUT(ndt, nloc);
+  double jdProg  = getJulianDayUT(pdt, ploc);
+  double dayDiff = jdProg - jdNatal;
+  
+  if(dayDiff <= 0.0) // progressed should be greater than natal
+    { return ndt; }
+  else
+    {
+      double jdTransit = jdNatal + dayDiff*365.25;
+      int y, mo, d, h, mi; double s;
+      swe_jdut1_to_utc(jdTransit, SE_GREG_CAL, &y, &mo, &d, &h, &mi, &s);
       return DateTime(y, mo, d, h, mi, s, 0.0);
     }
 }

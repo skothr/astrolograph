@@ -27,23 +27,24 @@ namespace astro
 
     Chart *mChart = nullptr;
 
+    virtual void onUpdate() override;
     virtual bool onDraw() override;
     
     virtual std::map<std::string, std::string>& getSaveParams(std::map<std::string, std::string> &params) const override
     {
-      if(!inputs()[PROGRESSNODE_INPUT_DATE]->get<DateTime>())
-        { params.emplace("date",     mChart->date().toSaveString()); }
-      if(!inputs()[PROGRESSNODE_INPUT_LOCATION]->get<DateTime>())
-        { params.emplace("location", mChart->location().toSaveString()); }
+      // if(!inputs()[PROGRESSNODE_INPUT_DATE]->get<DateTime>())
+      //   { params.emplace("date",     mChart->date().toSaveString()); }
+      // if(!inputs()[PROGRESSNODE_INPUT_LOCATION]->get<DateTime>())
+      //   { params.emplace("location", mChart->location().toSaveString()); }
       return params;
     };
     
     virtual std::map<std::string, std::string>& setSaveParams(std::map<std::string, std::string> &params) override
     {
-      auto iter = params.find("date");
-      if(iter != params.end()) { mChart->setDate(DateTime(iter->second)); }
-      iter = params.find("location");
-      if(iter != params.end()) { mChart->setLocation(Location(iter->second)); }
+      // auto iter = params.find("date");
+      // if(iter != params.end()) { mChart->setDate(DateTime(iter->second)); }
+      // iter = params.find("location");
+      // if(iter != params.end()) { mChart->setLocation(Location(iter->second)); }
       return params;
     };
     

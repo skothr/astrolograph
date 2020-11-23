@@ -2,8 +2,6 @@
 #define TIME_WIDGET_HPP
 
 #include "astro.hpp"
-
-
 namespace astro
 {
 #define DATE_SAVE_DIR "./saved/"
