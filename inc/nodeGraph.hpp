@@ -62,32 +62,37 @@ namespace astro
     // TODO: Action stack for undoing with Ctrl-Z
     // std::deque<GraphAction*> mActionStack;  // for undoing
 
+    ViewSettings *mViewSettings = nullptr;
     std::unordered_map<int, Node*> mNodes; // maps ID to pointer
     std::vector<Node*> mSelectedNodes; // set of nodes that are selected
     Vec2f  mGraphCenter = Vec2f(0,0); // graph-space point to be centered in view
     float  mGraphScale  = 1.0f;       // graph view scaling
     Vec2f  mViewPos;                  // screen-space position of nodeGraph view
     Vec2f  mViewSize;                 // screen-space size of nodeGraph view
+    
+    bool   mLocked  = false; // if true, nodes can't be selected or moved around
+    bool   mDrawing = false; // set to true if between BeginDraw() and EndDraw()
+    bool   mShowIds = false; // display id above each node
+    
     bool   mSelecting = false;
     Vec2f  mSelectAnchor;
     Rect2f mSelectRect;
-    bool   mDrawing = false; // set to true if between BeginDraw() and EndDraw()
-    bool   mLocked  = false; // if true, nodes can't be selected or moved around
-    bool   mShowIds = false;
     
-    ViewSettings *mViewSettings = nullptr;
+    bool   mPanning   = false;
+    Vec2f  mPanClick;
+    
+    bool   mPasting   = false;   // true when pasting clipboard
+    bool   mPlacing   = false;   // true when placing a new node
+    std::string mPlaceType = "";
+    Node* mPlaceNode  = nullptr;
 
     std::vector<Node*> mClipboard;
     bool mClickCopied = false; // set to true when selected nodes are copied (CTRL+click+drag). Reset when mouse released.
-    
+
     std::string mProjectDir = DEFAULT_PROJECT_DIR;
     bool mChangedSinceSave  = false;
     bool mOpenSave          = false;
-    bool mOpenLoad          = false;
-
-    bool mPanning           = false;
-    Vec2f mPanClick;
-    
+    bool mOpenLoad          = false;    
     bool mSaveDialogOpen    = false;
     bool mLoadDialogOpen    = false;
     std::string mSaveFile = ""; // last saved/loaded file name
@@ -111,9 +116,11 @@ namespace astro
     ViewSettings* getViewSettings() { return mViewSettings; }
     const std::unordered_map<int, Node*>& getNodes() const { return mNodes; }
     std::unordered_map<int, Node*>& getNodes() { return mNodes; }
-    
+
     void addNode(Node *n, bool select=true);  // adds node to mNodes
     Node* addNode(const std::string &type, bool select=true); // if select is true, deselect other nodes)
+    void placeNode(const std::string &type);   // starts placing a node type.
+    void stopPlacing(); // stops placing.
     void clear();
     
     void cut();

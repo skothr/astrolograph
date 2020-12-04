@@ -4,6 +4,7 @@ using namespace astro;
 #include <string>
 
 #include "imgui.h"
+#include "imgui_internal.h"
 #include "chart.hpp"
 #include "nodeGraph.hpp"
 #include "viewSettings.hpp"
@@ -157,18 +158,18 @@ void ConnectorBase::draw(bool blocked)
   if(ImGui::IsMouseReleased(ImGuiMouseButton_Left)) { endConnecting(); }   // LEFT MOUSE UP -- stop connecting
 }
 
-void ConnectorBase::drawConnections(ImDrawList *nodeDrawList, ImDrawList *graphDrawList)
+void ConnectorBase::drawConnections(ImDrawList *nodeDrawList, ImDrawList *graphDrawList, bool ghost)
 {
   float scale = mParent->getScale();
-  
+  float alpha = (ghost ? GHOST_ALPHA : 1.0f);
   // get color
-  Vec4f connectorColor(0.5f, 0.5f, 0.5f, 1.0f);
+  Vec4f connectorColor(0.5f, 0.5f, 0.5f, alpha);
   auto iter = CONNECTOR_COLORS.find(type());
   if(iter != CONNECTOR_COLORS.end()) { connectorColor = iter->second; }
-  Vec4f connectingColor = Vec4f(connectorColor.x, connectorColor.y, connectorColor.z, connectorColor.w*0.8f);                 // color when making connection
-  Vec4f connectedColor  = Vec4f(connectorColor.x*0.75f,  connectorColor.y*0.75f,  connectorColor.z*0.75f,  connectorColor.w); // color when fully connected
-  Vec4f dotColor        = Vec4f(connectorColor.x*0.4f,   connectorColor.y*0.4f,   connectorColor.z*0.4f,   1.0f);             // color of connector dot
-  Vec4f connectDotColor = Vec4f(connectorColor.x*0.65f,  connectorColor.y*0.65f,  connectorColor.z*0.65f,  1.0f);             // color of connection dot
+  Vec4f connectingColor = Vec4f(connectorColor.x, connectorColor.y, connectorColor.z, connectorColor.w*0.8f*alpha);                 // color when making connection
+  Vec4f connectedColor  = Vec4f(connectorColor.x*0.75f,  connectorColor.y*0.75f,  connectorColor.z*0.75f,  connectorColor.w*alpha); // color when fully connected
+  Vec4f dotColor        = Vec4f(connectorColor.x*0.4f,   connectorColor.y*0.4f,   connectorColor.z*0.4f,   alpha);                  // color of connector dot
+  Vec4f connectDotColor = Vec4f(connectorColor.x*0.65f,  connectorColor.y*0.65f,  connectorColor.z*0.65f,  alpha);                  // color of connection dot
 
   float connectingW = 1.5f*scale;
   float connectedW = 3.0f*scale;
@@ -290,7 +291,7 @@ void Node::disconnectAll()
   for(auto c : outputs()) { c->disconnectAll(); }
 }
 
-void Node::drawConnections(ImDrawList *graphDrawList)
+void Node::drawConnections(ImDrawList *graphDrawList, bool ghost)
 {
   Rect2f sRect = mGraph->graphToScreen(rect());
   
@@ -304,7 +305,7 @@ void Node::drawConnections(ImDrawList *graphDrawList)
         ImGui::BeginChild(("nodeOutputs"+std::to_string(id())).c_str());
         ImDrawList *conDrawList = ImGui::GetWindowDrawList();
         // draw connection lines over window area
-        for(auto con : mOutputs) { con->drawConnections(conDrawList, graphDrawList); }
+        for(auto con : mOutputs) { con->drawConnections(conDrawList, graphDrawList, ghost); }
         ImGui::EndChild();
       }
     // over input child
@@ -312,7 +313,7 @@ void Node::drawConnections(ImDrawList *graphDrawList)
       {
         ImGui::BeginChild(("nodeInputs"+std::to_string(id())).c_str());
         ImDrawList *conDrawList = ImGui::GetWindowDrawList();
-        for(auto con : mInputs) { con->drawConnections(conDrawList, graphDrawList); }
+        for(auto con : mInputs) { con->drawConnections(conDrawList, graphDrawList, ghost); }
         ImGui::EndChild();
       }
     
@@ -321,8 +322,8 @@ void Node::drawConnections(ImDrawList *graphDrawList)
     Rect2f borderRect = sRect.expanded(getBorderWidth()*2.0f);
     ImGui::PushClipRect(graphRect.p1.getFloor(),  graphRect.p2.getCeil(),  false); // extend clipping to full graph
     ImGui::PushClipRect(borderRect.p1.getFloor(), borderRect.p2.getCeil(), true);  // clamp to border around node
-    for(auto con : mOutputs) { con->drawConnections(winDrawList, graphDrawList); }
-    for(auto con : mInputs)  { con->drawConnections(winDrawList, graphDrawList); }
+    for(auto con : mOutputs) { con->drawConnections(winDrawList, graphDrawList, ghost); }
+    for(auto con : mInputs)  { con->drawConnections(winDrawList, graphDrawList, ghost); }
     ImGui::PopClipRect();
     ImGui::PopClipRect();
   }
@@ -360,8 +361,14 @@ void Node::EndDraw()
   mDrawing = false;
 }
 
-bool Node::draw(ImDrawList *graphDrawList, bool blocked)
+bool Node::draw(ImDrawList *graphDrawList, bool blocked, bool ghost)
 {
+  if(ghost)
+    { // make eveything (?) semi-transparent
+      ImGuiStyle *style = &ImGui::GetStyle();
+      style->Alpha = GHOST_ALPHA;
+    }
+    
   mBlocked = blocked;
   ViewSettings *vs = mGraph->getViewSettings();
   float scale = getScale();
@@ -384,10 +391,13 @@ bool Node::draw(ImDrawList *graphDrawList, bool blocked)
     
     // draw background
     ImDrawList *nodeDrawList = ImGui::GetWindowDrawList();
-    nodeDrawList->AddRectFilled(sRect.p1, sRect.p2, ImColor(vs->nodeBgColor), NODE_ROUNDING*scale);
+    Vec4f bgColor = vs->nodeBgColor;
+    if(ghost) { bgColor.w = GHOST_ALPHA; }
+    nodeDrawList->AddRectFilled(sRect.p1, sRect.p2, ImColor(bgColor), NODE_ROUNDING*scale);
     // draw border
     float  borderW = getBorderWidth();
     Vec4f  borderColor = getBorderColor();
+    if(ghost) { borderColor.w = GHOST_ALPHA; }
     Rect2f borderRect = sRect;
     Rect2f clipRect = borderRect.expanded(borderW);
     Rect2f graphRect = Rect2f(mGraph->viewPos(), mGraph->viewPos()+mGraph->viewSize());
@@ -509,6 +519,12 @@ bool Node::draw(ImDrawList *graphDrawList, bool blocked)
       { mDragging = false; }
   }
   EndDraw();
+  
+  if(ghost)
+    { // reset transparency
+      ImGuiStyle *style = &ImGui::GetStyle();
+      style->Alpha = 1.0f;
+    }
      
   mFirstFrame = false;
   return mVisible;

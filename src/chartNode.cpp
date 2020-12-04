@@ -72,7 +72,6 @@ bool ChartNode::onConnect(ConnectorBase *con)
           success = true;
         }
     }
-  // else { success = true; }
   
   mChart->update();
   return success;
@@ -128,4 +127,3 @@ void ChartNode::onDraw()
   mSettings->getSaveParams(newData);
   mChanged |= (oldData != newData);
 }
-

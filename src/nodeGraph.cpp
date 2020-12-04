@@ -266,6 +266,27 @@ Node* NodeGraph::addNode(const std::string &type, bool select)
   else { return nullptr; }
 }
 
+
+void NodeGraph::placeNode(const std::string &type)
+{
+  if(!mLocked)
+    {
+      mPasting = false;
+      mPlacing = true;
+      mPlaceType = type;
+      mPlaceNode = makeNode(type);
+      mPlaceNode->setPos(screenToGraph(ImGui::GetMousePos()) - mPlaceNode->size()/2.0f);
+      mPlaceNode->setGraph(this);
+    }
+}
+
+void NodeGraph::stopPlacing()
+{
+  mPlacing = false;
+  mPlaceType = "";
+  mPlaceNode = nullptr;
+}
+
 void NodeGraph::addNode(Node *n, bool select)
 {
   if(n && !mLocked)
@@ -292,7 +313,7 @@ void NodeGraph::clear()
 void NodeGraph::cut()
 {
   std::vector<Node*> selected = getSelected();
-  if(selected.size() > 0)
+  if(!mLocked && selected.size() > 0)
     {
       // clear clipboard
       for(auto n : mClipboard) { delete n; }
@@ -311,7 +332,7 @@ void NodeGraph::cut()
 void NodeGraph::copy()
 {
   std::vector<Node*> selected = getSelected();
-  if(selected.size() > 0)
+  if(!mLocked && selected.size() > 0)
     {
       // disconnect cut group from other nodes
       // disconnectExternal(selected, false, true);
@@ -327,28 +348,30 @@ void NodeGraph::copy()
 
 void NodeGraph::paste()
 {
-  if(mClipboard.size() > 0)
+  if(!mLocked && mClipboard.size() > 0)
     {
-      deselectAll();
+      mPlacing = false;
+      // deselectAll();
       
-      Vec2f avgPos(0,0);
-      for(auto n : mClipboard)
-        { avgPos += n->rect().center(); }
-      avgPos /= mClipboard.size();
+      // Vec2f avgPos(0,0);
+      // for(auto n : mClipboard)
+      //   { avgPos += n->rect().center(); }
+      // avgPos /= mClipboard.size();
   
-      std::vector<Node*> copied = makeCopies(mClipboard, false);
+      // std::vector<Node*> copied = makeCopies(mClipboard, false);
 
-      Vec2f offset = screenToGraph(ImGui::GetMousePos()) - avgPos;
-      for(auto n : mClipboard)
-        {
-          n->setPos(n->pos() + offset);
-          n->setSelected(true);
-          n->setFirstFrame(true);
-          mNodes.emplace(n->id(), n);
-        }
-      mClipboard.clear();
-      mClipboard = copied;
-      mChangedSinceSave = true;
+      // Vec2f offset = screenToGraph(ImGui::GetMousePos()) - avgPos;
+      // for(auto n : mClipboard)
+      //   {
+      //     n->setPos(n->pos() + offset);
+      //     n->setSelected(true);
+      //     n->setFirstFrame(true);
+      //     mNodes.emplace(n->id(), n);
+      //   }
+      // mClipboard.clear();
+      // mClipboard = copied;
+      // mChangedSinceSave = true;
+      mPasting = true;
     }
 }
 
@@ -723,18 +746,19 @@ void NodeGraph::draw()
     // draw node connections
     for(auto n : sorted) { n.second->drawConnections(winDrawList); }
 
-    // determine if mouse is hovering over a node, or if node UI is active
-    bool active = false;
-    bool hover = false;
-    Vec2f offsetMouse = screenToGraph(ImGui::GetMousePos());
-    for(auto n : mNodes)
-      {
-        active |= n.second->isActive();
-        hover  |= n.second->isHovered() || n.second->rect().contains(offsetMouse);
-      }
-    
+
     if(!mLocked)
       {
+        // determine if mouse is hovering over a node, or if node UI is active
+        bool active = false;
+        bool hover = false;
+        Vec2f offsetMouse = screenToGraph(ImGui::GetMousePos());
+        for(auto n : mNodes)
+          {
+            active |= n.second->isActive();
+            hover  |= n.second->isHovered() || n.second->rect().intersection(graphRect).contains(offsetMouse);
+          }
+        
         // DELETE key --> delete selected nodes
         if(!active && ImGui::IsKeyPressed(GLFW_KEY_DELETE))
           {
@@ -749,11 +773,11 @@ void NodeGraph::draw()
           }
     
         // node selection/highlighting
-        bool bgHover = ImGui::IsWindowHovered();//ImGuiHoveredFlags_RootWindow);
+        bool bgHover = ImGui::IsWindowHovered();
         bool lbClick = ImGui::IsMouseClicked(ImGuiMouseButton_Left);
         bool mbClick = ImGui::IsMouseClicked(ImGuiMouseButton_Middle);
 
-        if((hover || bgHover) && !active)
+        if(graphRect.contains(offsetMouse) && !active)
           {
             if(io.KeyCtrl && std::abs(io.MouseWheel) > 0.0f)
               { // zoom/scale
@@ -768,48 +792,66 @@ void NodeGraph::draw()
                 mGraphCenter += mposNew-mposOld;
               }
           }
+
+        
+        if(!mPlacing && !mPasting)
+          {
+            if(((ImGui::IsKeyDown(GLFW_KEY_LEFT_SHIFT) && bgHover && lbClick) || mbClick) && graphRect.contains(offsetMouse))
+              { // pan view center (SHIFT+leftclick+drag, or middleclick+drag)
+                mPanning = true;
+                mPanClick = screenToGraph(ImGui::GetMousePos());
+                ImGui::ResetMouseDragDelta(lbClick ? ImGuiMouseButton_Left : ImGuiMouseButton_Middle);
+              }
+            else if(bgHover && lbClick)
+              { // start drawing selection rectangle
+                mSelecting = true;
+                mSelectAnchor = screenToGraph(ImGui::GetMousePos());
+                mSelectRect.p1 = mSelectAnchor;
+                mSelectRect.p2 = mSelectAnchor;
+                if(!io.KeyCtrl) { deselectAll(); }
+              }
+
+            bool lbUp = ImGui::IsMouseReleased(ImGuiMouseButton_Left);
+            bool mbUp = ImGui::IsMouseReleased(ImGuiMouseButton_Middle);
+            
+            if(mSelecting && lbUp)
+              { // stop selecting
+                mSelecting = false;
+                mSelectAnchor = Vec2f(0,0);
+                mSelectRect.p1 = mSelectAnchor;
+                mSelectRect.p2 = mSelectAnchor;
+              }
+            if(mPanning && (lbUp || mbUp))
+              { mPanning = false; } // stop panning
     
-        if(((ImGui::IsKeyDown(GLFW_KEY_LEFT_SHIFT) && bgHover && lbClick) || mbClick))
-          { // pan view center (SHIFT+leftclick+drag, or middleclick+drag)
-            mPanning = true;
-            mPanClick = screenToGraph(ImGui::GetMousePos());
-            ImGui::ResetMouseDragDelta(lbClick ? ImGuiMouseButton_Left : ImGuiMouseButton_Middle);
+            if(mSelecting)
+              { // selection rect (click+drag)
+                if(ImGui::IsMouseDragging(ImGuiMouseButton_Left))
+                  {
+                    Vec2f mpos = screenToGraph(ImGui::GetMousePos());
+                    Rect2f select(Vec2f(std::min(mSelectAnchor.x, mpos.x), std::min(mSelectAnchor.y, mpos.y)),
+                                  Vec2f(std::max(mSelectAnchor.x, mpos.x), std::max(mSelectAnchor.y, mpos.y)));
+                    mSelectRect = select.fixed().intersection(graphRect);
+                  }
+                // draw selection rect
+                fgDrawList->AddRect(graphToScreen(mSelectRect.p1), graphToScreen(mSelectRect.p2), ImColor(Vec4f(1.0f,1.0f,1.0f,0.5f)), 0.0f, ImDrawCornerFlags_All, 3.0f);
+                // select nodes that intersect selection rect
+                for(auto n : mNodes) { n.second->setSelected((n.second->isSelected() && io.KeyCtrl) || n.second->rect().intersects(mSelectRect)); }
+              }
           }
-        else if(bgHover && lbClick)
-          { // start drawing selection rectangle
-            mSelecting = true;
-            mSelectAnchor = screenToGraph(ImGui::GetMousePos());
-            mSelectRect.p1 = mSelectAnchor;
-            mSelectRect.p2 = mSelectAnchor;
-            if(!io.KeyCtrl) { deselectAll(); }
+        else
+          { // pan view center (only middleclick+drag -- shift used to multi-paste)
+            if(mbClick && graphRect.contains(offsetMouse))
+              {
+                mPanning = true;
+                mPanClick = screenToGraph(ImGui::GetMousePos());
+                ImGui::ResetMouseDragDelta(lbClick ? ImGuiMouseButton_Left : ImGuiMouseButton_Middle);
+              }
+            bool mbUp = ImGui::IsMouseReleased(ImGuiMouseButton_Middle);
+            if(mPanning && mbUp) { mPanning = false; } // stop panning
           }
 
-        bool lbUp = ImGui::IsMouseReleased(ImGuiMouseButton_Left);
-        bool mbUp = ImGui::IsMouseReleased(ImGuiMouseButton_Middle);
-        if(mSelecting && lbUp)
-          { // stop selecting
-            mSelecting = false;
-            mSelectAnchor = Vec2f(0,0);
-            mSelectRect.p1 = mSelectAnchor;
-            mSelectRect.p2 = mSelectAnchor;
-          }
-        if(mPanning && (lbUp || mbUp))
-          { mPanning = false; } // stop panning
-    
-        if(mSelecting)
-          { // selection rect (click+drag)
-            if(ImGui::IsMouseDragging(ImGuiMouseButton_Left))
-              {
-                Vec2f mpos = screenToGraph(ImGui::GetMousePos());
-                Rect2f select(Vec2f(std::min(mSelectAnchor.x, mpos.x), std::min(mSelectAnchor.y, mpos.y)),
-                              Vec2f(std::max(mSelectAnchor.x, mpos.x), std::max(mSelectAnchor.y, mpos.y)));
-                mSelectRect = select.fixed().intersection(graphRect);
-              }
-            // draw selection rect
-            fgDrawList->AddRect(graphToScreen(mSelectRect.p1), graphToScreen(mSelectRect.p2), ImColor(Vec4f(1.0f,1.0f,1.0f,0.5f)), 0.0f, ImDrawCornerFlags_All, 3.0f);
-            // select nodes that intersect selection rect
-            for(auto n : mNodes) { n.second->setSelected((n.second->isSelected() && io.KeyCtrl) || n.second->rect().intersects(mSelectRect)); }
-          }
+        // PANNING
         if(mPanning)
           { // pan view (shift+click+drag, or middleclick+drag)
             bool lDrag = ImGui::IsMouseDragging(ImGuiMouseButton_Left);
@@ -820,7 +862,77 @@ void NodeGraph::draw()
                 ImGui::ResetMouseDragDelta(lDrag ? ImGuiMouseButton_Left : ImGuiMouseButton_Middle);
               }
           }
-    
+        // PLACING
+        if(mPlacing)
+          {
+            if(ImGui::IsKeyPressed(GLFW_KEY_ESCAPE))
+              {
+                mPlacing = false;
+                mPlaceType = "";
+                mPlaceNode = nullptr;
+              }
+            else
+              {
+                mPlaceNode->setPos(screenToGraph(ImGui::GetMousePos()) - mPlaceNode->size()/2.0f);
+                mPlaceNode->draw(winDrawList, true, true); // draw "ghost" under mouse
+                mPlaceNode->drawConnections(winDrawList, true);
+
+                if(ImGui::IsMouseClicked(ImGuiMouseButton_Left))
+                  {
+                    addNode(mPlaceNode);
+                    mPlaceNode = nullptr;
+                    mPlacing = false;
+                    if(ImGui::IsKeyDown(GLFW_KEY_LEFT_SHIFT))
+                      { // shift down -- keep placing
+                        placeNode(mPlaceType);
+                      }
+                  }
+              }
+          }
+        // PASTING
+        else if(mPasting)
+          {
+            if(ImGui::IsKeyPressed(GLFW_KEY_ESCAPE))
+              {
+                mPasting = false;
+              }
+            else
+              {
+                Vec2f avgPos(0,0);
+                for(auto n : mClipboard) { avgPos += n->rect().center(); }
+                avgPos /= mClipboard.size();
+  
+                Vec2f offset = screenToGraph(ImGui::GetMousePos()) - avgPos;
+                for(auto n : mClipboard)
+                  {
+                    n->setPos(n->pos() + offset);
+                    n->draw(winDrawList, true, true); // draw "ghost" under mouse
+                  }
+                for(auto n : mClipboard)
+                  { n->drawConnections(winDrawList); }
+
+                if(ImGui::IsMouseClicked(ImGuiMouseButton_Left))
+                  {
+                    deselectAll();
+                    std::vector<Node*> copied = makeCopies(mClipboard, false);
+
+                    for(auto n : mClipboard)
+                      {
+                        n->setSelected(true);
+                        n->setFirstFrame(true);
+                        mNodes.emplace(n->id(), n);
+                      }
+                    mClipboard.clear();
+                    mClipboard = copied;
+                    mChangedSinceSave = true;
+
+                    if(!ImGui::IsKeyDown(GLFW_KEY_LEFT_SHIFT))  // stop pasting unless shfit is held
+                      { mPasting = false; }
+                    
+                  }
+              }
+          }
+        
         // right click menu (alternative to keyboard for adding new nodes)
         if(ImGui::BeginPopupContextWindow("nodeGraphContext"))
           {
@@ -837,7 +949,7 @@ void NodeGraph::draw()
                 if(ImGui::MenuItem("Paste")) { paste(); }
               }
         
-            if(ImGui::BeginMenu("New"))
+            if(ImGui::BeginMenu("Add Node"))
               {
                 for(const auto &gIter : NODE_GROUPS)
                   {
@@ -850,9 +962,9 @@ void NodeGraph::draw()
                               {
                                 if(ImGui::MenuItem(nIter->second.name.c_str()))
                                   {
-                                    Node *n = nIter->second.get();
-                                    n->setPos(screenToGraph(ImGui::GetMousePos()));
-                                    addNode(n, true);
+                                    // Node *n = nIter->second.get();
+                                    // n->setPos(screenToGraph(ImGui::GetMousePos()));
+                                    placeNode(nIter->first);//, true);
                                   }
                               }
                           }

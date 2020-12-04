@@ -203,18 +203,29 @@ int main(int argc, char* argv[])
       { GLFW_MOD_CONTROL, GLFW_KEY_X, [](){ graph->cut(); } },                          // CTRL+X       --> cut
       { GLFW_MOD_CONTROL, GLFW_KEY_C, [](){ graph->copy(); } },                         // CTRL+C       --> copy
       { GLFW_MOD_CONTROL, GLFW_KEY_V, [](){ graph->paste(); } },                        // CTRL+V       --> paste
-      { GLFW_MOD_CONTROL, GLFW_KEY_A, [](){ graph->selectAll(); } },                // CTRL+A       --> select all
+      { GLFW_MOD_CONTROL, GLFW_KEY_A, [](){ graph->selectAll(); } },                    // CTRL+A       --> select all
+      // //// Node Creation
+      // { 0, GLFW_KEY_T, [](){ graph->addNode("TimeNode",         true); } }, // T --> new Time Node
+      // { 0, GLFW_KEY_S, [](){ graph->addNode("TimeSpanNode",     true); } }, // S --> new Time Span Node
+      // { 0, GLFW_KEY_L, [](){ graph->addNode("LocationNode",     true); } }, // L --> new Location Node
+      // { 0, GLFW_KEY_C, [](){ graph->addNode("ChartNode",        true); } }, // C --> new Chart Node
+      // { 0, GLFW_KEY_P, [](){ graph->addNode("ProgressNode",     true); } }, // P --> new Progress Node
+      // { 0, GLFW_KEY_V, [](){ graph->addNode("ChartViewNode",    true); } }, // V --> new Chart View Node
+      // { 0, GLFW_KEY_X, [](){ graph->addNode("ChartCompareNode", true); } }, // X --> new Chart Compare Node
+      // { 0, GLFW_KEY_D, [](){ graph->addNode("ChartDataNode",    true); } }, // D --> new Chart Data Node
+      // { 0, GLFW_KEY_A, [](){ graph->addNode("AspectNode",       true); } }, // A --> new Aspect Node
+      // { 0, GLFW_KEY_M, [](){ graph->addNode("MoonNode",         true); } }, // M --> new Moon Node
       //// Node Creation
-      { 0, GLFW_KEY_T, [](){ graph->addNode("TimeNode",         true); } }, // T --> new Time Node
-      { 0, GLFW_KEY_S, [](){ graph->addNode("TimeSpanNode",     true); } }, // S --> new Time Span Node
-      { 0, GLFW_KEY_L, [](){ graph->addNode("LocationNode",     true); } }, // L --> new Location Node
-      { 0, GLFW_KEY_C, [](){ graph->addNode("ChartNode",        true); } }, // C --> new Chart Node
-      { 0, GLFW_KEY_P, [](){ graph->addNode("ProgressNode",     true); } }, // P --> new Progress Node
-      { 0, GLFW_KEY_V, [](){ graph->addNode("ChartViewNode",    true); } }, // V --> new Chart View Node
-      { 0, GLFW_KEY_X, [](){ graph->addNode("ChartCompareNode", true); } }, // X --> new Chart Compare Node
-      { 0, GLFW_KEY_D, [](){ graph->addNode("ChartDataNode",    true); } }, // D --> new Chart Data Node
-      { 0, GLFW_KEY_A, [](){ graph->addNode("AspectNode",       true); } }, // A --> new Aspect Node
-      { 0, GLFW_KEY_M, [](){ graph->addNode("MoonNode",         true); } }, // M --> new Moon Node
+      { 0, GLFW_KEY_T, [](){ graph->placeNode("TimeNode"); } }, // T --> new Time Node
+      { 0, GLFW_KEY_S, [](){ graph->placeNode("TimeSpanNode"); } }, // S --> new Time Span Node
+      { 0, GLFW_KEY_L, [](){ graph->placeNode("LocationNode"); } }, // L --> new Location Node
+      { 0, GLFW_KEY_C, [](){ graph->placeNode("ChartNode"); } }, // C --> new Chart Node
+      { 0, GLFW_KEY_P, [](){ graph->placeNode("ProgressNode"); } }, // P --> new Progress Node
+      { 0, GLFW_KEY_V, [](){ graph->placeNode("ChartViewNode"); } }, // V --> new Chart View Node
+      { 0, GLFW_KEY_X, [](){ graph->placeNode("ChartCompareNode"); } }, // X --> new Chart Compare Node
+      { 0, GLFW_KEY_D, [](){ graph->placeNode("ChartDataNode"); } }, // D --> new Chart Data Node
+      { 0, GLFW_KEY_A, [](){ graph->placeNode("AspectNode"); } }, // A --> new Aspect Node
+      { 0, GLFW_KEY_M, [](){ graph->placeNode("MoonNode"); } }, // M --> new Moon Node
       //// Debug
       { GLFW_MOD_ALT, GLFW_KEY_D, [&showDemo](){ showDemo = !showDemo; } }, // ALT+D --> open ImGui demo window
     };
@@ -276,7 +287,7 @@ int main(int argc, char* argv[])
                               if(nIter != astro::NodeGraph::NODE_TYPES.end())
                                 {
                                   if(ImGui::MenuItem(nIter->second.name.c_str()))
-                                    { graph->addNode(nIter->second.get()); }
+                                    { graph->placeNode(nIter->first); } // nIter->second.get()); }
                                 }
                             }
                           ImGui::EndMenu(); // gIter.name

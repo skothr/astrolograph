@@ -36,6 +36,8 @@ namespace astro
   
 #define NODE_TOP_Z 1000000.0f // z value to bring a node to the top
 
+#define GHOST_ALPHA 0.2f // alpha value for drawing ghosts
+
 // direction of node connector (for now just input/output)
   enum Direction
     {
@@ -105,7 +107,7 @@ namespace astro
     void sendSignal(NodeSignal signal);
 
     void draw(bool blocked);
-    void drawConnections(ImDrawList *nodeDrawList, ImDrawList *graphDrawList);
+    void drawConnections(ImDrawList *nodeDrawList, ImDrawList *graphDrawList, bool ghost=false);
   };
 
 
@@ -298,8 +300,8 @@ namespace astro
     float getZ() const              { return mParams->z; }
     void setZ(float z) const        { mParams->z = z; }
 
-    void drawConnections(ImDrawList *graphDrawList);
-    bool draw(ImDrawList *graphDrawList, bool blocked);
+    void drawConnections(ImDrawList *graphDrawList, bool ghost=false);
+    bool draw(ImDrawList *graphDrawList, bool blocked, bool ghost=false);
     void update();
   };
 }
