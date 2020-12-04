@@ -10,16 +10,16 @@ using namespace astro;
 
 Location::Location(double lat, double lon, double alt)
   : latitude(lat), longitude(lon), altitude(alt)
-{ }
-//   // use OS time zone as default
-//   auto current = std::chrono::system_clock::now();
-//   auto zoned = date::make_zoned(date::current_zone(), current);
-//   int offset = zoned.get_info().offset.count();
-//   timezoneId = date::current_zone()->name();
-//   utcOffset  = ((double)offset) / 60.0/60.0;
-// }
+{
+  // use OS time zone as default
+  auto current = std::chrono::system_clock::now();
+  auto zoned = date::make_zoned(date::current_zone(), current);
+  int offset = zoned.get_info().offset.count();
+  timezoneId = date::current_zone()->name();
+  utcOffset  = ((double)offset) / 60.0/60.0;
+}
 
-  Location::Location(const Location &other)
+Location::Location(const Location &other)
   : latitude(other.latitude), longitude(other.longitude), altitude(other.altitude), timezoneId(other.timezoneId), utcOffset(other.utcOffset)
 { }
 Location& Location::operator=(const Location &other)

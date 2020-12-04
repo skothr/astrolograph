@@ -41,19 +41,19 @@ void ProgressNode::onUpdate()
       
       if(dtIn && mChart->date() != dtProg)
         {
-          if(mChart->changed()) { *dtIn = dtUnprog; }
+          if(mChart->hasChanged()) { *dtIn = dtUnprog; }
           else                  { mChart->setDate(dtProg); }
         }
       if(locIn && *locIn != mChart->location())
         {
-          if(mChart->changed()) { *locIn = mChart->location(); }
+          if(mChart->hasChanged()) { *locIn = mChart->location(); }
           else                  { mChart->setLocation(*locIn); }
         }
       mChart->update();
     }
 }
 
-bool ProgressNode::onDraw()
+void ProgressNode::onDraw()
 {
   Chart *inChart = inputs()[PROGRESSNODE_INPUT_CHART]->get<Chart>();
   if(inChart)
@@ -79,6 +79,6 @@ bool ProgressNode::onDraw()
       //mChart->update();
     }
   // mChart->update();
-  return true;
+  mSettings.draw(getScale());
 }
 

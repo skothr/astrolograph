@@ -26,7 +26,8 @@ namespace astro
     std::vector<bool> mAspVisible;
     std::vector<double> mAspOrbs;
     
-    virtual bool onDraw() override;
+    virtual void onUpdate() override;
+    virtual void onDraw() override;
     
     virtual std::map<std::string, std::string>& getSaveParams(std::map<std::string, std::string> &params) const override
     {
@@ -68,8 +69,6 @@ namespace astro
               is >> mAspOrbs[a++];
             }
         }
-
-      
       return params;
     };
     

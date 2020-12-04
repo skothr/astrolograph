@@ -12,7 +12,7 @@ LocationWidget::LocationWidget(const Location &loc)
   : mLocation(loc) { mLocation.fix(); }
 
 LocationWidget::LocationWidget(const LocationWidget &other)
-  : mLocation(other.mLocation), mSavedLocation(other.mSavedLocation)//, mDST(other.mDST)
+  : mLocation(other.mLocation), mSavedLocation(other.mSavedLocation)
 {
   sprintf(mName, "%s", other.mName);
   sprintf(mSavedName, "%s", other.mSavedName);
@@ -24,7 +24,6 @@ LocationWidget& LocationWidget::operator=(const LocationWidget &other)
   mSavedLocation = other.mSavedLocation;
   sprintf(mName, "%s", other.mName);
   sprintf(mSavedName, "%s", other.mSavedName);
-  //mDST = other.mDST;
   return *this;
 }
 
@@ -144,6 +143,11 @@ std::vector<LocationSave> LocationWidget::loadAll()
         }
     }
   return data;
+}
+
+void LocationWidget::update()
+{
+  
 }
 
 void LocationWidget::draw(float scale, bool blocked)
@@ -290,13 +294,13 @@ void LocationWidget::draw(float scale, bool blocked)
     ImGui::Spacing();
     
     // time zone
-    double utcOffset = mLocation.utcOffset;// + (mDST ? 1 : 0);
+    double utcOffset = mLocation.utcOffset;
     std::string offsetStr = (std::string("(UTC")+(utcOffset >= 0.0 ? "+" : "")+to_string(utcOffset, 1)+")");
     ImGui::TextColored(Vec4f(1.0f, 1.0f, 1.0f, 0.25f), "%s", (mLocation.timezoneId.empty() ? "n/a" : mLocation.timezoneId).c_str());
     ImGui::SameLine(); ImGui::TextColored(Vec4f(1.0f, 1.0f, 1.0f, 0.25f), "%s", offsetStr.c_str());
     // update (NOTE: use springly for now --> ~2500 free queries per username per day)
     if(ImGui::Button("Update")) { mLocation.updateTimezone(); }
-    ImGui::Spacing();
+    // ImGui::Spacing();
   }
   ImGui::EndGroup();
   mLocation.fix();

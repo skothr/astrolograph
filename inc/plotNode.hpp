@@ -27,12 +27,13 @@ namespace astro
     std::vector<float> mData;
     DateTime mOldStartDate;
     DateTime mOldEndDate;
-    int      mDayRadius = 30;
-    ObjType  mObjType   = OBJ_SUN;
+    int      mDayRadius  = 30;
     Chart    mOldChart;
+    ObjType  mOldObjType = OBJ_SUN;
+    ObjType  mObjType    = OBJ_SUN;
     
     virtual void onUpdate() override;
-    virtual bool onDraw() override;
+    virtual void onDraw() override;
     
     virtual std::map<std::string, std::string>& getSaveParams(std::map<std::string, std::string> &params) const override
     {

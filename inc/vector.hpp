@@ -21,6 +21,8 @@ struct Vector
   Vector(const Vector<T, N> &other)     : Vector(other.data) { }
   Vector(const std::array<T, N> &data_) : data(data_)        { }
   Vector(const std::string &str)        { fromString(str); }
+  template<typename U> // convert from other type
+  Vector(const Vector<U, N> &other)     { for(int i = 0; i < N; i++) { data[i] = (T)other.data[i]; } }
   
   std::string toString() const            { std::ostringstream ss;      ss << (*this); return ss.str(); }
   void fromString(const std::string &str) { std::istringstream ss(str); ss >> (*this); }
@@ -125,6 +127,8 @@ struct Vector<T, 2>
   Vector(const Vector<T, N> &other)     : x(other.x), y(other.y)    { }
   Vector(const std::array<T, N> &data_) : x(data_[0]), y(data_[1])  { }
   Vector(const std::string &str)     { fromString(str); }
+  template<typename U> // convert from other type
+  Vector(const Vector<U, N> &other)     { for(int i = 0; i < N; i++) { data[i] = (T)other.data[i]; } }
 
   Vector<T, 2>& operator=(const Vector<T, 2> &other)
   { data = other.data; return *this; }
@@ -232,6 +236,8 @@ struct Vector<T, 3>
   Vector(const Vector<T, N> &other)       : x(other.x), y(other.y), z(other.z)      { }
   Vector(const std::array<T, N> &data_)   : x(data_[0]), y(data_[1]), z(data_[2])   { }
   Vector(const std::string &str)          { fromString(str); }
+  template<typename U> // convert from other type
+  Vector(const Vector<U, N> &other)     { for(int i = 0; i < N; i++) { data[i] = (T)other.data[i]; } }
   
   T& operator[](int dim)             { return data[dim]; }
   const T& operator[](int dim) const { return data[dim]; }
@@ -313,6 +319,8 @@ struct Vector<T, 4>
   Vector(const Vector<T, N> &other)        : x(other.x), y(other.y), z(other.z), w(other.w)     { }
   Vector(const std::array<T, N> &data_)    : x(data_[0]), y(data_[1]), z(data_[2]), w(data_[3]) { }
   Vector(const std::string &str)       { fromString(str); }
+  template<typename U> // convert from other type
+  Vector(const Vector<U, N> &other)     { for(int i = 0; i < N; i++) { data[i] = (T)other.data[i]; } }
   
   Vector<T, 4>& operator=(const Vector<T, 4> &other)
   { data = other.data; return *this; }

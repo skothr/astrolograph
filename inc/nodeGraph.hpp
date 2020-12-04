@@ -16,6 +16,8 @@ namespace imgui_addons { class ImGuiFileBrowser; }
 struct ImDrawList;
 
 #define DEFAULT_PROJECT_DIR "./projects"
+#define SAVE_FILE_VERSION   "0.1"
+
 #define FILE_DIALOG_SIZE Vec2f(960, 690)
 
 namespace astro
@@ -54,8 +56,6 @@ namespace astro
   // };
 
   
-  
-  
   class NodeGraph
   {
   private:
@@ -63,7 +63,7 @@ namespace astro
     // std::deque<GraphAction*> mActionStack;  // for undoing
 
     std::unordered_map<int, Node*> mNodes; // maps ID to pointer
-    //std::vector<Node::Connection> mSelectedNodes; // set of nodes that are selected
+    std::vector<Node*> mSelectedNodes; // set of nodes that are selected
     Vec2f  mGraphCenter = Vec2f(0,0); // graph-space point to be centered in view
     float  mGraphScale  = 1.0f;       // graph view scaling
     Vec2f  mViewPos;                  // screen-space position of nodeGraph view
@@ -72,7 +72,7 @@ namespace astro
     Vec2f  mSelectAnchor;
     Rect2f mSelectRect;
     bool   mDrawing = false; // set to true if between BeginDraw() and EndDraw()
-    bool   mLocked  = false;  // if true, nodes can't be selected or moved around
+    bool   mLocked  = false; // if true, nodes can't be selected or moved around
     bool   mShowIds = false;
     
     ViewSettings *mViewSettings = nullptr;
@@ -85,11 +85,11 @@ namespace astro
     bool mOpenSave          = false;
     bool mOpenLoad          = false;
 
-    bool mPanning     = false;
+    bool mPanning           = false;
     Vec2f mPanClick;
     
-    bool mSaveDialogOpen = false;
-    bool mLoadDialogOpen = false;
+    bool mSaveDialogOpen    = false;
+    bool mLoadDialogOpen    = false;
     std::string mSaveFile = ""; // last saved/loaded file name
     imgui_addons::ImGuiFileBrowser *mFileDialog;
     
@@ -109,6 +109,8 @@ namespace astro
     ~NodeGraph();
 
     ViewSettings* getViewSettings() { return mViewSettings; }
+    const std::unordered_map<int, Node*>& getNodes() const { return mNodes; }
+    std::unordered_map<int, Node*>& getNodes() { return mNodes; }
     
     void addNode(Node *n, bool select=true);  // adds node to mNodes
     Node* addNode(const std::string &type, bool select=true); // if select is true, deselect other nodes)
@@ -138,7 +140,17 @@ namespace astro
     bool isSelectedActive();   // returns true if any selected nodes are active
     bool isSelectedDragged();  // returns true if any selected nodes are dragged
 
-    void setLocked(bool lock) { mLocked = lock; }
+    void setLocked(bool lock)
+    {
+      mLocked = lock;
+      if(mLocked)
+        {
+          // mSelectRect = Rect2f(Vec2f(0,0),Vec2f(0,0));
+          mSelecting = false;
+          mPanning = false;
+          mClickCopied = false;
+        }
+    }
     bool setLocked() const    { return mLocked; }
 
     Vec2f getCenter() const   { return mGraphCenter; }
@@ -147,8 +159,8 @@ namespace astro
 
     Vec2f viewPos() const     { return mViewPos; }
     Vec2f viewSize() const    { return mViewSize; }
-    void setPos(const Vec2i &p);
-    void setSize(const Vec2i &s);
+    void setPos(const Vec2f &p);
+    void setSize(const Vec2f &s);
 
     Vec2f graphToScreenVec(const Vec2f &v) const { return v*mGraphScale; }
     Vec2f screenToGraphVec(const Vec2f &v) const { return v/mGraphScale; }

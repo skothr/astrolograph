@@ -91,6 +91,8 @@ bool TimeWidget::load(const std::string &name)
               mSavedDate = dt;
               mSavedDate.fix();
               mDate = mSavedDate;
+              sprintf(mName, "%s", name);
+              sprintf(mSavedName, "%s", name);
               return true;
             }
         }
@@ -240,8 +242,7 @@ void TimeWidget::draw(const std::string &id, float scale, bool blocked)
     else
       {
         std::string sName = mName;
-        if(mDate != mSavedDate)
-          { sName = std::string("[") + mName + "]"; }
+        if(mDate != mSavedDate) { sName = std::string("[") + mName + "]"; }
         ImGui::TextColored(ImColor(1.0f, 1.0f, 1.0f, 0.5f), "%s", sName.c_str());
       }
 
@@ -349,7 +350,9 @@ void TimeWidget::draw(const std::string &id, float scale, bool blocked)
       {
         ImGui::SameLine();
         if(ImGui::Button(("Reload##date"+id).c_str()))
-          { mDate = mSavedDate; }
+          {
+            mDate = mSavedDate;
+          }
       }
   }
   ImGui::EndGroup();

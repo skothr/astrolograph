@@ -21,6 +21,7 @@ using namespace imgui_addons;
 #include "chartViewNode.hpp"
 #include "aspectNode.hpp"
 #include "plotNode.hpp"
+#include "moonNode.hpp"
 
 
 const std::unordered_map<std::string, NodeType> NodeGraph::NODE_TYPES =
@@ -33,12 +34,13 @@ const std::unordered_map<std::string, NodeType> NodeGraph::NODE_TYPES =
    { "ChartCompareNode", {"ChartCompareNode", "Chart Compare Node", [](){ return new CompareNode();   }} },
    { "ChartDataNode",    {"ChartDataNode",    "Chart Data Node",    [](){ return new ChartDataNode(); }} },
    { "AspectNode",       {"AspectNode",       "Aspect Node",        [](){ return new AspectNode();    }} },
-   { "PlotNode",         {"PlotNode",         "Plot Node",          [](){ return new PlotNode();    }} }, };
+   { "PlotNode",         {"PlotNode",         "Plot Node",          [](){ return new PlotNode();      }} }, 
+   { "MoonNode",         {"MoonNode",         "Moon Node",          [](){ return new MoonNode();      }} }, };
 
 const std::vector<NodeGroup> NodeGraph::NODE_GROUPS =
   { {"Parameters",    {"TimeNode", "TimeSpanNode", "LocationNode"}},
     {"Calculation",   {"ChartNode", "ProgressNode"}},
-    {"Visualization", {"ChartViewNode", "ChartCompareNode", "ChartDataNode", "AspectNode", "PlotNode"}}, };
+    {"Visualization", {"ChartViewNode", "ChartCompareNode", "ChartDataNode", "AspectNode", "MoonNode", "PlotNode"}}, };
 
 
 Node* NodeGraph::makeNode(const std::string &nodeType)
@@ -88,6 +90,7 @@ bool NodeGraph::saveToFile(const std::string &path)
 {
   std::ofstream f(path, std::ios::out);
   // save graph center/scale
+  f << "VERSION " << SAVE_FILE_VERSION << "\n";
   f << "CENTER " << mGraphCenter << "\n";
   f << "SCALE "  << mGraphScale  << "\n";
   // save nodes
@@ -124,12 +127,15 @@ bool NodeGraph::loadFromFile(const std::string &path)
 {
   if(fileExists(path)) // fs::exists(path) && fs::is_regular_file(path))
     {
-      setLocked(false);
       clear();
       std::ifstream f(path, std::ios::in);
 
-      std::cout << "READING FILE '" << path << "'...\n";
+      std::cout << "=============================================================================================\n";
+      std::cout << "= READING FILE '" << path << "'...\n";
+      std::cout << "=============================================================================================\n";
       std::string line;
+      std::string version="0.0";
+      bool firstLine = true;
       while(std::getline(f, line))
         {
           if(line.empty() || line == "\n") { continue; }
@@ -138,6 +144,16 @@ bool NodeGraph::loadFromFile(const std::string &path)
           int id;
           Vec2f pos;
           ss >> lineType;
+
+          if(lineType == "VERSION" || firstLine)
+            { // save file version
+              if(lineType == "VERSION") { ss >> version; }
+              std::cout << "= VERSION: " << version << "\n";
+              if(version != SAVE_FILE_VERSION)
+                { std::cout << "= WARNING: Save file may be out of date! (current version: " << SAVE_FILE_VERSION << ")\n"; }
+              std::cout << "=============================================================================================\n";
+            }
+          firstLine = false;
 
           if(lineType == "CENTER")
             { ss >> mGraphCenter; }
@@ -207,7 +223,19 @@ bool NodeGraph::loadFromFile(const std::string &path)
       Node::NEXT_ID = maxId + 1;
 
       mSaveFile = path;      
+      for(auto n : mNodes)
+        {
+          n.second->update();
+          n.second->setChanged(false);
+        }
       mChangedSinceSave = false;
+      std::cout << "=============================================================================================\n";
+      if(version != SAVE_FILE_VERSION)
+        {
+          std::cout << "= WARNING: Save file may be out of date! (current version: " << SAVE_FILE_VERSION << ")\n";
+          std::cout << "=============================================================================================\n";
+        }
+      
       return true;
     }
   else
@@ -222,13 +250,9 @@ void NodeGraph::openSaveDialog()
     { saveToFile(mSaveFile); }
 }
 void NodeGraph::openSaveAsDialog()
-{
-  mOpenSave = true;
-}
+{ mOpenSave = true; }
 void NodeGraph::openLoadDialog()
-{
-  mOpenLoad = true;
-}
+{ mOpenLoad = true; }
 
 Node* NodeGraph::addNode(const std::string &type, bool select)
 {
@@ -249,8 +273,7 @@ void NodeGraph::addNode(Node *n, bool select)
       mChangedSinceSave = true;
       n->setGraph(this);
       mNodes.emplace(n->id(), n);
-      if(select) { deselectAll(); selectNode(n); }
-      mChangedSinceSave = true;
+      if(select) { deselectAll(); n->setSelected(true); }
     }
 }
 
@@ -258,9 +281,11 @@ void NodeGraph::clear()
 {
   for(auto n : mNodes) { delete n.second; }
   mNodes.clear();
+  mNodes = std::unordered_map<int, Node*>(); // clear nodes and free allocation
   Node::NEXT_ID = 0;
   mSaveFile = "";
   mGraphCenter = Vec2f(0,0);
+  mGraphScale  = 1.0f;
   mChangedSinceSave = false;
 }
 
@@ -316,19 +341,13 @@ void NodeGraph::paste()
       Vec2f offset = screenToGraph(ImGui::GetMousePos()) - avgPos;
       for(auto n : mClipboard)
         {
-          mNodes.emplace(n->id(), n);
           n->setPos(n->pos() + offset);
           n->setSelected(true);
           n->setFirstFrame(true);
+          mNodes.emplace(n->id(), n);
         }
       mClipboard.clear();
-      
-      // increment clipboard ids
-      for(auto n : copied)
-        {
-          // n->setid(n->id() + mClipboard.size());
-          mClipboard.push_back(n);
-        }
+      mClipboard = copied;
       mChangedSinceSave = true;
     }
 }
@@ -347,8 +366,6 @@ bool NodeGraph::isConnecting()
 void NodeGraph::selectNode(Node *n)
 {
   // TODO: hold shift/control to add/toggle nodes from selection?
-  // if(!n->isSelected() && !isSelectedHovered())
-  //   { deselectAll(); }
   n->setSelected(true);
 }
 
@@ -546,14 +563,14 @@ bool NodeGraph::isSelectedDragged()
   return false;
 }
 
-void NodeGraph::setPos(const Vec2i &p)
+void NodeGraph::setPos(const Vec2f &p)
 {
   mViewPos = Vec2f(p.x, p.y);
   if(mDrawing) { ImGui::SetWindowPos(p); }
   else         { ImGui::SetNextWindowPos(p); BeginDraw(); EndDraw(); }
 }
 
-void NodeGraph::setSize(const Vec2i &s)
+void NodeGraph::setSize(const Vec2f &s)
 {
   mViewSize = Vec2f(s.x, s.y);
   if(mDrawing) { ImGui::SetWindowSize(s); }
@@ -610,9 +627,12 @@ void NodeGraph::BeginDraw()
   // global config
   ImGui::PushStyleVar(ImGuiStyleVar_WindowRounding, 0); // square frames by default
   ImGui::PushStyleVar(ImGuiStyleVar_FrameRounding,  0);
-  ImGui::PushStyleColor(ImGuiCol_WindowBg, mViewSettings->graphBgColor);
+  // ImGui::PushStyleColor(ImGuiCol_ChildBorder, Vec4f());
   ImGui::PushStyleVar(ImGuiStyleVar_WindowPadding, Vec2f(0, 0));
-  ImGui::Begin("nodeGraph", nullptr, wFlags);
+  ImGui::PushStyleColor(ImGuiCol_ChildBg, mViewSettings->graphBgColor);
+  ImGui::PushStyleColor(ImGuiCol_WindowBg, mViewSettings->graphBgColor);
+  ImGui::BeginChild("nodeGraph", mViewSize, true, wFlags);
+  ImGui::PopStyleColor(2);
   ImGui::PopStyleVar();
   mDrawing = true;
 }
@@ -620,15 +640,24 @@ void NodeGraph::BeginDraw()
 void NodeGraph::EndDraw()
 {
   mDrawing = false;
-  ImGui::End();
-  ImGui::PopStyleColor();
+  ImGui::EndChild();
+  // ImGui::PopStyleColor(2);
   ImGui::PopStyleVar(2);
 }
 
 void NodeGraph::update()
 {
+  bool changed = false;
   for(auto n : mNodes)
-    { n.second->update(); } // update nodes
+    {
+      n.second->update();
+      changed |= n.second->hasChanged();
+      n.second->setChanged(false);
+    } // update nodes
+  
+  // TODO: Indicator for unsaved changed (file name tabs with asterisk?)
+  
+  mChangedSinceSave |= changed;
 }
 
 void NodeGraph::draw()
@@ -636,8 +665,8 @@ void NodeGraph::draw()
   // draw with imgui
   BeginDraw();
   {
-    mViewPos = ImGui::GetWindowPos();
-    mViewSize = ImGui::GetWindowSize();
+    // mViewPos = ImGui::GetWindowPos();
+    // mViewSize = ImGui::GetWindowSize();
     Rect2f graphRect = screenToGraph(Rect2f(mViewPos, mViewPos + mViewSize));
     
     ImGuiIO &io = ImGui::GetIO();
@@ -692,8 +721,7 @@ void NodeGraph::draw()
           }
       }
     // draw node connections
-    for(auto n : sorted)
-      { n.second->drawConnections(winDrawList); }
+    for(auto n : sorted) { n.second->drawConnections(winDrawList); }
 
     // determine if mouse is hovering over a node, or if node UI is active
     bool active = false;
@@ -705,127 +733,136 @@ void NodeGraph::draw()
         hover  |= n.second->isHovered() || n.second->rect().contains(offsetMouse);
       }
     
-    // DELETE key --> delete selected nodes
-    if(!mLocked && ImGui::IsKeyPressed(GLFW_KEY_DELETE))
+    if(!mLocked)
       {
-        std::vector<int> erased;
-        for(auto n : mNodes) // delete selected nodes
+        // DELETE key --> delete selected nodes
+        if(!active && ImGui::IsKeyPressed(GLFW_KEY_DELETE))
           {
-            if(n.second->isSelected())
-              { erased.push_back(n.second->id()); }
-          }
-        for(auto nid : erased)
-          { delete mNodes[nid]; mNodes.erase(nid); }
-      }
-    
-    // node selection/highlighting
-    bool bgHover = ImGui::IsWindowHovered(ImGuiHoveredFlags_RootWindow);
-    bool lbClick = ImGui::IsMouseClicked(ImGuiMouseButton_Left);
-    bool mbClick = ImGui::IsMouseClicked(ImGuiMouseButton_Middle);
-
-    if((hover || bgHover) && !active)
-      {
-        if(io.KeyCtrl && std::abs(io.MouseWheel) > 0.0f)
-          { // zoom/scale
-            Vec2f mposOld = screenToGraph(ImGui::GetMousePos());
-            float scaleOld = mGraphScale;
-            mGraphScale *= (io.MouseWheel > 0.0f ? 1.05f : 1.0f/1.05f);
-            mGraphScale = std::max(mGraphScale, 0.25f);
-            mGraphScale = std::min(mGraphScale, 4.0f);
-
-            // center scaling on mouse
-            Vec2f mposNew = screenToGraph(ImGui::GetMousePos());
-            mGraphCenter += mposNew-mposOld;
-          }
-      }
-    
-    if((ImGui::IsKeyDown(GLFW_KEY_LEFT_SHIFT) && bgHover && lbClick) || mbClick)
-      { // pan view center (SHIFT+leftclick+drag, or middleclick+drag)
-        mPanning = true;
-        mPanClick = screenToGraph(ImGui::GetMousePos());
-        ImGui::ResetMouseDragDelta(lbClick ? ImGuiMouseButton_Left : ImGuiMouseButton_Middle);
-      }
-    else if(bgHover && lbClick)
-      { // start drawing selection rectangle
-        mSelecting = true;
-        mSelectAnchor = screenToGraph(ImGui::GetMousePos());
-        mSelectRect.p1 = mSelectAnchor;
-        mSelectRect.p2 = mSelectAnchor;
-        if(!io.KeyCtrl) { deselectAll(); }
-      }
-
-    bool lbUp = ImGui::IsMouseReleased(ImGuiMouseButton_Left);
-    bool mbUp = ImGui::IsMouseReleased(ImGuiMouseButton_Middle);
-    if(mSelecting && lbUp)
-      { // stop selecting
-        mSelecting = false;
-        mSelectAnchor = Vec2f(0,0);
-        mSelectRect.p1 = mSelectAnchor;
-        mSelectRect.p2 = mSelectAnchor;
-      }
-    if(mPanning && (lbUp || mbUp))
-      { mPanning = false; } // stop panning
-    
-    if(mSelecting)
-      { // selection rect (click+drag)
-        if(ImGui::IsMouseDragging(ImGuiMouseButton_Left))
-          {
-            Vec2f mpos = screenToGraph(ImGui::GetMousePos());
-            Rect2f select(Vec2f(std::min(mSelectAnchor.x, mpos.x), std::min(mSelectAnchor.y, mpos.y)),
-                          Vec2f(std::max(mSelectAnchor.x, mpos.x), std::max(mSelectAnchor.y, mpos.y)));
-            mSelectRect = select.fixed().intersection(graphRect);
-          }
-        // draw selection rect
-        fgDrawList->AddRect(graphToScreen(mSelectRect.p1), graphToScreen(mSelectRect.p2), ImColor(Vec4f(1.0f,1.0f,1.0f,0.5f)), 0.0f, ImDrawCornerFlags_All, 3.0f);
-        // select nodes that intersect selection rect
-        for(auto n : mNodes) { n.second->setSelected((n.second->isSelected() && io.KeyCtrl) || n.second->rect().intersects(mSelectRect)); }
-      }
-    if(mPanning)
-      { // pan view (shift+click+drag, or middleclick+drag)
-        bool lDrag = ImGui::IsMouseDragging(ImGuiMouseButton_Left);
-        bool mDrag = ImGui::IsMouseDragging(ImGuiMouseButton_Middle);
-        if(lDrag || mDrag)
-          {
-            mGraphCenter += screenToGraphVec(ImGui::GetMouseDragDelta(lDrag ? ImGuiMouseButton_Left : ImGuiMouseButton_Middle));
-            ImGui::ResetMouseDragDelta(lDrag ? ImGuiMouseButton_Left : ImGuiMouseButton_Middle);
-          }
-      }
-    
-    // right click menu (alternative to keyboard for adding new nodes)
-    if(ImGui::BeginPopupContextWindow("nodeGraphContext"))
-      {
-        if(ImGui::MenuItem("Recenter"))    { mGraphCenter = Vec2f(0,0); }
-        if(ImGui::MenuItem("Reset Scale")) { mGraphScale = 1.0f; }
-
-        // if(ImGui::MenuItem("Cut"))   { cut(); }
-        // if(ImGui::MenuItem("Copy"))  { copy(); }
-        if(mClipboard.size() > 0 && ImGui::MenuItem("Paste")) { paste(); }
-        
-        if(ImGui::BeginMenu("New"))
-          {
-            for(const auto &gIter : NODE_GROUPS)
+            std::vector<int> erased;
+            for(auto n : mNodes) // delete selected nodes
               {
-                if(ImGui::BeginMenu(gIter.name.c_str()))
+                if(n.second->isSelected())
+                  { erased.push_back(n.second->id()); }
+              }
+            for(auto nid : erased)
+              { delete mNodes[nid]; mNodes.erase(nid); mChangedSinceSave = true; }
+          }
+    
+        // node selection/highlighting
+        bool bgHover = ImGui::IsWindowHovered();//ImGuiHoveredFlags_RootWindow);
+        bool lbClick = ImGui::IsMouseClicked(ImGuiMouseButton_Left);
+        bool mbClick = ImGui::IsMouseClicked(ImGuiMouseButton_Middle);
+
+        if((hover || bgHover) && !active)
+          {
+            if(io.KeyCtrl && std::abs(io.MouseWheel) > 0.0f)
+              { // zoom/scale
+                Vec2f mposOld = screenToGraph(ImGui::GetMousePos());
+                float scaleOld = mGraphScale;
+                mGraphScale *= (io.MouseWheel > 0.0f ? 1.05f : 1.0f/1.05f);
+                mGraphScale = std::max(mGraphScale, 0.25f);
+                mGraphScale = std::min(mGraphScale, 4.0f);
+
+                // center scaling on mouse
+                Vec2f mposNew = screenToGraph(ImGui::GetMousePos());
+                mGraphCenter += mposNew-mposOld;
+              }
+          }
+    
+        if(((ImGui::IsKeyDown(GLFW_KEY_LEFT_SHIFT) && bgHover && lbClick) || mbClick))
+          { // pan view center (SHIFT+leftclick+drag, or middleclick+drag)
+            mPanning = true;
+            mPanClick = screenToGraph(ImGui::GetMousePos());
+            ImGui::ResetMouseDragDelta(lbClick ? ImGuiMouseButton_Left : ImGuiMouseButton_Middle);
+          }
+        else if(bgHover && lbClick)
+          { // start drawing selection rectangle
+            mSelecting = true;
+            mSelectAnchor = screenToGraph(ImGui::GetMousePos());
+            mSelectRect.p1 = mSelectAnchor;
+            mSelectRect.p2 = mSelectAnchor;
+            if(!io.KeyCtrl) { deselectAll(); }
+          }
+
+        bool lbUp = ImGui::IsMouseReleased(ImGuiMouseButton_Left);
+        bool mbUp = ImGui::IsMouseReleased(ImGuiMouseButton_Middle);
+        if(mSelecting && lbUp)
+          { // stop selecting
+            mSelecting = false;
+            mSelectAnchor = Vec2f(0,0);
+            mSelectRect.p1 = mSelectAnchor;
+            mSelectRect.p2 = mSelectAnchor;
+          }
+        if(mPanning && (lbUp || mbUp))
+          { mPanning = false; } // stop panning
+    
+        if(mSelecting)
+          { // selection rect (click+drag)
+            if(ImGui::IsMouseDragging(ImGuiMouseButton_Left))
+              {
+                Vec2f mpos = screenToGraph(ImGui::GetMousePos());
+                Rect2f select(Vec2f(std::min(mSelectAnchor.x, mpos.x), std::min(mSelectAnchor.y, mpos.y)),
+                              Vec2f(std::max(mSelectAnchor.x, mpos.x), std::max(mSelectAnchor.y, mpos.y)));
+                mSelectRect = select.fixed().intersection(graphRect);
+              }
+            // draw selection rect
+            fgDrawList->AddRect(graphToScreen(mSelectRect.p1), graphToScreen(mSelectRect.p2), ImColor(Vec4f(1.0f,1.0f,1.0f,0.5f)), 0.0f, ImDrawCornerFlags_All, 3.0f);
+            // select nodes that intersect selection rect
+            for(auto n : mNodes) { n.second->setSelected((n.second->isSelected() && io.KeyCtrl) || n.second->rect().intersects(mSelectRect)); }
+          }
+        if(mPanning)
+          { // pan view (shift+click+drag, or middleclick+drag)
+            bool lDrag = ImGui::IsMouseDragging(ImGuiMouseButton_Left);
+            bool mDrag = ImGui::IsMouseDragging(ImGuiMouseButton_Middle);
+            if(lDrag || mDrag)
+              {
+                mGraphCenter += screenToGraphVec(ImGui::GetMouseDragDelta(lDrag ? ImGuiMouseButton_Left : ImGuiMouseButton_Middle));
+                ImGui::ResetMouseDragDelta(lDrag ? ImGuiMouseButton_Left : ImGuiMouseButton_Middle);
+              }
+          }
+    
+        // right click menu (alternative to keyboard for adding new nodes)
+        if(ImGui::BeginPopupContextWindow("nodeGraphContext"))
+          {
+            if(ImGui::MenuItem("Recenter"))    { mGraphCenter = Vec2f(0,0); }
+            if(ImGui::MenuItem("Reset Scale")) { mGraphScale = 1.0f; }
+
+            if(getSelected().size() > 0)
+              {
+                if(ImGui::MenuItem("Cut"))   { cut(); }
+                if(ImGui::MenuItem("Copy"))  { copy(); }
+              }
+            if(mClipboard.size() > 0)
+              {
+                if(ImGui::MenuItem("Paste")) { paste(); }
+              }
+        
+            if(ImGui::BeginMenu("New"))
+              {
+                for(const auto &gIter : NODE_GROUPS)
                   {
-                    for(const auto &type : gIter.types)
+                    if(ImGui::BeginMenu(gIter.name.c_str()))
                       {
-                        auto nIter = NODE_TYPES.find(type);
-                        if(nIter != NODE_TYPES.end())
+                        for(const auto &type : gIter.types)
                           {
-                            if(ImGui::MenuItem(nIter->second.name.c_str()))
+                            auto nIter = NODE_TYPES.find(type);
+                            if(nIter != NODE_TYPES.end())
                               {
-                                Node *n = nIter->second.get();
-                                n->setPos(screenToGraph(ImGui::GetMousePos()));
-                                addNode(n, true);
+                                if(ImGui::MenuItem(nIter->second.name.c_str()))
+                                  {
+                                    Node *n = nIter->second.get();
+                                    n->setPos(screenToGraph(ImGui::GetMousePos()));
+                                    addNode(n, true);
+                                  }
                               }
                           }
+                        ImGui::EndMenu();
                       }
-                    ImGui::EndMenu();
                   }
+                ImGui::EndMenu();
               }
-            ImGui::EndMenu();
+            ImGui::EndPopup();
           }
-        ImGui::EndPopup();
       }
   }
   EndDraw();
@@ -838,17 +875,33 @@ void NodeGraph::draw()
     {
       // fs::path fp = mFileDialog->selected_path;
       std::string path = mFileDialog->selected_path;
-      if(getFileExtension(path) != ".ags") { path += ".ags"; } // fix extension
+      std::string ext = getFileExtension(path);
+      if(ext != ".ags")
+        {
+          std::cout << "EXT: '" << ext << "' --> adding .ags extension...\n";
+          path += ".ags"; // fix extension
+          std::cout << " --> " << path << "\n";
+        }
       saveToFile(path);
       mSaveDialogOpen = false;
+      //setLocked(false);
     }
   else if(mFileDialog->isClosed)
-    { mSaveDialogOpen = false; }
+    {
+      mSaveDialogOpen = false;
+      //setLocked(false);
+    }
 
   if(mFileDialog->showFileDialog("Load File", ImGuiFileBrowser::DialogMode::OPEN, FILE_DIALOG_SIZE, ".ags"))
     {
       loadFromFile(mFileDialog->selected_path);
       mLoadDialogOpen = false;
+      //setLocked(false);
+    }
+  else if(mFileDialog->isClosed)
+    {
+      mLoadDialogOpen = false;
+      //setLocked(false);
     }
 }
 

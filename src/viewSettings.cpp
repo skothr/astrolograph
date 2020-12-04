@@ -18,6 +18,17 @@ ViewSettings::ViewSettings()
   // set modal dim overlay color
   ImGuiStyle& style = ImGui::GetStyle();
   style.Colors[ImGuiCol_ModalWindowDimBg] = Vec4f(0.0f, 0.0f, 0.0f, 0.6f);
+
+  mForm.add(new SettingGroup("Graph", "graph",
+                             {   new Setting<Vec4f>("Background Color", "gBgCol",   &graphBgColor),
+                                 new Setting<Vec4f>("Line Color",       "gLnCol",   &graphLineColor),
+                                 new Setting<Vec4f>("Axes Color",       "gAxCol",   &graphAxesColor),
+                                 new Setting<bool> ("Draw Lines",       "gDrawLn",  &drawGraphLines),
+                                 new Setting<bool> ("Draw Axes",        "gDrawAx",  &drawGraphAxes),
+                                 new Setting<Vec2f>("Line Spacing",     "gLnSpace", &graphLineSpacing),
+                                 new Setting<float>("Line Width",       "gLnWidth", &graphLineWidth) }));
+  mForm.add(new SettingGroup("Nodes", "node",
+                             {   new Setting<Vec4f>("Background Color", "nBgCol",   &nodeBgColor) }));
 }
 ViewSettings::~ViewSettings()
 { }
@@ -76,65 +87,40 @@ bool ViewSettings::colorSetting(const std::string &name, const std::string &id, 
   return busy;
 }
 
-bool ViewSettings::draw()
+bool ViewSettings::draw(const Vec2f &frameSize)
 {
-  ImGuiWindowFlags wFlags = (ImGuiWindowFlags_AlwaysAutoResize |
-                             ImGuiWindowFlags_NoMove           |
+  ImGuiWindowFlags wFlags = (ImGuiWindowFlags_NoMove           |
                              ImGuiWindowFlags_NoTitleBar       |
                              ImGuiWindowFlags_NoResize );
   
-  if(mState)
-    { ImGui::OpenPopup("viewSettings"); }
+  if(mState) { ImGui::OpenPopup("viewSettings"); }
   
+  ImGui::PushStyleVar(ImGuiStyleVar_WindowRounding, 0);
+  ImGui::PushStyleVar(ImGuiStyleVar_WindowMinSize, mWindowSize);
+  ImGui::SetNextWindowPos((frameSize - mWindowSize)/2.0f);
   if(ImGui::BeginPopupModal("viewSettings", &mState, wFlags))
     {
-      ImGui::SetWindowSize(Vec2f(512,512));
+      ImGui::PopStyleVar();
       ImGuiIO &io = ImGui::GetIO();
       ImGuiStyle& style = ImGui::GetStyle();
       bool hover = ImGui::IsWindowHovered();
-
-      // center title
-      ImGui::SameLine((ImGui::GetWindowContentRegionWidth() - ImGui::CalcTextSize("ViewSettings").x)/2.0f);
-      ImGui::Text("View Settings");
       
       bool busy = false; // whether view should check for close (if true, another popup is open)
 
-      ImGui::BeginGroup();
+      // // center title
+      ImGui::SameLine((ImGui::GetWindowContentRegionWidth() - ImGui::CalcTextSize("ViewSettings").x)/2.0f);
+      ImGui::Text("View Settings");
+      
+      ImGui::BeginChild("", mWindowSize - mWindowPadding, true);
       {
-        ImGui::TextUnformatted("Node Graph");
-
-        ImGui::TextUnformatted("Draw Graph Lines");
-        ImGui::SameLine(mLabelColWidth);
-        ImGui::Checkbox("##glDrawLn", &drawGraphLines);
-        ImGui::TextUnformatted("Draw Axes");
-        ImGui::SameLine(mLabelColWidth);
-        ImGui::Checkbox("##glDrawAx", &drawGraphAxes);
-        
-        ImGui::TextUnformatted("Graph Line Spacing");
-        ImGui::SameLine(mLabelColWidth);
-        ImGui::BeginGroup();
-        {
-          ImGui::TextUnformatted("X:");
-          ImGui::SameLine();
-          ImGui::SetNextItemWidth(100);
-          ImGui::InputFloat("##glSpacingX", &graphLineSpacing.x);
-          ImGui::SameLine();
-          ImGui::TextUnformatted("Y:");
-          ImGui::SameLine();
-          ImGui::SetNextItemWidth(100);
-          ImGui::InputFloat("##glSpacingY", &graphLineSpacing.y);
-        }
-        ImGui::EndGroup();
-        
-        busy |= colorSetting("Graph Background Color", "ngBgCol", &graphBgColor,   busy);
-        busy |= colorSetting("Graph Line Color",       "ngLnCol", &graphLineColor, busy);
-        busy |= colorSetting("Graph Axes Color",       "ngAxCol", &graphAxesColor, busy);
-        ImGui::Separator();
-        ImGui::TextUnformatted("Nodes");
-        busy |= colorSetting("Node Background Color",  "nBgCol",  &nodeBgColor,    busy);
+        hover |= ImGui::IsWindowHovered();
+        busy  |= mForm.draw(1.0f, busy);
       }
-      ImGui::EndGroup();
-
+      ImGui::EndChild();
+      
+      ImGui::Spacing();
+      ImGui::Separator();
+      ImGui::Spacing();
       if(ImGui::Button("Close")) { mState = false; }
 
       if(!busy)
@@ -144,6 +130,9 @@ bool ViewSettings::draw()
         }
       ImGui::EndPopup();
     }
+  else
+    { ImGui::PopStyleVar(); } // minSize
+  ImGui::PopStyleVar();       // rounding
   
   return mState;
 }

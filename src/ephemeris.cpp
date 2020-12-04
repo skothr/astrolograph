@@ -106,8 +106,32 @@ ObjData Ephemeris::getObjData(ObjType o) const
   ObjData objData;
   if(o >= ANGLE_OFFSET)
     {
-      objData.longitude = getAngle(o);
       objData.valid = true;
+      switch(o)
+        {
+        case ANGLE_ASC:
+          objData.longitude = mAscmc[SE_ASC];
+          objData.lonSpeed = mAscmcSpeed[SE_ASC];
+          break;
+        case ANGLE_MC:
+          objData.longitude = mAscmc[SE_MC];
+          objData.lonSpeed = mAscmcSpeed[SE_MC];
+          break;
+        case ANGLE_DSC:
+          objData.longitude = fmod(mAscmc[SE_ASC]+180.0, 360.0);
+          objData.lonSpeed = mAscmcSpeed[SE_ASC];
+          break;
+        case ANGLE_IC:
+          objData.longitude = fmod(mAscmc[SE_MC]+180.0, 360.0);
+          objData.lonSpeed = mAscmcSpeed[SE_MC];
+          break;
+        case ANGLE_VERTEX:
+          objData.longitude = mAscmc[SE_VERTEX];
+          objData.lonSpeed = mAscmcSpeed[SE_VERTEX];
+          break;
+        default:
+          objData.valid = false;
+        }
     }
   else
     {
@@ -150,13 +174,15 @@ double Ephemeris::getAngle(ObjType angle) const
   switch(angle)
     {
     case ANGLE_ASC:
-      return mAsc;
-    case ANGLE_DSC:
-      return mDsc;
+      return mAscmc[SE_ASC];
     case ANGLE_MC:
-      return mMc;
+      return mAscmc[SE_MC];
+    case ANGLE_DSC:
+      return fmod(mAscmc[SE_ASC]+180.0, 360.0);
     case ANGLE_IC:
-      return mIc;
+      return fmod(mAscmc[SE_MC]+180.0, 360.0);
+    case ANGLE_VERTEX:
+      return mAscmc[SE_VERTEX];
     default:
       return -1.0;
     }
@@ -165,11 +191,8 @@ double Ephemeris::getAngle(ObjType angle) const
 void Ephemeris::calcHouses(HouseSystem hsys)
 {
   swe_set_topo(mLocation.longitude, mLocation.latitude, mLocation.altitude);
-  swe_houses_ex(mJulDay_ut, mSweFlags, mLocation.latitude, mLocation.longitude, hsys, mCusps, mAscmc);
-  mAsc = mAscmc[SE_ASC];
-  mMc  = mAscmc[SE_MC];
-  mDsc = fmod(mAsc + 180.0, 360.0);
-  mIc  = fmod(mMc + 180.0, 360.0);
+  char serr[AS_MAXCH];
+  swe_houses_ex2(mJulDay_ut, mSweFlags, mLocation.latitude, mLocation.longitude, hsys, mCusps, mAscmc, mCuspSpeed, mAscmcSpeed, serr);
 }
 
 double Ephemeris::getHouseCusp(int house) const
@@ -178,8 +201,8 @@ double Ephemeris::getHouseCusp(int house) const
 void Ephemeris::printHouses() const
 {
   // print ascendant
-  int deg = (int)std::floor(mAsc);
-  int min = (int)std::floor((mAsc - deg)*60.0);
+  int deg = (int)std::floor(mAscmc[SE_ASC]);
+  int min = (int)std::floor((mAscmc[SE_ASC] - deg)*60.0);
   std::cout << "ASC: " << deg << "°" << min << "'\n";
   
   // print house cusps  

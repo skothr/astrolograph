@@ -47,12 +47,9 @@ namespace astro
     //       ascmc must be an array of 10 doubles. ascmc[8... 9] are 0 and may be used for additional points in future releases.
     ///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
     double mAscmc[10];
-    double mAsc = 0.0;
-    double mMc  = 0.0;
-    double mDsc = 0.0;
-    double mIc  = 0.0;
-    
+    double mAscmcSpeed[10];
     double mCusps[13];
+    double mCuspSpeed[13];
     
     ///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
     //////// SWE FLAGS ////////
@@ -97,13 +94,9 @@ namespace astro
     static ObjType getObjType(int sweIndex)
     {
       auto it = std::find(SWE_IDS.begin(), SWE_IDS.end(), sweIndex);
-      if(it != SWE_IDS.end())
-        { return (ObjType)(std::distance(SWE_IDS.begin(), it)); }
-      else
-        { return OBJ_INVALID; }
+      if(it != SWE_IDS.end()) { return (ObjType)(std::distance(SWE_IDS.begin(), it)); }
+      else                    { return OBJ_INVALID; }
     }
-
-    double getJulianDay() const { return mJulDay_ut; }
 
     void setSidereal(bool state)
     {
@@ -118,26 +111,21 @@ namespace astro
     }
     bool getTruePos() const { return (mSweFlags & SEFLG_TRUEPOS); }
 
-    // treat each year as a day
+    double getJulianDay() const { return mJulDay_ut; }
     double getJulianDayUT(const DateTime &dt, const Location &loc);
     double getJulianDayET(const DateTime &dt, const Location &loc);
+    // treat each year as a day
     DateTime getProgressed(const DateTime &ndt, const Location &nloc, const DateTime &tdt, const Location &tloc);
     DateTime getUnprogressed(const DateTime &ndt, const Location &nloc, const DateTime &pdt, const Location &ploc);
-
+    
     void setLocation(const Location &loc);
     void setDate(const DateTime &dt);
     ObjData getObjData(ObjType obj) const;
-    //double getObjAngle(ObjType obj) const;
     double getAngle(ObjType angle) const;
 
     void calcHouses(HouseSystem hsys);
     double getHouseCusp(int house) const;
     
-    double getAsc() const { return mAsc; }
-    double getMc() const  { return mMc;  }
-    double getDsc() const { return mDsc; }
-    double getIc() const  { return mIc;  }
-
     void printHouses() const;
     void printObjects(const astro::DateTime &dt, const astro::Location &loc) const;
   };

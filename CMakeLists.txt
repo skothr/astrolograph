@@ -44,10 +44,14 @@ add_library(astro STATIC
   src/location.cpp
   src/locationNode.cpp
   src/locationWidget.cpp
+  src/moonNode.cpp
   src/node.cpp
   src/nodeGraph.cpp
+  src/nodeList.cpp
   src/plotNode.cpp
   src/progressNode.cpp
+  src/settingsForm.cpp
+  src/shapeBuffer.cpp
   src/timeNode.cpp
   src/timeWidget.cpp
   src/viewSettings.cpp

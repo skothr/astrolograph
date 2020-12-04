@@ -27,7 +27,8 @@ void PlotNode::onUpdate()
       dtStart.setDay(dtStart.day() - mDayRadius); dtStart.fix();
       dtEnd.setDay(dtEnd.day() + mDayRadius); dtEnd.fix();
       
-      if((dtStart.year() != mOldStartDate.year()) || (dtStart.month() != mOldStartDate.month()) || (dtStart.day() != mOldStartDate.day()) ||
+      if(mObjType != mOldObjType ||
+         (dtStart.year() != mOldStartDate.year()) || (dtStart.month() != mOldStartDate.month()) || (dtStart.day() != mOldStartDate.day()) ||
          (dtEnd.year()   != mOldEndDate.year())   || (dtEnd.month()   != mOldEndDate.month())   || (dtEnd.day()   != mOldEndDate.day())   ||
          (chart->getHouseSystem() != mOldChart.getHouseSystem()) ||
          (chart->getZodiac()      != mOldChart.getZodiac())      ||
@@ -51,16 +52,32 @@ void PlotNode::onUpdate()
           mOldChart.setDate(dtOrig);
           mOldStartDate = dtStart;
           mOldEndDate   = dtEnd;
+          mOldObjType   = mObjType;
         }
     }
 }
 
-bool PlotNode::onDraw()
+void PlotNode::onDraw()
 {
   float scale = getScale();
   
   Chart *chart = inputs()[PLOTNODE_INPUT_CHART]->get<Chart>();
+  ImGui::SetNextItemWidth(120*scale);
   ImGui::InputInt("Day Radius", &mDayRadius, 1, 10);
+
+  ImGui::SameLine();
+  ImGui::SetNextItemWidth(150*scale);
+  if(ImGui::BeginCombo("Object##obj", getObjNameLong(mObjType).c_str()))
+    {
+      ImGui::SetWindowFontScale(scale);
+      for(int o = 0; o < OBJ_END; o++)
+        {
+          if(ImGui::Selectable(((o == mObjType ? "* " : "") + getObjNameLong((ObjType)o)).c_str()))
+            { mOldObjType = mObjType; mObjType = (ObjType)o; break; }
+        }
+      ImGui::EndCombo();
+    }
+  
   if(chart)
     {
       Vec2f cursorPos = ImGui::GetCursorScreenPos();
@@ -68,6 +85,5 @@ bool PlotNode::onDraw()
       ImGui::PlotLines(getObjName(mObjType).c_str(), mData.data(), mData.size(), 0, overlay.c_str(), 0.0f, 360.0f, Vec2f(950, 500)*scale);
       ImGui::GetWindowDrawList()->AddLine(Vec2f(475, 0)*scale + cursorPos, Vec2f(475, 500)*scale + cursorPos, ImColor(Vec4f(1.0f, 0.0f, 0.0f, 1.0f)), 2.0f);
     }
-  return true;
 }
 

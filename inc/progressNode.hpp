@@ -4,6 +4,8 @@
 #include "astro.hpp"
 #include "chart.hpp"
 #include "node.hpp"
+#include "settingsForm.hpp"
+
 
 namespace astro
 {
@@ -28,7 +30,7 @@ namespace astro
     Chart *mChart = nullptr;
 
     virtual void onUpdate() override;
-    virtual bool onDraw() override;
+    virtual void onDraw() override;
     
     virtual std::map<std::string, std::string>& getSaveParams(std::map<std::string, std::string> &params) const override
     {
@@ -47,6 +49,8 @@ namespace astro
       // if(iter != params.end()) { mChart->setLocation(Location(iter->second)); }
       return params;
     };
+
+    SettingsForm mSettings;
     
   public:
     ProgressNode();

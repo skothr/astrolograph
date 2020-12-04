@@ -23,33 +23,25 @@ namespace astro
     
     virtual std::map<std::string, std::string>& getSaveParams(std::map<std::string, std::string> &params) const override
     {
+      params.emplace("location",  mWidget.get().toSaveString());
       params.emplace("savedName", mWidget.getName());
-      if(mWidget.getName().empty() || mWidget.get() != mWidget.getSaved())
-        { params.emplace("location",  mWidget.get().toSaveString()); }
-      //params.emplace("dst",  (mWidget.getDST() ? "1" : "0"));
       return params;
     };
     virtual std::map<std::string, std::string>& setSaveParams(std::map<std::string, std::string> &params) override
     {
-      std::string saveName = params["savedName"];
-      std::cout << "LOC: " << params["location"] << " | NAME: " << saveName << "\n";
-      if(saveName.empty())
-        {
-          mWidget.get().fromSaveString(params["location"]);
-          mWidget.setSaved(mWidget.get());
-          mWidget.setName("");
-          mWidget.setSaveName("");
-        }
-      else
-        {
-          mWidget.load(saveName);
-          mWidget.setName(saveName);
-          mWidget.setSaveName(saveName);
-        }
-      // mWidget.setDST(params["dst"] != "0");
+      auto iter = params.find("savedName");
+      std::string saveName = ((iter != params.end()) ? iter->second : "");
+      if(!saveName.empty()) { mWidget.load(saveName); mWidget.setName(saveName); }
+      else { std::cout << "WARNING: Saved name empty!\n"; }
+     
+      iter = params.find("location");
+      if(iter != params.end()) { mWidget.get().fromSaveString(iter->second); }
+      else { std::cout << "WARNING: Could not find 'location' param!\n"; }
+
       return params;
     };
-    virtual bool onDraw() override;    
+    virtual void onUpdate() override;
+    virtual void onDraw() override;
     
   public:
     LocationNode();

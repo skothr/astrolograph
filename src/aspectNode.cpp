@@ -16,7 +16,10 @@ AspectNode::AspectNode()
     }
 }
 
-bool AspectNode::onDraw()
+void AspectNode::onUpdate()
+{ }
+
+void AspectNode::onDraw()
 {
   float scale = getScale();
   Vec2f symSize = Vec2f(20, 20)*scale;
@@ -136,7 +139,5 @@ bool AspectNode::onDraw()
     }
   else if(chart && isBodyVisible())
     { mOrbsOpen = false; }
-  
-  return true;
 }
 

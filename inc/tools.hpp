@@ -93,7 +93,7 @@ inline bool fileExists(const std::string &path)
 inline std::string getFileExtension(const std::string &path)
 {
   std::string::size_type idx = path.rfind('.');
-  return ((idx != std::string::npos) ? path.substr(idx+1) : "");
+  return ((idx != std::string::npos) ? path.substr(idx) : "");
 }
 
 inline bool makeDirectory(const std::string &path)

@@ -34,9 +34,12 @@ bool ConnectorBase::connect(ConnectorBase *other, bool force)
     { disconnect(mConnected[0]); }
   else if(other->mDirection == CONNECTOR_INPUT && other->mConnected.size() > 0)
     { other->disconnect(other->mConnected[0]); }
-  
+
   other->mConnected.push_back(this);
   mConnected.push_back(other);
+  
+  other->parent()->onConnect(other);
+  mParent->onConnect(this);
   return true;
 }
 
@@ -84,16 +87,6 @@ void ConnectorBase::sendSignal(NodeSignal signal)
   for(auto con : mConnected) { con->sendSignal(signal); }
 }
 
-bool ConnectorBase::BeginDraw()
-{
-  return true;
-}
-
-void ConnectorBase::EndDraw()
-{
-
-}
-
 void ConnectorBase::draw(bool blocked)
 {
   // calculate screen position (center of connector) for connection lines
@@ -130,7 +123,16 @@ void ConnectorBase::draw(bool blocked)
   // drag/drop
   if(ImGui::BeginDragDropSource())
     {
-      ImGui::SetDragDropPayload(((mDirection == CONNECTOR_INPUT ? "CON_IN" : "CON_OUT")+type()).c_str(), &mThisPtr, sizeof(ConnectorBase*));
+      if(mDirection == CONNECTOR_INPUT && mConnected.size() > 0)
+        { // connecting from connected output connector instead of this connector
+          endConnecting();
+          mConnected[0]->beginConnecting();
+          ImGui::SetDragDropPayload((("CON_OUT")+type()).c_str(), &mConnected[0]->mThisPtr, sizeof(ConnectorBase*));
+        }
+      else
+        {
+          ImGui::SetDragDropPayload(((mDirection == CONNECTOR_INPUT ? "CON_IN" : "CON_OUT")+type()).c_str(), &mThisPtr, sizeof(ConnectorBase*));
+        }
       ImGui::EndDragDropSource();
     }
   if(ImGui::BeginDragDropTarget())
@@ -180,15 +182,13 @@ void ConnectorBase::drawConnections(ImDrawList *nodeDrawList, ImDrawList *graphD
   // connecting (draw line to mouse)
   if(isConnecting())
     { // use foreground drawlist (only while actively connecting, otherwise connections will show above file dialog)
-      if(mDirection == CONNECTOR_OUTPUT)
-        { connectLines = graph->findOrthogonalPath(offsetPos, graph->screenToGraph(ImGui::GetMousePos())); }
-      else
-        { connectLines = graph->findOrthogonalPath(graph->screenToGraph(ImGui::GetMousePos()), offsetPos); }
-      
+      ImDrawList *fgDrawList = ImGui::GetForegroundDrawList();
+      if(mDirection == CONNECTOR_OUTPUT) { connectLines = graph->findOrthogonalPath(offsetPos, graph->screenToGraph(ImGui::GetMousePos())); }
+      else                               { connectLines = graph->findOrthogonalPath(graph->screenToGraph(ImGui::GetMousePos()), offsetPos); }
       for(int i = 0; i < connectLines.size()-1; i++)
-        { ImGui::GetForegroundDrawList()->AddLine(graph->graphToScreen(connectLines[i]), graph->graphToScreen(connectLines[i+1]), ImColor(connectingColor), connectingW); }
+        { fgDrawList->AddLine(graph->graphToScreen(connectLines[i]), graph->graphToScreen(connectLines[i+1]), ImColor(connectingColor), connectingW); }
       for(int i = 1; i < connectLines.size()-1; i++)
-        { ImGui::GetForegroundDrawList()->AddCircleFilled(graph->graphToScreen(connectLines[i]), 3.0f*scale, ImColor(connectDotColor), 20); }
+        { fgDrawList->AddCircleFilled(graph->graphToScreen(connectLines[i]), 3.0f*scale, ImColor(connectDotColor), 20); }
     }
   else if(mConnected.size() > 0)
     { // draw connection line(s)
@@ -196,12 +196,8 @@ void ConnectorBase::drawConnections(ImDrawList *nodeDrawList, ImDrawList *graphD
         {
           Vec2f offsetPos2 = con->graphPos;
           Vec2f protrudePos2 = con->getProtrudePos();
-          
-          if(mDirection == CONNECTOR_OUTPUT)
-            { connectLines = graph->findOrthogonalPath(offsetPos, offsetPos2); }
-          else
-            { connectLines = graph->findOrthogonalPath(offsetPos2, offsetPos); }
-          
+          if(mDirection == CONNECTOR_OUTPUT) { connectLines = graph->findOrthogonalPath(offsetPos, offsetPos2); }
+          else                               { connectLines = graph->findOrthogonalPath(offsetPos2, offsetPos); }          
           for(int i = 0; i < connectLines.size()-1; i++)
             { graphDrawList->AddLine(graph->graphToScreen(connectLines[i]), graph->graphToScreen(connectLines[i+1]), ImColor(connectedColor), connectedW); }
           for(int i = 1; i < connectLines.size()-1; i++)
@@ -210,8 +206,10 @@ void ConnectorBase::drawConnections(ImDrawList *nodeDrawList, ImDrawList *graphD
     }
   if(isConnecting() || mConnected.size() > 0 && connectLines.size() > 1)
     { // draw first and last lines over node window
-      nodeDrawList->AddLine(graph->graphToScreen(connectLines[0]), graph->graphToScreen(connectLines[1]), ImColor(connectedColor), 3.0f*scale);
-      nodeDrawList->AddLine(graph->graphToScreen(connectLines[connectLines.size()-2]), graph->graphToScreen(connectLines[connectLines.size()-1]), ImColor(connectedColor), 3.0f*scale);
+      nodeDrawList->AddLine(graph->graphToScreen(connectLines[0]), graph->graphToScreen(connectLines[1]),
+                            ImColor(connectedColor), 3.0f*scale);
+      nodeDrawList->AddLine(graph->graphToScreen(connectLines[connectLines.size()-2]), graph->graphToScreen(connectLines[connectLines.size()-1]),
+                            ImColor(connectedColor), 3.0f*scale);
     }
   // draw connection dot
   nodeDrawList->AddCircleFilled(graph->graphToScreen(offsetPos), 5.0f*scale, ImColor(dotColor), 12);
@@ -219,7 +217,6 @@ void ConnectorBase::drawConnections(ImDrawList *nodeDrawList, ImDrawList *graphD
 
 
 int Node::NEXT_ID = 0;
-
 
 Node::Node(const std::vector<ConnectorBase*> &inputs_, const std::vector<ConnectorBase*> &outputs_, const std::string &name, Params *params)
   : mInputs(inputs_), mOutputs(outputs_), mParams(params)
@@ -667,7 +664,7 @@ std::string Node::fromSaveString(const std::string &saveStr)
       ss.ignore(2, ',');
       if(!name.empty() && name != "\n" && name.find("}") == std::string::npos && value.find("}") == std::string::npos)
         {
-          std::cout << "     -->  READ PARAM '" << name << "' : '" << value << "'\n";
+          std::cout << "     -->  '" << name << "' = '" << value << "'\n";
           params.emplace(name, value);
         }
     } while(!name.empty() && name != "\n" && name.find("}") == std::string::npos && value.find("}") == std::string::npos);

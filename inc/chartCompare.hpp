@@ -51,7 +51,7 @@ namespace astro
     }
     
     void update();
-    void calcAspects();
+    std::vector<ChartAspect> calcAspects(const ChartParams &params);
 
     Chart* getOuterChart() { return mChartOuter; }
     Chart* getInnerChart() { return mChartInner; }

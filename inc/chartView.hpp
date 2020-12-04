@@ -109,17 +109,17 @@ namespace astro
     bool getAlignAsc() const      { return mAlignAsc; }
     bool getShowHouses() const    { return mShowHouses; }
   
-    void renderZodiac(Chart *chart, const ViewParams &params, ImDrawList *draw_list);
-    void renderHouses(Chart *chart, const ViewParams &params, ImDrawList *draw_list);
-    void renderAngles(Chart *chart, const ViewParams &params, ImDrawList *draw_list);
-    void renderAspects(Chart *chart, const ViewParams &params, ImDrawList *draw_list);
-    void renderCompareAspects(ChartCompare *compare, const ViewParams &params, ImDrawList *draw_list);
-    void renderObjects(Chart *chart, int level, const ViewParams &params, ImDrawList *draw_list);
-    void renderChart(Chart *chart, const Vec2f &chartSize, bool blocked);
-    void renderChartCompare(ChartCompare *compare, const Vec2f &chartSize, bool blocked);
+    void renderZodiac(Chart *chart, const ViewParams &params, ImDrawList *draw_list, const ChartParams &chartParams);
+    void renderHouses(Chart *chart, const ViewParams &params, ImDrawList *draw_list, const ChartParams &chartParams);
+    void renderAngles(Chart *chart, const ViewParams &params, ImDrawList *draw_list, const ChartParams &chartParams);
+    void renderAspects(Chart *chart, const ViewParams &params, ImDrawList *draw_list, const ChartParams &chartParams);
+    void renderCompareAspects(ChartCompare *compare, const ViewParams &params, ImDrawList *draw_list, const ChartParams &chartParams);
+    void renderObjects(Chart *chart, int level, const ViewParams &params, ImDrawList *draw_list, const ChartParams &chartParams);
+    void renderChart(Chart *chart, const Vec2f &chartSize, bool blocked, const ChartParams &chartParams);
+    void renderChartCompare(ChartCompare *compare, const Vec2f &chartSize, bool blocked, const ChartParams &chartParams);
     
-    bool draw(Chart *chart, float chartWidth, bool blocked);
-    bool draw(ChartCompare *compare, float chartWidth, bool blocked);
+    bool draw(Chart *chart, float chartWidth, bool blocked, const ChartParams &chartParams);
+    bool draw(ChartCompare *compare, float chartWidth, bool blocked, const ChartParams &chartParams);
   };
 }
 

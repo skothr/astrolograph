@@ -71,9 +71,6 @@ namespace astro
     Direction      mDirection  = CONNECTOR_INVALID;
     
     std::vector<ConnectorBase*> mConnected;
-
-    bool BeginDraw();
-    void EndDraw();
     
   public:
     Vec2f graphPos;
@@ -87,6 +84,7 @@ namespace astro
     void setParent(Node *n, int cId) { mParent = n; mConId = cId; }
     Node* parent()    { return mParent; } // returns parent node
     int conId() const { return mConId; }  // returns connector index in parent node
+    Direction direction() const { return mDirection; }  // returns connector direction (input/output)
     
     template<typename T>
     T* get() { return ((Connector<T>*)this)->get(); }
@@ -109,8 +107,10 @@ namespace astro
     void draw(bool blocked);
     void drawConnections(ImDrawList *nodeDrawList, ImDrawList *graphDrawList);
   };
+
+
   
-  // CONNECTOR //
+  //// CONNECTOR ////
   template<typename T>
   class Connector : public ConnectorBase
   {
@@ -118,9 +118,7 @@ namespace astro
   protected:
     T *mData = nullptr;
   public:
-    Connector(std::string name="", T *data=nullptr)
-      : ConnectorBase(name), mData(data)
-    { }
+    Connector(std::string name="", T *data=nullptr) : ConnectorBase(name), mData(data) { }
     virtual ~Connector() { }
     virtual std::string type() const override { return std::string(typeid(T).name()); }
     
@@ -136,8 +134,9 @@ namespace astro
         { ((Connector<T>*)mConnected[0])->mData = data; }
     }
   };
+  ///////////////////
   
-  // NODE //
+  //// NODE ////
   class Node
   {
   protected:
@@ -160,7 +159,7 @@ namespace astro
     bool mFirstFrame   = true;    // true only on first frame
     bool mVisible      = true;    // whether node is drawn on screen
     bool mBodyVisible  = true;    // whether node body is drawn on screen
-    bool mChanged      = true;    // true if node has changed since last save
+    bool mChanged      = false;   // true if node has changed since last save
     bool mSelected     = false;   // true of node is selected
     bool mClicked      = false;   // whether mouse has clicked node window (and is still down)
     bool mHover        = false;   // whether mouse is over node window (window background)
@@ -178,7 +177,7 @@ namespace astro
     std::vector<ConnectorBase*> mOutputs;
 
     // override in child classes to draw node
-    virtual bool onDraw()   { return true; }
+    virtual void onDraw()   { }
     virtual void onUpdate() { }
 
     virtual std::map<std::string, std::string>& getSaveParams(std::map<std::string, std::string> &params) const { return params; }
@@ -223,6 +222,8 @@ namespace astro
     Node(const Node &other);
     virtual ~Node();
     virtual std::string type() const = 0;
+    
+    virtual bool onConnect(ConnectorBase *con) { return true; } // return false if connection refused (?)
 
     // set parent NodeGraph
     void setGraph(NodeGraph *graph) { mGraph = graph; }
@@ -278,12 +279,12 @@ namespace astro
     bool isSelected() const         { return mSelected; }
     void setSelected(bool selected) { mSelected = selected; }
 
-    bool isActive() const   { return mActive; }
-    bool isHovered() const  { return mHover; }
-    bool isDragging() const { return mDragging; }
-    void setDragging(bool drag) { mDragging = drag; }
+    bool isActive() const           { return mActive; }
+    bool isHovered() const          { return mHover; }
+    bool isDragging() const         { return mDragging; }
+    void setDragging(bool drag)     { mDragging = drag; }
     
-    bool isBlocked() const  { return mBlocked; }
+    bool isBlocked() const          { return mBlocked; }
     
     void setMinSize(const Vec2f &s) { mMinSize = s; }
     Vec2f getMinSize() const        { return mMinSize; }

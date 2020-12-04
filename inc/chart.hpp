@@ -9,6 +9,31 @@
 
 namespace astro
 {
+  struct ChartParams
+  {
+    std::array<bool,   (OBJ_COUNT+OBJ_END-ANGLE_OFFSET)> objVisible;
+    std::array<bool,   (OBJ_COUNT+OBJ_END-ANGLE_OFFSET)> objFocused;
+    std::array<double, (OBJ_COUNT+OBJ_END-ANGLE_OFFSET)> objOrbs;
+    std::array<bool,   ASPECT_COUNT>                  aspVisible;
+    std::array<bool,   ASPECT_COUNT>                  aspFocused;
+    std::array<double, ASPECT_COUNT>                  aspOrbs;
+    ChartParams()
+    { // initialize defaults
+      for(int i = OBJ_SUN; i < OBJ_END; i++)
+        {
+          objVisible[i] = (i < OBJ_COUNT); // angles initially hidden
+          objFocused[i] = false;
+          objOrbs[i] = (i < ANGLE_OFFSET ? OBJECT_ORBS_DEFAULT[i] : 1.0);
+        }
+      for(int i = 0; i < ASPECT_COUNT; i++)
+        {
+          aspVisible[i] = true;
+          aspFocused[i] = false;
+          aspOrbs[i] = getAspectInfo((AspectType)i)->orb;
+        }
+    }
+  };
+  
   // represents the position of an object in the chart
   struct ChartObject
   {
@@ -42,7 +67,6 @@ namespace astro
   class Chart
   {
   private:
-
     ///////// INSIDE DEGREES TEST //////////
 #define INSIDE_DEGREES_PATH "./res/inside-degrees.txt"
     static std::array<std::array<std::string, 30>, 12> insideDegreesShort; // ACCESS: arr[SIGN_INDEX][floor(DEGREE)]
@@ -95,12 +119,12 @@ namespace astro
     void setTruePos(bool state)    { mNeedUpdate |= (state != mTruePos);  mTruePos = state; }
     bool getTruePos() const        { return mTruePos; }
 
-    void calcAspects();
+    std::vector<ChartAspect> calcAspects(const ChartParams &params);
     void update();
     double getSingleAngle(ObjType obj);
     ChartAspect getAspect(ObjType obj1, ObjType obj2);
 
-    bool changed() const { return mNeedUpdate; }
+    bool hasChanged() const { return mNeedUpdate; }
 
     double getHouseCusp(int house) const;
     double getSignCusp(int sign) const;
@@ -121,7 +145,8 @@ namespace astro
     const std::vector<ChartAspect>&  aspects() const { return mAspects; }
     const std::vector<ChartObject*>& objects() const { return mObjects; }
 
-    ChartObject* getObject(ObjType o)         { return mObjects[(o<OBJ_COUNT ? o-OBJ_SUN : OBJ_COUNT+o-ANGLE_OFFSET)]; }
+    ChartObject* getObject(ObjType o)         { return mObjects[o]; }    //(o<OBJ_COUNT ? o-OBJ_SUN : OBJ_COUNT+o-ANGLE_OFFSET)]; }
+    ObjData getObjectData(ObjType o)          { return mObjectData[o]; } //(o<OBJ_COUNT ? o-OBJ_SUN : OBJ_COUNT+o-ANGLE_OFFSET)]; }
     void showObject(ObjType o, bool visible)  { getObject(o)->visible = visible; }
     void setObjFocus(ObjType o, bool focused) { getObject(o)->focused = focused; }
 

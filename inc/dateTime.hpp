@@ -118,9 +118,9 @@ namespace astro
              (mYear == other.mYear && mMonth == other.mMonth && mDay == other.mDay && mHour == other.mHour && mMinute > other.mMinute) ||
              (mYear == other.mYear && mMonth == other.mMonth && mDay == other.mDay && mHour == other.mHour && mMinute == other.mMinute && mSecond > other.mSecond));}
     bool operator<=(const DateTime &other) const
-    { return (*this < other || *this == other); }
+    { return ((*this < other) || (*this == other)); }
     bool operator>=(const DateTime &other) const
-    { return (*this > other || *this == other); }
+    { return ((*this > other) || (*this == other)); }
 
     DateTime& operator+=(const DateTime &other)
     {
