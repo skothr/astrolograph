@@ -91,8 +91,8 @@ bool TimeWidget::load(const std::string &name)
               mSavedDate = dt;
               mSavedDate.fix();
               mDate = mSavedDate;
-              sprintf(mName, "%s", name);
-              sprintf(mSavedName, "%s", name);
+              sprintf(mName, "%s", name.c_str());
+              sprintf(mSavedName, "%s", name.c_str());
               return true;
             }
         }

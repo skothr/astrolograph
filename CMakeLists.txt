@@ -1,8 +1,11 @@
 cmake_minimum_required(VERSION 3.6)
+cmake_policy(SET CMP0072 NEW) # opengl policy
+set(OpenGL_GL_PREFERENCE GLVND)
 
 # set the project name and version
 project(astrolograph VERSION 0.4)
 configure_file(inc/version/version.hpp.in ../inc/version/version.hpp)
+
 
 # includes
 include_directories(inc)
@@ -14,7 +17,7 @@ set(CMAKE_CXX_FLAGS_RELEASE_INIT "-O3 -Wall")      # release
 
 # global flags
 set(EXTRA_FLAGS_CXX17 "-std=gnu++17")
-set(GLOBAL_LIB_FLAGS "-DGLEW_STATIC -DIMGUI_IMPL_OPENGL_LOADER_GLEW -DHAS_REMOTE_API=0 -DAUTO_DOWNLOAD=0")
+set(GLOBAL_LIB_FLAGS "-DGLEW_STATIC -DIMGUI_IMPL_OPENGL_LOADER_GLEW -DHAS_REMOTE_API=0 -DAUTO_DOWNLOAD=0 -DINSTALL=.")
 set(CMAKE_CXX_FLAGS_GLOBAL "${CMAKE_CXX_FLAGS} ${GLOBAL_LIB_FLAGS}")
 set(CMAKE_EXE_LINKER_FLAGS_GLOBAL "${CMAKE_EXE_LINKER_FLAGS} ${GLOBAL_LIB_FLAGS}")
 set(CMAKE_LIBRARY_LINKER_FLAGS_GLOBAL "${CMAKE_LIBRARY_LINKER_FLAGS} ${GLOBAL_LIB_FLAGS}")
@@ -94,9 +97,15 @@ set(GLEW_LIBRARIES glew)
 # include_directories(${GLEW_INCLUDE_DIRS})
 # link_libraries(${GLEW_LIBRARY_DIRS})
 # set(GLEW_LIBRARIES GLEWd)
-message(STATUS "GLEW LIBS: ${GLEW_LIBRARIES}")
-message(STATUS "GL LIBS:   ${OPENGL_LIBRARIES}")
-message(STATUS "CURL LIBS: ${LIB_CURL}")
+message(STATUS " =")
+message(STATUS " ==")
+message(STATUS " ===")
+message(STATUS " === GLEW LIBS: ==> ${GLEW_LIBRARIES}")
+message(STATUS " === GL LIBS:   ==> ${OPENGL_LIBRARIES}")
+message(STATUS " === CURL LIBS: ==> ${LIB_CURL}")
+message(STATUS " ===")
+message(STATUS " ==")
+message(STATUS " =")
 # message(STATUS "SSL LIBS:  ${LIB_SSL}")
 # message(STATUS "ZLIB LIBS: ${LIB_ZLIB}")
 
@@ -113,6 +122,7 @@ target_link_libraries(astro imgui swe datetz ${LIB_CURL} ${OPENGL_LIBRARIES} ${G
 # # nothing now
 # endif (WIN32)
 
+message(STATUS "Building Astrolograph...")
 add_executable(${TARGET} main.cpp)
 target_link_libraries(
   ${TARGET}
