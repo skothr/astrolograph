@@ -3,7 +3,7 @@ cmake_policy(SET CMP0072 NEW) # opengl policy
 set(OpenGL_GL_PREFERENCE GLVND)
 
 # set the project name and version
-project(astrolograph VERSION 0.4)
+project(astrolograph VERSION 0.5)
 configure_file(inc/version/version.hpp.in ../inc/version/version.hpp)
 
 
