@@ -1,0 +1,11 @@
+/home/michael/projects/3-astrolograph/libs/glew-2.1.0/build/cmake/CMakeFiles/install/strip.dir
+/home/michael/projects/3-astrolograph/libs/glew-2.1.0/build/cmake/CMakeFiles/install/local.dir
+/home/michael/projects/3-astrolograph/libs/glew-2.1.0/build/cmake/CMakeFiles/install.dir
+/home/michael/projects/3-astrolograph/libs/glew-2.1.0/build/cmake/CMakeFiles/list_install_components.dir
+/home/michael/projects/3-astrolograph/libs/glew-2.1.0/build/cmake/CMakeFiles/rebuild_cache.dir
+/home/michael/projects/3-astrolograph/libs/glew-2.1.0/build/cmake/CMakeFiles/glew_s.dir
+/home/michael/projects/3-astrolograph/libs/glew-2.1.0/build/cmake/CMakeFiles/glew.dir
+/home/michael/projects/3-astrolograph/libs/glew-2.1.0/build/cmake/CMakeFiles/glewinfo.dir
+/home/michael/projects/3-astrolograph/libs/glew-2.1.0/build/cmake/CMakeFiles/visualinfo.dir
+/home/michael/projects/3-astrolograph/libs/glew-2.1.0/build/cmake/CMakeFiles/uninstall.dir
+/home/michael/projects/3-astrolograph/libs/glew-2.1.0/build/cmake/CMakeFiles/edit_cache.dir

@@ -3,11 +3,21 @@ using namespace astro;
 
 #include "imgui.h"
 #include "tools.hpp"
+#include "settingsForm.hpp"
 
 ChartNode::ChartNode(Chart *chart)
   : Node(CONNECTOR_INPUTS(), CONNECTOR_OUTPUTS(), "Chart Node"), mChart(chart)
 {
-  // setMinSize(Vec2f(512, 512));
+  for(auto hs : HOUSE_SYSTEM_NAMES)     { mHsNames.push_back(hs.second); if(hs.first == HOUSE_PLACIDUS) { mHouseSystem = mHsNames.size()-1; } }
+  for(int i = 0; i < ZODIAC_COUNT; i++) { mZNames.push_back(getZodiacName((ZodiacType)i)); }
+  
+  mSettings = new SettingsForm();
+  mSettings->setLabelColWidth(120.0f);
+  mSettings->setInputColWidth(135.0f);
+  mSettings->add(new SettingGroup("Options", "opt",
+                                  {   new ComboSetting ("House System",   "hsys",     &mHouseSystem, mHsNames),
+                                      new ComboSetting ("Zodiac",         "zodiac",   &mZodiac,      mZNames),
+                                      new Setting<bool>("True Positions", "truePos",  &mTruePos) }, true));
   
   if(!mChart) { mChart = new Chart(DateTime::now(), Location()); }
   outputs()[CHARTNODE_OUTPUT_CHART]->set(mChart);
@@ -28,31 +38,72 @@ ChartNode::ChartNode(const DateTime &dt, const Location &loc)
 
 ChartNode::~ChartNode()
 {
+  delete mSettings;
   delete mChart;
+}
+
+bool ChartNode::onConnect(ConnectorBase *con)
+{
+  Direction dir     = con->direction();
+  int       index   = con->conId();
+  bool      success = false;
+  if(dir == CONNECTOR_INPUT)
+    {
+      if(index == CHARTNODE_INPUT_DATE)
+        {
+          DateTime *dt = con->get<DateTime>();
+          std::cout << "Date input connected!\n"
+                    << mChart->date() << " --> " << (dt ? dt->toString() : "") << "\n";
+          if(dt) { mChart->setDate(*dt); success = true; }
+        }
+      else if(index == CHARTNODE_INPUT_LOCATION)
+        {
+          Location *loc = con->get<Location>();
+          std::cout << "Location input connected!\n"
+                    << mChart->location() << " --> " << (loc ? loc->toString() : "") << "\n";
+          if(loc) { mChart->setLocation(*loc); success = true; }
+        }
+    }
+  else if(dir == CONNECTOR_OUTPUT)
+    {
+      if(index == CHARTNODE_OUTPUT_CHART)
+        {
+          std::cout << "Chart output connected!\n";
+          success = true;
+        }
+    }
+  
+  mChart->update();
+  return success;
 }
 
 void ChartNode::onUpdate()
 {
-  DateTime *dtIn = inputs()[CHARTNODE_INPUT_DATE]->get<DateTime>();
+  DateTime *dtIn  = inputs()[CHARTNODE_INPUT_DATE]->get<DateTime>();
   Location *locIn = inputs()[CHARTNODE_INPUT_LOCATION]->get<Location>();
   if(dtIn && *dtIn != mChart->date())
     {
-      if(mChart->changed())
-        { *dtIn = mChart->date(); }
-      else
-        { mChart->setDate(*dtIn); }
+      if(mChart->hasChanged()) { *dtIn = mChart->date(); }
+      else                     { mChart->setDate(*dtIn); }
     }
   if(locIn && *locIn != mChart->location())
     {
-      if(mChart->changed())
-        { *locIn = mChart->location(); }
-      else
-        { mChart->setLocation(*locIn); }
+      if(mChart->hasChanged()) { *locIn = mChart->location(); }
+      else                     { mChart->setLocation(*locIn); }
     }
+  
+  HouseSystem hs = HOUSE_INVALID;
+  for(auto h : HOUSE_SYSTEM_NAMES)
+    { if(mHsNames[mHouseSystem] == h.second) { hs = h.first; } }
+  mChart->setHouseSystem(hs);
+  mChart->setZodiac((ZodiacType)mZodiac);
+  mChart->setTruePos(mTruePos);
+
+  mChanged |= mChart->hasChanged();
   mChart->update();
 }
 
-bool ChartNode::onDraw()
+void ChartNode::onDraw()
 {
   float scale = getScale();
   
@@ -61,58 +112,18 @@ bool ChartNode::onDraw()
   
   DateTime dt   = mChart->date();
   Location loc  = mChart->location();
-  double julDay = mChart->swe().getJulianDayET(dt, loc, false);
+  double julDay = mChart->swe().getJulianDayET(dt, loc);
 
   ImGui::TextUnformatted(dt.toString().c_str());
   ImGui::Text("(jd_ET = %.6f)", julDay);
   ImGui::TextUnformatted(loc.toString().c_str());
   ImGui::Spacing();
 
-  // ephemeris options
-  ImGuiTreeNodeFlags flags = ImGuiTreeNodeFlags_SpanAvailWidth;
-  ImGui::SetNextTreeNodeOpen(mOptionsOpen);
-  if(ImGui::CollapsingHeader("Options", nullptr, flags))
-    {
-      mOptionsOpen = true;
-      ImGui::TextUnformatted("Houses    ");
-      ImGui::SameLine();
-      ImGui::SetNextItemWidth(150*scale);
-      HouseSystem hsCurrent = mChart->getHouseSystem();
-      if(ImGui::BeginCombo("##houseSystem", getHouseSystemName(hsCurrent).c_str()))
-        {
-          ImGui::SetWindowFontScale(scale);
-          for(const auto &hs : HOUSE_SYSTEM_NAMES)
-            {
-              if(ImGui::Selectable(((hs.first == hsCurrent ? "* " : "") + hs.second).c_str()))
-                { mChart->setHouseSystem(hs.first); }
-            }
-          ImGui::EndCombo();
-        }
-
-      // sidereal/tropical system
-      ImGui::TextUnformatted("Zodiac    ");
-      int zType = (int)mChart->getZodiac();
-      ImGui::SameLine();
-      ImGui::SetNextItemWidth(150*scale);
-      if(ImGui::BeginCombo("##zopdiacType", getZodiacName((ZodiacType)zType).c_str()))
-        {
-          ImGui::SetWindowFontScale(scale);
-          for(int z = 0; z < ZODIAC_COUNT; z++)
-            {
-              if(ImGui::Selectable(((z == zType ? "* " : "") + getZodiacName((ZodiacType)z)).c_str()))
-                { mChart->setZodiac((ZodiacType)z); }
-            }
-          ImGui::EndCombo();
-        }
-      // ImGui::BeginGroup();
-      // ImGui::TextUnformatted("Tropical"); ImGui::SameLine(); ImGui::RadioButton("##tropRB", &zType, (int)ZODIAC_TROPICAL);
-      // ImGui::TextUnformatted("Sidereal"); ImGui::SameLine(); ImGui::RadioButton("##realRB", &zType, (int)ZODIAC_SIDEREAL);
-      // ImGui::TextUnformatted("Draconic"); ImGui::SameLine(); ImGui::RadioButton("##dracRB", &zType, (int)ZODIAC_DRACONIC);
-      // ImGui::EndGroup();
-      // mChart->setZodiac((ZodiacType)zType);
-        
-    }
-  else if(isBodyVisible()) { mOptionsOpen = false; }
-  return true;
+  // chart options
+  std::map<std::string, std::string> oldData;
+  std::map<std::string, std::string> newData;
+  mSettings->getSaveParams(oldData);
+  mSettings->draw(scale);
+  mSettings->getSaveParams(newData);
+  mChanged |= (oldData != newData);
 }
-

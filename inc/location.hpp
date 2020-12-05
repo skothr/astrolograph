@@ -9,7 +9,6 @@
 #include <type_traits>
 
 #include "astro.hpp"
-#include <curl/curl.h>
 
 ///////////////////////////////////////////////////////////////////////////
 // TODO: TIMEZONES:
@@ -93,7 +92,7 @@ namespace astro
     
     friend std::ostream& operator<<(std::ostream &os, const Location &loc);
     friend std::basic_ostream<wchar_t>& operator<<(std::basic_ostream<wchar_t> &os, const Location &loc);
-    //friend std::istream& operator>>(std::istream &is, DateTime &date);
+    //friend std::istream& operator>>(std::istream &is, Location &loc);
   };
 
   inline std::ostream& operator<<(std::ostream &os, const Location &loc)

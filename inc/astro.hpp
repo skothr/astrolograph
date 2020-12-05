@@ -50,7 +50,7 @@ namespace astro
       OBJ_PALLAS,
       OBJ_VESTA,
       OBJ_LILITH,    // (sweID = SE_AST_OFFSET + 1181)
-      //OBJ_FORTUNA,   // (sweID = SE_AST_OFFSET + 19)
+      OBJ_FORTUNA,   // (sweID = SE_AST_OFFSET + 19)
       // lunar nodes
       OBJ_NORTHNODE, // (sweID = SE_TRUE_NODE) TODO: differentiate from true node?
       OBJ_SOUTHNODE,
@@ -64,8 +64,10 @@ namespace astro
       ANGLE_MC,
       ANGLE_DSC,
       ANGLE_IC,
+      ANGLE_VERTEX,
       
-      ANGLE_END
+      ANGLE_END,
+      OBJ_END = ANGLE_END
     };
   
   enum AspectType
@@ -205,21 +207,31 @@ namespace astro
   ////////////////////////////////////////////////////////////////////////////
   // object and angle names (order must match enum above)
   static const std::vector<std::string> OBJECT_NAMES =
-    { //"earth",
-      "sun", "moon",
+    { "sun", "moon",
       "mercury", "venus", "mars", "jupiter", "saturn", "uranus", "neptune", "pluto", "quaoar",
-      "chiron", "ceres", "juno", "pallas", "vesta", "lilith", // "fortuna", "true-node",
+      "chiron", "ceres", "juno", "pallas", "vesta", "lilith", "fortuna",
       "true-node", "south-node" };
+  static const std::vector<std::string> OBJECT_NAMES_LONG =
+    { "Sun", "Moon",
+      "Mercury", "Venus", "Mars", "Jupiter", "Saturn", "Uranus", "Neptune", "Pluto", "Quaoar",
+      "Chiron", "Ceres", "Juno", "Pallas-Athene", "Vesta", "Lilith", "Fortuna",
+      "True Node", "South Node" };
   static const std::vector<std::string> ANGLE_NAMES =
-    { "asc", "mc", "dsc", "ic" };
+    { "asc", "mc", "dsc", "ic", "vertex" };
   static const std::vector<std::string> ANGLE_NAMES_LONG =
-    { "Ascendant", "Medium Coeli (Midheaven)", "Descendant", "Imum Coeli" };
+    { "Ascendant", "Medium Coeli", "Descendant", "Imum Coeli", "Vertex" };
   static const std::vector<std::string> SIGN_NAMES =
     { "aries", "taurus", "gemini", "cancer", "leo", "virgo",
       "libra", "scorpio", "sagittarius", "capricorn", "aquarius", "pisces" };
   static const std::vector<std::string> ASPECT_NAMES =
     { "conjunction", "opposition", "square", "trine", "sextile", 
       "quincunx", "semisextile", "sesquiquadrate", "octile", "novile" };
+
+  static const std::vector<double> OBJECT_ORBS_DEFAULT =
+    { 10.0, 10.0,
+      5.0, 5.0, 5.0, 5.0, 5.0, 5.0, 5.0, 5.0, 3.0,
+      5.0, 4.0, 4.0, 4.0, 4.0, 4.0, 3.0,
+      2.0, 2.0 };
   
   static std::map<HouseSystem, std::string> HOUSE_SYSTEM_NAMES =
     {{ HOUSE_PLACIDUS,      "Placidus"},
@@ -323,7 +335,7 @@ namespace astro
   inline std::string getObjNameLong(ObjType obj)
   {
     if(obj > OBJ_INVALID && obj < OBJ_COUNT) // object
-      { return OBJECT_NAMES[obj]; }
+      { return OBJECT_NAMES_LONG[obj]; }
     else if(obj >= ANGLE_OFFSET && obj < ANGLE_END) // angle
       { return ANGLE_NAMES_LONG[obj-ANGLE_OFFSET]; }
     else
@@ -360,7 +372,7 @@ namespace astro
   { return (ElementType)(index % ELEMENT_COUNT); }
 
   //// ASPECTS
-  inline AspectInfo* getAspect(const std::string &name)
+  inline AspectInfo* getAspectInfo(const std::string &name)
   {
     auto iter = ASPECTS.find(name);
     if(iter != ASPECTS.end())
@@ -368,7 +380,7 @@ namespace astro
     else
       { return nullptr; }
   }
-  inline AspectInfo* getAspect(AspectType type)
+  inline AspectInfo* getAspectInfo(AspectType type)
   {
     if(type > ASPECT_INVALID && type < ASPECT_COUNT)
       { return &ASPECTS[ASPECT_NAMES[(int)type]]; }

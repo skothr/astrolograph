@@ -2,11 +2,9 @@
 using namespace astro;
 
 #include <fstream>
-#include <experimental/filesystem>
-namespace fs = std::experimental::filesystem;
-
 #include "imgui.h"
 
+#include "tools.hpp"
 
 TimeWidget::TimeWidget()
   : mDate(DateTime::now())
@@ -35,10 +33,10 @@ TimeWidget& TimeWidget::operator=(const TimeWidget &other)
 
 bool TimeWidget::save(const std::string &name)
 {
-  if(!fs::exists(DATE_SAVE_DIR))
+  if(!directoryExists(DATE_SAVE_DIR)) // fs::exists(DATE_SAVE_DIR))
     { // make sure save directory exists
       std::cout << "Creating save directory (" << DATE_SAVE_DIR << ")...\n";
-      if(!fs::create_directory(DATE_SAVE_DIR))
+      if(!makeDirectory(DATE_SAVE_DIR)) // fs::create_directory(DATE_SAVE_DIR))
         { std::cout << "ERROR: Could not create date save directory.\n"; return false; }
     }
   if(name.empty())
@@ -47,7 +45,7 @@ bool TimeWidget::save(const std::string &name)
   // read saved dates
   std::vector<DateSave> data;
   bool update = false; // if true, updating saved date
-  if(fs::exists(DATE_SAVE_PATH) && fs::is_regular_file(DATE_SAVE_PATH))
+  if(fileExists(DATE_SAVE_PATH)) // fs::exists(DATE_SAVE_PATH) && fs::is_regular_file(DATE_SAVE_PATH))
     {
       std::ifstream dateFile(DATE_SAVE_PATH, std::ifstream::in);
       std::string line  = "";
@@ -63,10 +61,8 @@ bool TimeWidget::save(const std::string &name)
         }
     }
 
-  if(!update)
-    { // append new date
-      data.push_back({name, mDate});
-    }
+  if(!update) // append new date
+    { data.push_back({name, mDate}); }
   
   // write date to file
   std::ofstream dateFile(DATE_SAVE_PATH, std::ios::out);
@@ -79,10 +75,10 @@ bool TimeWidget::save(const std::string &name)
 
 bool TimeWidget::load(const std::string &name)
 {
-  if(!fs::exists(DATE_SAVE_DIR)) { return false; }
+  if(!directoryExists(DATE_SAVE_DIR)) { return false; } // fs::exists(DATE_SAVE_DIR)) { return false; }
   
   // read saved dates
-  if(fs::exists(DATE_SAVE_PATH) && fs::is_regular_file(DATE_SAVE_PATH))
+  if(fileExists(DATE_SAVE_PATH)) // fs::exists(DATE_SAVE_PATH) && fs::is_regular_file(DATE_SAVE_PATH))
     {
       std::ifstream dateFile(DATE_SAVE_PATH, std::ifstream::in);
       std::string line  = "";
@@ -95,6 +91,8 @@ bool TimeWidget::load(const std::string &name)
               mSavedDate = dt;
               mSavedDate.fix();
               mDate = mSavedDate;
+              sprintf(mName, "%s", name.c_str());
+              sprintf(mSavedName, "%s", name.c_str());
               return true;
             }
         }
@@ -104,19 +102,18 @@ bool TimeWidget::load(const std::string &name)
 
 bool TimeWidget::remove(const std::string &name)
 {
-  if(!fs::exists(DATE_SAVE_DIR))
+  if(!directoryExists(DATE_SAVE_DIR)) // fs::exists(DATE_SAVE_DIR))
     { // make sure save directory exists
       std::cout << "Creating save directory (" << DATE_SAVE_DIR << ")...\n";
-      if(!fs::create_directory(DATE_SAVE_DIR))
+      if(!makeDirectory(DATE_SAVE_DIR)) // fs::create_directory(DATE_SAVE_DIR))
         { std::cout << "ERROR: Could not create date save directory.\n"; return false; }
     }
-  if(name.empty())
-    { std::cout << "TimeWidget::remove() --> Empty name!\n"; return false; }
+  if(name.empty()) { std::cout << "TimeWidget::remove() --> Empty name!\n"; return false; }
 
   // read saved dates
   std::vector<DateSave> data;
   bool found = false; // if true, updating saved date
-  if(fs::exists(DATE_SAVE_PATH) && fs::is_regular_file(DATE_SAVE_PATH))
+  if(fileExists(DATE_SAVE_PATH)) // fs::exists(DATE_SAVE_PATH) && fs::is_regular_file(DATE_SAVE_PATH))
     {
       std::ifstream dateFile(DATE_SAVE_PATH, std::ifstream::in);
       std::string line  = "";
@@ -125,28 +122,23 @@ bool TimeWidget::remove(const std::string &name)
           DateTime dt;
           std::string n = popName(line);
           dt.fromSaveString(line);
-          if(n == name) // remove by skipping
-            { found = true; }
-          else
-            { data.push_back({n, dt}); }
+          if(n == name) { found = true; }  // remove by skipping
+          else { data.push_back({n, dt}); }
         }
     }
-  
   // write date to file
   std::ofstream dateFile(DATE_SAVE_PATH, std::ios::out);
-  for(auto d : data)
-    { dateFile << std::quoted(d.name) << " " << d.date.toSaveString() << "\n"; }
-
+  for(auto d : data) { dateFile << std::quoted(d.name) << " " << d.date.toSaveString() << "\n"; }
   return true;
 }
 
 std::vector<DateSave> TimeWidget::loadAll()
 {
-  if(!fs::exists(DATE_SAVE_DIR)) { return {}; }
+  if(!directoryExists(DATE_SAVE_DIR)) { return {}; } // fs::exists(DATE_SAVE_DIR)) { return {}; }
   
   // read all saved dates
   std::vector<DateSave> data;
-  if(fs::exists(DATE_SAVE_PATH) && fs::is_regular_file(DATE_SAVE_PATH))
+  if(fileExists(DATE_SAVE_PATH)) // fs::exists(DATE_SAVE_PATH) && fs::is_regular_file(DATE_SAVE_PATH))
     {
       std::ifstream dateFile(DATE_SAVE_PATH, std::ifstream::in);
       std::string line = "";
@@ -164,7 +156,7 @@ std::vector<DateSave> TimeWidget::loadAll()
   return data;
 }
 
-void TimeWidget::draw(const std::string &id, float scale)
+void TimeWidget::draw(const std::string &id, float scale, bool blocked)
 {
   ImGui::BeginGroup();
   {
@@ -250,8 +242,7 @@ void TimeWidget::draw(const std::string &id, float scale)
     else
       {
         std::string sName = mName;
-        if(mDate != mSavedDate)
-          { sName = std::string("[") + mName + "]"; }
+        if(mDate != mSavedDate) { sName = std::string("[") + mName + "]"; }
         ImGui::TextColored(ImColor(1.0f, 1.0f, 1.0f, 0.5f), "%s", sName.c_str());
       }
 
@@ -275,7 +266,7 @@ void TimeWidget::draw(const std::string &id, float scale)
     
     // load button
     ImGui::Button(("Load##date"+id).c_str());
-    if(ImGui::BeginPopupContextItem(("loadPopup##"+id).c_str(), ImGuiMouseButton_Left))
+    if(!blocked && ImGui::BeginPopupContextItem(("loadPopup##"+id).c_str(), ImGuiMouseButton_Left))
       {
         std::vector<DateSave> loaded = loadAll();
         for(auto &dt : loaded)
@@ -296,7 +287,7 @@ void TimeWidget::draw(const std::string &id, float scale)
     ImGui::Button(("Save##date"+id).c_str());
 
     // save menu
-    if(ImGui::BeginPopupContextItem(("savePopup##"+id).c_str(), ImGuiMouseButton_Left))
+    if(!blocked && ImGui::BeginPopupContextItem(("savePopup##"+id).c_str(), ImGuiMouseButton_Left))
       {
         // text input for new save
         ImGui::Text("New");
@@ -359,7 +350,9 @@ void TimeWidget::draw(const std::string &id, float scale)
       {
         ImGui::SameLine();
         if(ImGui::Button(("Reload##date"+id).c_str()))
-          { mDate = mSavedDate; }
+          {
+            mDate = mSavedDate;
+          }
       }
   }
   ImGui::EndGroup();

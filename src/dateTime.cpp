@@ -7,8 +7,8 @@ using namespace astro;
 
 // static
 const std::array<int, 12> DateTime::MONTH_DAYS { 31, 28, 31, 30, 31, 30, 31, 31, 30, 31, 30, 31 }; // (non-leap years)
-const int DateTime::MAX_YEAR = 8000;
-const int DateTime::MIN_YEAR = -8000;
+const int DateTime::MAX_YEAR = 16799;  // TODO: should be based off ephemeris data available
+const int DateTime::MIN_YEAR = -12998; // TODO: should be based off ephemeris data available
 
 int monthDays(int month) { return DateTime::MONTH_DAYS[month-1]; }
 
@@ -26,20 +26,14 @@ bool DateTime::isValid(int year, int month, int day, int hour, int minute, doubl
 DateTime DateTime::correctDate(int year, int month, int day, int hour, int minute, double second)
 {
   // seconds
-  while(second < 0.0)
-    { second += 60.0; minute--; }
-  while(second >= 60.0)
-    { second -= 60.0; minute++; }
+  while(second < 0.0)   { second += 60.0; minute--; }
+  while(second >= 60.0) { second -= 60.0; minute++; }
   // minutes
-  while(minute < 0)
-    { minute += 60; hour--; }
-  while(minute >= 60)
-    { minute -= 60; hour++; }
+  while(minute < 0)   { minute += 60; hour--; }
+  while(minute >= 60) { minute -= 60; hour++; }
   // hours
-  while(hour < 0)
-    { hour += 24; day--; }
-  while(hour >= 24)
-    { hour -= 24; day++; }
+  while(hour < 0)   { hour += 24; day--; }
+  while(hour >= 24) { hour -= 24; day++; }
   
   // months (preliminary)
   while(month <= 0) { month += 12; year--; }           // step month to correct range
@@ -50,7 +44,7 @@ DateTime DateTime::correctDate(int year, int month, int day, int hour, int minut
     {
       day += monthDays(month==1 ? 12 : month-1);
       month--;
-      while(month <= 0)   { month += 12; year--; }     // step month to correct range
+      while(month <= 0) { month += 12; year--; }     // step month to correct range
     }
   
   // months (final)
@@ -62,7 +56,7 @@ DateTime DateTime::correctDate(int year, int month, int day, int hour, int minut
     {
       day -= monthDays(month);
       month++;
-      if(month > 12) { month = month%12; year++; }
+      if(month > 12) { month = month % 12; year++; }
     }
   
   // years

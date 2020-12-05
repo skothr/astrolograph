@@ -1,16 +1,19 @@
 #ifndef NODE_HPP
 #define NODE_HPP
 
-#include "imgui.h"
-
 #include "astro.hpp"
 #include "rect.hpp"
+
+#include "viewSettings.hpp"
 
 #include <vector>
 #include <iomanip>
 #include <sstream>
 #include <unordered_set>
 #include <map>
+
+// forward declarations
+struct ImDrawList;
 
 namespace astro
 {
@@ -33,6 +36,8 @@ namespace astro
   
 #define NODE_TOP_Z 1000000.0f // z value to bring a node to the top
 
+#define GHOST_ALPHA 0.2f // alpha value for drawing ghosts
+
 // direction of node connector (for now just input/output)
   enum Direction
     {
@@ -54,7 +59,7 @@ namespace astro
   template<typename T> class Connector;
   class NodeGraph;
   class ViewSettings;
-
+  
   // CONNECTOR BASE //
   class ConnectorBase
   {
@@ -68,9 +73,6 @@ namespace astro
     Direction      mDirection  = CONNECTOR_INVALID;
     
     std::vector<ConnectorBase*> mConnected;
-
-    bool BeginDraw();
-    void EndDraw();
     
   public:
     Vec2f graphPos;
@@ -84,6 +86,7 @@ namespace astro
     void setParent(Node *n, int cId) { mParent = n; mConId = cId; }
     Node* parent()    { return mParent; } // returns parent node
     int conId() const { return mConId; }  // returns connector index in parent node
+    Direction direction() const { return mDirection; }  // returns connector direction (input/output)
     
     template<typename T>
     T* get() { return ((Connector<T>*)this)->get(); }
@@ -104,10 +107,12 @@ namespace astro
     void sendSignal(NodeSignal signal);
 
     void draw(bool blocked);
-    void drawConnections(ImDrawList *nodeDrawList, ImDrawList *graphDrawList);
+    void drawConnections(ImDrawList *nodeDrawList, ImDrawList *graphDrawList, bool ghost=false);
   };
+
+
   
-  // CONNECTOR //
+  //// CONNECTOR ////
   template<typename T>
   class Connector : public ConnectorBase
   {
@@ -115,9 +120,7 @@ namespace astro
   protected:
     T *mData = nullptr;
   public:
-    Connector(std::string name="", T *data=nullptr)
-      : ConnectorBase(name), mData(data)
-    { }
+    Connector(std::string name="", T *data=nullptr) : ConnectorBase(name), mData(data) { }
     virtual ~Connector() { }
     virtual std::string type() const override { return std::string(typeid(T).name()); }
     
@@ -133,8 +136,9 @@ namespace astro
         { ((Connector<T>*)mConnected[0])->mData = data; }
     }
   };
+  ///////////////////
   
-  // NODE //
+  //// NODE ////
   class Node
   {
   protected:
@@ -157,12 +161,14 @@ namespace astro
     bool mFirstFrame   = true;    // true only on first frame
     bool mVisible      = true;    // whether node is drawn on screen
     bool mBodyVisible  = true;    // whether node body is drawn on screen
-    bool mChanged      = true;    // true if node has changed since last save
+    bool mChanged      = false;   // true if node has changed since last save
     bool mSelected     = false;   // true of node is selected
     bool mClicked      = false;   // whether mouse has clicked node window (and is still down)
     bool mHover        = false;   // whether mouse is over node window (window background)
     bool mActive       = false;   // whether mouse is over node window (interactive ui element)
     bool mDragging     = false;   // whether mouse is dragging window
+
+    bool mBlocked      = false;   // whether mouse is blocked by other nodes
     
     // Vec2f mNextPos = Vec2f(0,0);  // node window pos
     Vec2f mMinSize = Vec2f(1,1);     // min size (to be set by child class)
@@ -173,7 +179,7 @@ namespace astro
     std::vector<ConnectorBase*> mOutputs;
 
     // override in child classes to draw node
-    virtual bool onDraw()   { return true; }
+    virtual void onDraw()   { }
     virtual void onUpdate() { }
 
     virtual std::map<std::string, std::string>& getSaveParams(std::map<std::string, std::string> &params) const { return params; }
@@ -218,10 +224,13 @@ namespace astro
     Node(const Node &other);
     virtual ~Node();
     virtual std::string type() const = 0;
+    
+    virtual bool onConnect(ConnectorBase *con) { return true; } // return false if connection refused (?)
 
     // set parent NodeGraph
     void setGraph(NodeGraph *graph) { mGraph = graph; }
     NodeGraph* getGraph() { return mGraph; }
+    ViewSettings* getViewSettings();
     float getScale() const; // returns graph scaling
     bool isVisible() const { return mVisible; }
     bool isBodyVisible() const { return mVisible && mBodyVisible; }
@@ -272,10 +281,12 @@ namespace astro
     bool isSelected() const         { return mSelected; }
     void setSelected(bool selected) { mSelected = selected; }
 
-    bool isActive() const   { return mActive; }
-    bool isHovered() const  { return mHover; }
-    bool isDragging() const { return mDragging; }
-    void setDragging(bool drag) { mDragging = drag; }
+    bool isActive() const           { return mActive; }
+    bool isHovered() const          { return mHover; }
+    bool isDragging() const         { return mDragging; }
+    void setDragging(bool drag)     { mDragging = drag; }
+    
+    bool isBlocked() const          { return mBlocked; }
     
     void setMinSize(const Vec2f &s) { mMinSize = s; }
     Vec2f getMinSize() const        { return mMinSize; }
@@ -289,8 +300,8 @@ namespace astro
     float getZ() const              { return mParams->z; }
     void setZ(float z) const        { mParams->z = z; }
 
-    void drawConnections(ImDrawList *graphDrawList);
-    bool draw(ImDrawList *graphDrawList, bool blocked);
+    void drawConnections(ImDrawList *graphDrawList, bool ghost=false);
+    bool draw(ImDrawList *graphDrawList, bool blocked, bool ghost=false);
     void update();
   };
 }

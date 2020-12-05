@@ -52,6 +52,7 @@ namespace astro
     Vec2f pos;        // chart position
     Vec2f size;       // chart size
     Vec2f center;     // chart center
+    bool blocked;     // whether mouse is blocked
     // calculated
     float minSize;    // minimum dimension (x/y) value
     float sizeRatio;  // ratio of size to default size
@@ -64,8 +65,8 @@ namespace astro
     float angRadius;  // outer angle radius from center
     float objRingW;   // width of object ring
       
-    ViewParams(const Vec2f &p, const Vec2f &s)
-      : pos(p), size(s), center(p + s/2.0f)
+    ViewParams(const Vec2f &p, const Vec2f &s, bool blocked_)
+      : pos(p), size(s), center(p + s/2.0f), blocked(blocked_)
     { calculate(); }
     
     void calculate()
@@ -91,6 +92,7 @@ namespace astro
   private:
     // view settings
     bool mAlignAsc   = false; // rotate chart so ascendant points left
+    bool mShowHouses = true;  // if true, show interactive house number outside chart
     std::vector<bool> mShowObjects;
     std::vector<bool> mFocusObjects;
     
@@ -102,19 +104,22 @@ namespace astro
   public:
     ChartView();
     
-    void setAlignAsc(bool align) { mAlignAsc = true; }
+    void setAlignAsc(bool align)  { mAlignAsc = align; }
+    void setShowHouses(bool show) { mShowHouses = show; }
+    bool getAlignAsc() const      { return mAlignAsc; }
+    bool getShowHouses() const    { return mShowHouses; }
   
-    void renderZodiac(Chart *chart, const ViewParams &params, ImDrawList *draw_list);
-    void renderHouses(Chart *chart, const ViewParams &params, ImDrawList *draw_list);
-    void renderAngles(Chart *chart, const ViewParams &params, ImDrawList *draw_list);
-    void renderAspects(Chart *chart, const ViewParams &params, ImDrawList *draw_list);
-    void renderObjects(Chart *chart, int level, const ViewParams &params, ImDrawList *draw_list);
-    void renderChart(Chart *chart, const Vec2f &chartSize);
-    void renderCompareAspects(ChartCompare *compare, const ViewParams &params, ImDrawList *draw_list);
-    void renderChartCompare(ChartCompare *compare, const Vec2f &chartSize);
+    void renderZodiac(Chart *chart, const ViewParams &params, ImDrawList *draw_list, const ChartParams &chartParams);
+    void renderHouses(Chart *chart, const ViewParams &params, ImDrawList *draw_list, const ChartParams &chartParams);
+    void renderAngles(Chart *chart, const ViewParams &params, ImDrawList *draw_list, const ChartParams &chartParams);
+    void renderAspects(Chart *chart, const ViewParams &params, ImDrawList *draw_list, const ChartParams &chartParams);
+    void renderCompareAspects(ChartCompare *compare, const ViewParams &params, ImDrawList *draw_list, const ChartParams &chartParams);
+    void renderObjects(Chart *chart, int level, const ViewParams &params, ImDrawList *draw_list, const ChartParams &chartParams);
+    void renderChart(Chart *chart, const Vec2f &chartSize, bool blocked, const ChartParams &chartParams);
+    void renderChartCompare(ChartCompare *compare, const Vec2f &chartSize, bool blocked, const ChartParams &chartParams);
     
-    bool draw(Chart *chart, float chartWidth);
-    bool draw(ChartCompare *compare, float chartWidth);
+    bool draw(Chart *chart, float chartWidth, bool blocked, const ChartParams &chartParams);
+    bool draw(ChartCompare *compare, float chartWidth, bool blocked, const ChartParams &chartParams);
   };
 }
 

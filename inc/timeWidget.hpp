@@ -2,8 +2,6 @@
 #define TIME_WIDGET_HPP
 
 #include "astro.hpp"
-
-
 namespace astro
 {
 #define DATE_SAVE_DIR "./saved/"
@@ -47,7 +45,7 @@ namespace astro
     bool reload() { mDate = mSavedDate; return true; }
     std::vector<DateSave> loadAll();
     
-    void draw(const std::string &id, float scale);
+    void draw(const std::string &id, float scale, bool blocked);
   };
 }
 

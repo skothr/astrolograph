@@ -20,7 +20,10 @@ ChartDataNode::ChartDataNode()
 ChartDataNode::~ChartDataNode()
 { }
 
-bool ChartDataNode::onDraw()
+void ChartDataNode::onUpdate()
+{ }
+
+void ChartDataNode::onDraw()
 {
   float scale = getScale();
   float symSize = 20*scale;
@@ -35,22 +38,29 @@ bool ChartDataNode::onDraw()
   if(ImGui::CollapsingHeader("Angle Data", nullptr, flags) && chart)
     {
       mAngOpen = true;
-      std::string headers[] = { "", "   LONGITUDE" };
-        
-      ImGui::Columns(2, "data-table##angles", false);
-      ImGui::SetColumnWidth(0, 2.0f*symSize+30.0f*scale);
+      std::string headers[] = { "", "   LONGITUDE", "   LON SPEED" };
+      
+      float maxW = 0.0f;
+      for(int i = 0; i < 3; i++)
+        { maxW = std::max(maxW, ImGui::CalcTextSize(headers[i].c_str()).x); }
+      
+      ImGui::Columns(3, "data-table##angles", false);
+      ImGui::SetColumnWidth(0, maxW);//2.0f*symSize+30.0f*scale);
         
       // column headers
-      for(int i = 0; i < 2; i++)
-        { ImGui::TextUnformatted(headers[i].c_str()); ImGui::NextColumn(); }
+      for(int i = 0; i < 3; i++)
+        {
+          ImGui::TextUnformatted(headers[i].c_str()); ImGui::NextColumn();
+        }
       ImGui::Separator();
         
       ImGuiIO& io = ImGui::GetIO();
       astro::Ephemeris &swe = chart->swe();
-        
+      
       for(int a = ANGLE_OFFSET; a < ANGLE_END; a++)
         {
-          double angle = chart->getObject((ObjType)a)->angle;//swe.getAngle((ObjType)a);
+          ObjData objData = chart->getObjectData((ObjType)a);
+          double angle = objData.longitude; //chart->getObject((ObjType)a)->angle;
           std::string name = getObjName((astro::ObjType)a);
                 
           ChartImage *img = getWhiteImage(name);
@@ -58,12 +68,14 @@ bool ChartDataNode::onDraw()
           ImVec4 tintCol = ImVec4(color.x, color.y, color.z, color.w);
 
           mShowObjects[OBJ_COUNT+a-ANGLE_OFFSET] = chart->getObject((ObjType)a)->visible;
-          bool checked = mShowObjects[OBJ_COUNT+a-ANGLE_OFFSET];
-          ImGui::Checkbox(("##show-"+name).c_str(), &checked);
-          chart->showObject((ObjType)a, checked);
 
-          ImGui::SetNextItemWidth(symSize+10.0f*scale);
-          ImGui::SameLine(); ImGui::Image(img->id(), ImVec2(symSize, symSize), ImVec2(0,0), ImVec2(1,1), tintCol, ImVec4(0,0,0,0));
+          ImGui::BeginGroup();
+          {
+            ImGui::SetNextItemWidth(symSize+10.0f*scale);
+            ImGui::Image(img->id(), ImVec2(symSize, symSize), ImVec2(0,0), ImVec2(1,1), tintCol, ImVec4(0,0,0,0));
+            ImGui::SameLine(); ImGui::Text("%s", name.c_str());
+          }
+          ImGui::EndGroup();
           bool hover = ImGui::IsItemHovered();
           if(hover) { ImGui::SetTooltip("%s - %s", name.c_str(), angle_string(angle).c_str()); }
             
@@ -75,7 +87,8 @@ bool ChartDataNode::onDraw()
               chart->setObjFocus((ObjType)a, mFocusObjects[a]);
             }
           ImGui::NextColumn();
-          ImGui::TextUnformatted(angle_string(angle).c_str()); ImGui::NextColumn();
+          ImGui::TextUnformatted(angle_string(objData.longitude).c_str()); ImGui::NextColumn();
+          ImGui::TextUnformatted(angle_string(objData.lonSpeed).c_str()); ImGui::NextColumn();
         }
       ImGui::Columns(1);
     }
@@ -90,7 +103,7 @@ bool ChartDataNode::onDraw()
       std::string headers[] = { "", "   LATITUDE", "  LONGITUDE", " DISTANCE", "   LAT SPEED", "   LON SPEED", " DIST SPEED" };
             
       ImGui::Columns(7, "data-table##objects", false);
-      ImGui::SetColumnWidth(0, 2.0f*symSize+30.0f*scale);
+      ImGui::SetColumnWidth(0, 2.0f*symSize+60.0f*scale);
 
       // column headers
       for(int i = 0; i < 7; i++)
@@ -105,18 +118,22 @@ bool ChartDataNode::onDraw()
           astro::ObjData obj = swe.getObjData((astro::ObjType)o);
           double angle = obj.longitude;//swe.getObjAngle((astro::ObjType)o);
           std::string name = getObjName((astro::ObjType)o);
+          std::string nameLong = getObjNameLong((astro::ObjType)o);
                 
           ChartImage *img = getWhiteImage(name);
           Vec4f color = getObjColor(name);
           ImVec4 tintCol = ImVec4(color.x, color.y, color.z, color.w);
 
           mShowObjects[o] = chart->getObject((ObjType)o)->visible;
-          bool checked = mShowObjects[o];
-          ImGui::Checkbox(("##show-"+name).c_str(), &checked);
-          chart->showObject((ObjType)o, checked);
 
-          ImGui::SetNextItemWidth(symSize+10.0f*scale);
-          ImGui::SameLine(); ImGui::Image(img->id(), ImVec2(symSize, symSize), ImVec2(0,0), ImVec2(1,1), tintCol, ImVec4(0,0,0,0));
+          ImGui::BeginGroup();
+          {
+            ImGui::SetNextItemWidth(symSize+10.0f*scale);
+            ImGui::Image(img->id(), ImVec2(symSize, symSize), ImVec2(0,0), ImVec2(1,1), tintCol, ImVec4(0,0,0,0));
+            ImGui::SameLine(); ImGui::Text("%s", nameLong.c_str());
+          }
+          ImGui::EndGroup();
+          
           bool hover = ImGui::IsItemHovered();
           if(hover) { ImGui::SetTooltip("%s - %s", name.c_str(), angle_string(angle).c_str()); }
             
@@ -127,26 +144,19 @@ bool ChartDataNode::onDraw()
               mFocusObjects[o] = focused;
               chart->setObjFocus((ObjType)o, mFocusObjects[o]);
             }
-          // if(hover && io.KeyShift) // focus on this object when SHIFT+hover
-          //   { chart->showObject((ObjType)o, true); chart->setObjFocus((ObjType)o, hover); }
-          // else
-          //   { chart->setObjFocus((ObjType)o, false); }
+          
           ImGui::NextColumn();
-                
           ImGui::TextUnformatted(angle_string(obj.latitude).c_str());       ImGui::NextColumn();
           ImGui::TextUnformatted(angle_string(obj.longitude).c_str());      ImGui::NextColumn();
           ImGui::TextUnformatted((to_string(obj.distance)+" AU").c_str());  ImGui::NextColumn();
           ImGui::TextUnformatted(angle_string(obj.latSpeed).c_str());       ImGui::NextColumn();
           ImGui::TextUnformatted(angle_string(obj.lonSpeed).c_str());       ImGui::NextColumn();
           ImGui::TextUnformatted((to_string(obj.distSpeed)+" AU").c_str()); ImGui::NextColumn();
-          if(o == OBJ_PLUTO) // separator after planets
-            { ImGui::Separator(); }
+          if(o == OBJ_PLUTO) { ImGui::Separator(); } // separator after planets
         }
       ImGui::Columns(1);
     }
   else if(chart && isBodyVisible())
     { mObjOpen = false; }
-  
-  return true;
 }
 

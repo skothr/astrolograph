@@ -1,0 +1,1 @@
+/usr/bin/cc -fPIC -O3 -DNDEBUG  -shared -Wl,-soname,libGLEW.so.2.1 -o lib/libGLEW.so.2.1.0 CMakeFiles/glew.dir/home/michael/projects/3-astrolograph/libs/glew-2.1.0/src/glew.c.o -lGL -lGLU 

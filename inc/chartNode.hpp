@@ -24,35 +24,42 @@ namespace astro
     static std::vector<ConnectorBase*> CONNECTOR_OUTPUTS()
     { return {new Connector<Chart>("Chart")}; }
     
-    Chart *mChart = nullptr;
-    bool   mOptionsOpen = false;
+    Chart        *mChart = nullptr;
+    SettingsForm *mSettings = nullptr;
+    
+    bool mTruePos = false; // 
+    std::vector<std::string> mZNames;
+    std::vector<std::string> mHsNames;
+    int mHouseSystem = 0;  // combo index
+    int mZodiac      = ZODIAC_TROPICAL; // combo index
 
-    virtual bool onDraw() override;
+    // bool mOptionsOpen = false;
     virtual void onUpdate() override;
+    virtual void onDraw() override;
     
     virtual std::map<std::string, std::string>& getSaveParams(std::map<std::string, std::string> &params) const override
     {
+      mSettings->getSaveParams(params);
       if(!inputs()[CHARTNODE_INPUT_DATE]->get<DateTime>())
         { params.emplace("date", mChart->date().toSaveString()); }
       if(!inputs()[CHARTNODE_INPUT_LOCATION]->get<Location>())
         { params.emplace("location", mChart->location().toSaveString()); }
-      params.emplace("houseSystem", getHouseSystemName(mChart->getHouseSystem()));
-      params.emplace("zodiac",      std::to_string(mChart->getZodiac()));
-      params.emplace("truePos",     (mChart->getTruePos()  ? "1" : "0"));
-      
-      params.emplace("optionsOpen", (mOptionsOpen ? "1" : "0"));
       return params;
     };
     
     virtual std::map<std::string, std::string>& setSaveParams(std::map<std::string, std::string> &params) override
     {
+      mSettings->setSaveParams(params);
       auto iter = params.find("date");   if(iter != params.end()) { mChart->setDate(DateTime(iter->second)); }
       iter = params.find("location");    if(iter != params.end()) { mChart->setLocation(Location(iter->second)); }
-      iter = params.find("houseSystem"); if(iter != params.end()) { mChart->setHouseSystem(getHouseSystem(iter->second)); }
-      iter = params.find("zodiac");      if(iter != params.end()) { mChart->setZodiac(iter->second); }
-      iter = params.find("truePos");     if(iter != params.end()) { mChart->setTruePos(iter->second  != "0"); }
+
+      HouseSystem hs = HOUSE_INVALID;
+      for(auto h : HOUSE_SYSTEM_NAMES)
+        { if(mHsNames[mHouseSystem] == h.second) { hs = h.first; } }
+      mChart->setHouseSystem(hs);
+      mChart->setZodiac((ZodiacType)mZodiac);
+      mChart->setTruePos(mTruePos);
       mChart->update();
-      iter = params.find("optionsOpen"); if(iter != params.end()) { mOptionsOpen = (iter->second != "0"); }
       return params;
     };
     
@@ -61,6 +68,9 @@ namespace astro
     ChartNode(const DateTime &dt, const Location &loc);
     ~ChartNode();
     virtual std::string type() const { return "ChartNode"; }
+    
+    virtual bool onConnect(ConnectorBase *con) override;
+    
     virtual bool copyTo(Node *other) override
     { // copy settings
       if(Node::copyTo(other))
@@ -77,7 +87,7 @@ namespace astro
           
           ((ChartNode*)other)->mChart->setHouseSystem(mChart->getHouseSystem());
           ((ChartNode*)other)->mChart->setZodiac(mChart->getZodiac());
-          ((ChartNode*)other)->mOptionsOpen = mOptionsOpen;
+          // ((ChartNode*)other)->mOptionsOpen = mOptionsOpen;
           // (everything else set by connections)
           return true;
         }

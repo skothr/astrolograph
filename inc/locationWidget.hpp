@@ -2,7 +2,7 @@
 #define LOCATION_WIDGET_HPP
 
 #include "astro.hpp"
-#include <bits/stdc++.h>
+// #include <bits/stdc++.h>
 
 namespace astro
 {
@@ -23,7 +23,8 @@ namespace astro
     Location mSavedLocation;
     char mName[LOCATION_NAME_BUFLEN] = "";
     char mSavedName[LOCATION_NAME_BUFLEN] = "";
-    // bool mDST = false; // daylight savings time
+
+    bool saveDirCheck();
     
   public:
     LocationWidget();
@@ -37,9 +38,6 @@ namespace astro
     Location& getSaved()               { return mSavedLocation; }
     const Location& getSaved() const   { return mSavedLocation; }
     void setSaved(const Location &loc) { mSavedLocation = loc; }
-
-    // bool getDST() const   { return mDST; }
-    // void setDST(bool dst) { mDST = dst; }
     
     std::string getName() const { return mName; }
     void setName(const std::string &n) { sprintf(mName, "%s", n.c_str()); }
@@ -50,7 +48,8 @@ namespace astro
     bool remove(const std::string &name);
     std::vector<LocationSave> loadAll();
     
-    void draw(float scale);
+    void update();
+    void draw(float scale, bool blocked);
   };
 }
 

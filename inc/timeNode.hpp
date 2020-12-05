@@ -28,7 +28,8 @@ namespace astro
     TimeWidget mWidget;
     bool mLiveMode = false;
     
-    virtual bool onDraw() override;
+    virtual void onUpdate() override;
+    virtual void onDraw() override;
     
     virtual std::map<std::string, std::string>& getSaveParams(std::map<std::string, std::string> &params) const override
     {
@@ -40,15 +41,19 @@ namespace astro
 
     virtual std::map<std::string, std::string>& setSaveParams(std::map<std::string, std::string> &params) override
     {
-      std::string saveName = params["savedName"];
-      if(saveName.empty())
-        {
-          mWidget.get().fromSaveString(params["date"]);
-          mWidget.setSaved(mWidget.get());
-        }
-      else
-        { mWidget.load(saveName); }
-      mLiveMode = (params["live"] != "0");
+      auto iter = params.find("savedName");
+      std::string saveName = ((iter != params.end()) ? iter->second : "");
+      if(!saveName.empty()) { mWidget.load(saveName); mWidget.setName(saveName); }
+      else { std::cout << "WARNING: Saved name empty!\n"; }
+
+      iter = params.find("date");
+      if(iter != params.end())
+        { mWidget.get().fromSaveString(iter->second); }
+      else { std::cout << "WARNING: Could not find 'date' param!\n"; }
+      
+      iter = params.find("live");
+      if(iter != params.end()) { mLiveMode = (iter->second != "0"); }
+      else { std::cout << "WARNING: Could not find 'live' param!\n"; }
       return params;
     };
     
@@ -99,32 +104,54 @@ namespace astro
     double mSpeed  = 1.0;    // in days per real second
     int mUnitIndex = 2;      // (default: hours)
     
-    virtual bool onDraw() override;
+    virtual void onUpdate() override;
+    virtual void onDraw() override;
     
     virtual std::map<std::string, std::string>& getSaveParams(std::map<std::string, std::string> &params) const override
     {
       params.emplace("startSavedName", mStartWidget.getName());
       params.emplace("startDate",      mStartWidget.get().toSaveString());
-      params.emplace("endSavedName", mEndWidget.getName());
-      params.emplace("endDate",      mEndWidget.get().toSaveString());
-      params.emplace("currentDate",  mDate.toSaveString());
+      params.emplace("endSavedName",   mEndWidget.getName());
+      params.emplace("endDate",        mEndWidget.get().toSaveString());
+      params.emplace("currentDate",    mDate.toSaveString());
+      params.emplace("speed",          std::to_string(mSpeed));
+      params.emplace("unit",           std::to_string(mUnitIndex));
       return params;
     };
 
     virtual std::map<std::string, std::string>& setSaveParams(std::map<std::string, std::string> &params) override
     {
       // start date
-      mStartWidget.get().fromSaveString(params["startDate"]);
+      auto iter = params.find("startDate");
+      if(iter != params.end()) { mStartWidget.get().fromSaveString(iter->second); }
       mStartWidget.setSaved(mStartWidget.get());
-      std::string saveName = params["startSavedName"];
-      mStartWidget.load(saveName);
-      mStartWidget.setName(saveName);
+      
+      iter = params.find("startSavedName");
+      if(iter != params.end())
+        {
+          mStartWidget.load(iter->second);
+          mStartWidget.setName(iter->second);
+        }
       // end date
-      saveName = params["endSavedName"];
-      mEndWidget.load(saveName);
-      mEndWidget.setName(saveName);
+      iter = params.find("endDate");
+      if(iter != params.end()) { mEndWidget.get().fromSaveString(iter->second); }
+      mEndWidget.setSaved(mEndWidget.get());
+      
+      iter = params.find("endSavedName");
+      if(iter != params.end())
+        {
+          mEndWidget.load(iter->second);
+          mEndWidget.setName(iter->second);
+        }
       // current date
-      mDate.fromSaveString(params["currentDate"]);
+      iter = params.find("currentDate");
+      if(iter != params.end()) { mDate.fromSaveString(iter->second); }
+      
+      // speed
+      iter = params.find("speed");
+      if(iter != params.end()) { std::stringstream ss(iter->second); ss >> mSpeed; }
+      iter = params.find("unit");
+      if(iter != params.end()) { std::stringstream ss(iter->second); ss >> mUnitIndex; }
       return params;
     };
     

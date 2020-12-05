@@ -2,11 +2,9 @@
 using namespace astro;
 
 #include <fstream>
-#include <experimental/filesystem>
-namespace fs = std::experimental::filesystem;
-
 #include "imgui.h"
 
+#include "tools.hpp"
 
 LocationWidget::LocationWidget()
 { }
@@ -14,7 +12,7 @@ LocationWidget::LocationWidget(const Location &loc)
   : mLocation(loc) { mLocation.fix(); }
 
 LocationWidget::LocationWidget(const LocationWidget &other)
-  : mLocation(other.mLocation), mSavedLocation(other.mSavedLocation)//, mDST(other.mDST)
+  : mLocation(other.mLocation), mSavedLocation(other.mSavedLocation)
 {
   sprintf(mName, "%s", other.mName);
   sprintf(mSavedName, "%s", other.mSavedName);
@@ -26,25 +24,29 @@ LocationWidget& LocationWidget::operator=(const LocationWidget &other)
   mSavedLocation = other.mSavedLocation;
   sprintf(mName, "%s", other.mName);
   sprintf(mSavedName, "%s", other.mSavedName);
-  //mDST = other.mDST;
   return *this;
+}
+
+bool LocationWidget::saveDirCheck()
+{
+  if(!directoryExists(LOCATION_SAVE_DIR)) // fs::exists(LOCATION_SAVE_DIR))
+    { // make sure save directory exists
+      std::cout << "Creating save directory (" << LOCATION_SAVE_DIR << ")...\n";
+      if(!makeDirectory(LOCATION_SAVE_DIR)) // fs::create_directory(LOCATION_SAVE_DIR))
+        { std::cout << "ERROR: Could not create location save directory.\n"; return false; }
+    }
+  return true;
 }
 
 bool LocationWidget::save(const std::string &name)
 {
-  if(!fs::exists(LOCATION_SAVE_DIR))
-    { // make sure save directory exists
-      std::cout << "Creating save directory (" << LOCATION_SAVE_DIR << ")...\n";
-      if(!fs::create_directory(LOCATION_SAVE_DIR))
-        { std::cout << "ERROR: Could not create location save directory.\n"; return false; }
-    }
-  if(name.empty())
-    { std::cout << "LocationWidget::save() --> Please enter a name!\n"; return false; }
+  if(!saveDirCheck()) { std::cout << "ERROR: Could not create location save directory.\n"; return false; }
+  if(name.empty())    { std::cout << "LocationWidget::save() --> Please enter a name!\n";  return false; }
 
   // read saved locations
   std::vector<LocationSave> data;
   bool update = false; // if true, updating saved location
-  if(fs::exists(LOCATION_SAVE_PATH) && fs::is_regular_file(LOCATION_SAVE_PATH))
+  if(fileExists(LOCATION_SAVE_PATH)) // fs::exists(LOCATION_SAVE_PATH) && fs::is_regular_file(LOCATION_SAVE_PATH))
     {
       std::ifstream locationFile(LOCATION_SAVE_PATH, std::ifstream::in);
       std::string line  = "";
@@ -53,33 +55,27 @@ bool LocationWidget::save(const std::string &name)
           Location loc;
           std::string n = popName(line);
           loc.fromSaveString(line);
-          if(n == name)
-            { data.push_back({n, mLocation}); update = true; }
-          else
-            { data.push_back({n, loc}); }
+          if(n == name) { data.push_back({n, mLocation}); update = true; }
+          else          { data.push_back({n, loc}); }
         }
     }
-
-  if(!update)
-    { // append new location
-      data.push_back({name, mLocation});
-    }
   
+  if(!update) // append new location
+    { data.push_back({name, mLocation}); }
   // write location to file
   std::ofstream locationFile(LOCATION_SAVE_PATH, std::ios::out);
   for(int i = 0; i < data.size(); i++)
     { locationFile << std::quoted(data[i].name) << " " << data[i].location.toSaveString() << "\n"; }
-
   mSavedLocation = mLocation;
   return true;
 }
 
 bool LocationWidget::load(const std::string &name)
 {
-  if(!fs::exists(LOCATION_SAVE_DIR)) { return false; }
+  if(!saveDirCheck()) { std::cout << "ERROR: Could not create location save directory.\n"; return false; }
   
   // read saved locations
-  if(fs::exists(LOCATION_SAVE_PATH) && fs::is_regular_file(LOCATION_SAVE_PATH))
+  if(fileExists(LOCATION_SAVE_PATH)) //fs::exists(LOCATION_SAVE_PATH) && fs::is_regular_file(LOCATION_SAVE_PATH))
     {
       std::ifstream locationFile(LOCATION_SAVE_PATH, std::ifstream::in);
       std::string line  = "";
@@ -102,19 +98,13 @@ bool LocationWidget::load(const std::string &name)
 
 bool LocationWidget::remove(const std::string &name)
 {
-  if(!fs::exists(LOCATION_SAVE_DIR))
-    { // make sure save directory exists
-      std::cout << "Creating save directory (" << LOCATION_SAVE_DIR << ")...\n";
-      if(!fs::create_directory(LOCATION_SAVE_DIR))
-        { std::cout << "ERROR: Could not create location save directory.\n"; return false; }
-    }
-  if(name.empty())
-    { std::cout << "LocationWidget::remove() --> Empty name!\n"; return false; }
+  if(!saveDirCheck()) { std::cout << "ERROR: Could not create location save directory.\n"; return false; }
+  if(name.empty())    { std::cout << "LocationWidget::remove() --> Empty name!\n"; return false; }
 
   // read saved locations
   std::vector<LocationSave> data;
   bool found = false; // if true, updating saved location
-  if(fs::exists(LOCATION_SAVE_PATH) && fs::is_regular_file(LOCATION_SAVE_PATH))
+  if(fileExists(LOCATION_SAVE_PATH)) // fs::exists(LOCATION_SAVE_PATH) && fs::is_regular_file(LOCATION_SAVE_PATH))
     {
       std::ifstream locationFile(LOCATION_SAVE_PATH, std::ifstream::in);
       std::string line  = "";
@@ -123,28 +113,24 @@ bool LocationWidget::remove(const std::string &name)
           Location loc;
           std::string n = popName(line);
           loc.fromSaveString(line);
-          if(n == name) // remove by skipping
-            { found = true; }
-          else
-            { data.push_back({n, loc}); }
+          if(n == name) { found = true; } // remove by skipping
+          else          { data.push_back({n, loc}); }
         }
     }
   
   // write location to file
   std::ofstream locationFile(LOCATION_SAVE_PATH, std::ios::out);
-  for(auto d : data)
-    { locationFile << std::quoted(d.name) << " " << d.location.toSaveString() << "\n"; }
-
+  for(auto d : data) { locationFile << std::quoted(d.name) << " " << d.location.toSaveString() << "\n"; }
   return true;
 }
 
 std::vector<LocationSave> LocationWidget::loadAll()
 {
-  if(!fs::exists(LOCATION_SAVE_DIR)) { return {}; }
+  if(!saveDirCheck()) { std::cout << "ERROR: Could not create location save directory.\n"; return {}; }
   
   // read all saved locations
   std::vector<LocationSave> data;
-  if(fs::exists(LOCATION_SAVE_PATH) && fs::is_regular_file(LOCATION_SAVE_PATH))
+  if(fileExists(LOCATION_SAVE_PATH)) // fs::exists(LOCATION_SAVE_PATH) && fs::is_regular_file(LOCATION_SAVE_PATH))
     {
       std::ifstream locationFile(LOCATION_SAVE_PATH, std::ifstream::in);
       std::string line  = "";
@@ -159,7 +145,12 @@ std::vector<LocationSave> LocationWidget::loadAll()
   return data;
 }
 
-void LocationWidget::draw(float scale)
+void LocationWidget::update()
+{
+  
+}
+
+void LocationWidget::draw(float scale, bool blocked)
 {
   mLocation.fix();
   ImGui::BeginGroup();
@@ -213,13 +204,13 @@ void LocationWidget::draw(float scale)
     
     // load button
     ImGui::Button("Load##loc");
-    if(ImGui::BeginPopupContextItem("loadPopup", ImGuiMouseButton_Left))
+    if(!blocked && ImGui::BeginPopupContextItem("loadPopup", ImGuiMouseButton_Left))
       {
         std::vector<LocationSave> loaded = loadAll();
         for(auto &loc : loaded)
           {
             if(ImGui::MenuItem(loc.name.c_str()))
-             { 
+              { 
                 sprintf(mName, "%s", loc.name.c_str());
                 mLocation = loc.location;
                 mSavedLocation = loc.location;
@@ -234,7 +225,7 @@ void LocationWidget::draw(float scale)
     ImGui::Button("Save##loc");
     
     // save menu
-    if(ImGui::BeginPopupContextItem("savePopup", ImGuiMouseButton_Left))
+    if(!blocked && ImGui::BeginPopupContextItem("savePopup", ImGuiMouseButton_Left))
       {
         // text input for new save
         ImGui::Text("New");
@@ -303,13 +294,13 @@ void LocationWidget::draw(float scale)
     ImGui::Spacing();
     
     // time zone
-    double utcOffset = mLocation.utcOffset;// + (mDST ? 1 : 0);
+    double utcOffset = mLocation.utcOffset;
     std::string offsetStr = (std::string("(UTC")+(utcOffset >= 0.0 ? "+" : "")+to_string(utcOffset, 1)+")");
     ImGui::TextColored(Vec4f(1.0f, 1.0f, 1.0f, 0.25f), "%s", (mLocation.timezoneId.empty() ? "n/a" : mLocation.timezoneId).c_str());
     ImGui::SameLine(); ImGui::TextColored(Vec4f(1.0f, 1.0f, 1.0f, 0.25f), "%s", offsetStr.c_str());
     // update (NOTE: use springly for now --> ~2500 free queries per username per day)
     if(ImGui::Button("Update")) { mLocation.updateTimezone(); }
-    ImGui::Spacing();
+    // ImGui::Spacing();
   }
   ImGui::EndGroup();
   mLocation.fix();

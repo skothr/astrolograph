@@ -26,12 +26,22 @@ namespace astro
     std::vector<bool> mAspVisible;
     std::vector<double> mAspOrbs;
     
-    virtual bool onDraw() override;
+    virtual void onUpdate() override;
+    virtual void onDraw() override;
     
     virtual std::map<std::string, std::string>& getSaveParams(std::map<std::string, std::string> &params) const override
     {
       params.emplace("listOpen", (mListOpen ? "1" : "0"));
       params.emplace("orbsOpen", (mOrbsOpen ? "1" : "0"));
+      std::string visStr;
+      std::string orbStr;
+      for(int a = 0; a < ASPECT_COUNT; a++) // start with all aspects visible
+        {
+          visStr.append(mAspVisible[a] ? "1" : "0");
+          orbStr.append(to_string(mAspOrbs[a], 6) + ((a != ASPECT_COUNT-1) ? "|" : ""));
+        }
+      params.emplace("aspVisible", visStr);
+      params.emplace("aspOrbs", orbStr);
       return params;
     };
     
@@ -39,6 +49,26 @@ namespace astro
     {
       auto iter = params.find("listOpen"); if(iter != params.end()) { mListOpen = (iter->second != "0"); }
       iter = params.find("orbsOpen"); if(iter != params.end()) { mOrbsOpen = (iter->second != "0"); }
+      
+      iter = params.find("aspVisible");
+      if(iter != params.end())
+        {
+          for(int a = 0; a < ASPECT_COUNT; a++) // start with all aspects visible
+            { mAspVisible[a] = (iter->second[a] != '0'); }
+        }
+      iter = params.find("aspOrbs");
+      if(iter != params.end())
+        {
+          // for(int a = 0; a < ASPECT_COUNT; a++) // start with all aspects visible
+          int a = 0;
+          std::string orbStr;
+          std::stringstream ss(iter->second);
+          while(std::getline(ss, orbStr, '|'))
+            {
+              std::istringstream is(orbStr);
+              is >> mAspOrbs[a++];
+            }
+        }
       return params;
     };
     

@@ -22,7 +22,6 @@ namespace astro
     static std::vector<ConnectorBase*> CONNECTOR_OUTPUTS() { return {}; }
 
     ChartView mView;
-    
     ChartCompare *mCompare = nullptr;
 
     DateTime mDateOuter;
@@ -30,9 +29,25 @@ namespace astro
     Location mLocOuter;
     Location mLocInner;
     
+    ChartParams mParams;
     float mChartWidth = CHART_SIZE_DEFAULT;
 
-    virtual bool onDraw() override;
+    // date modify flags (not saved)
+    bool mEditYear   = false; // toggled with 1 key
+    bool mEditMonth  = false; // toggled with 2 key
+    bool mEditDay    = false; // toggled with 3 key
+    bool mEditHour   = false; // toggled with 4 key
+    bool mEditMinute = false; // toggled with 5 key
+    bool mEditSecond = false; // toggled with 6 key
+    // location modify flags
+    bool mEditLat    = false; // toggled with Q key
+    bool mEditLon    = false; // toggled with W key
+    bool mEditAlt    = false; // toggled with E key
+    
+    void processInput(Chart *chart);
+    
+    virtual void onUpdate() override;
+    virtual void onDraw() override;
     
     virtual std::map<std::string, std::string>& getSaveParams(std::map<std::string, std::string> &params) const override
     {

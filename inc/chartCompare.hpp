@@ -21,7 +21,7 @@ namespace astro
     std::array<bool,   astro::ASPECT_COUNT> mAspectVisible;
     
     // Ephemeris swe;
-    std::vector<Aspect> mAspects; // obj1 --> outer chart, obj2 --> inner chart
+    std::vector<ChartAspect> mAspects; // obj1 --> outer chart, obj2 --> inner chart
     bool mNeedUpdate = true;
     
   public:
@@ -39,8 +39,8 @@ namespace astro
     bool getAspectFocus(astro::AspectType asp)   { return (asp > ASPECT_INVALID && asp < ASPECT_COUNT) ? mAspectFocus[(int)asp]   : false; }
     bool getAspectVisible(astro::AspectType asp) { return (asp > ASPECT_INVALID && asp < ASPECT_COUNT) ? mAspectVisible[(int)asp] : false; }
 
-    std::vector<Aspect>& getAspects()             { return mAspects; }
-    const std::vector<Aspect>& getAspects() const { return mAspects; }
+    std::vector<ChartAspect>& getAspects()             { return mAspects; }
+    const std::vector<ChartAspect>& getAspects() const { return mAspects; }
 
     int aspectCount(AspectType a)
     {
@@ -51,7 +51,7 @@ namespace astro
     }
     
     void update();
-    void calcAspects();
+    std::vector<ChartAspect> calcAspects(const ChartParams &params);
 
     Chart* getOuterChart() { return mChartOuter; }
     Chart* getInnerChart() { return mChartInner; }
@@ -59,7 +59,7 @@ namespace astro
     void setOuterChart(Chart *chart) { mChartOuter = chart; }
     void setInnerChart(Chart *chart) { mChartInner = chart; }
     
-    std::vector<Aspect>& aspects() { return mAspects; }
+    std::vector<ChartAspect>& aspects() { return mAspects; }
   };
   
 }

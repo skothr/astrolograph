@@ -60,15 +60,12 @@ std::string Chart::getInsideDegreeTextLong(int sign, int degree)
 Chart::Chart(const DateTime &dt, const Location &loc)
   : mDate(dt), mLocation(loc)
 {
-  for(int o = OBJ_SUN; o < OBJ_COUNT; o++)
-    { mObjects.push_back(new ChartObject{(ObjType)o, 0.0, true, false}); }
+  for(int o = 0; o < OBJ_END; o++)
+    { mObjects.push_back(new ChartObject{(ObjType)o, 0.0, true, false, false, false}); }
 
-  for(int o = ANGLE_OFFSET; o < ANGLE_END; o++)
-    { mObjects.push_back(new ChartObject{(ObjType)o, 0.0, true, false}); }
-
-  for(int asp = ASPECT_CONJUNCTION; asp < ASPECT_COUNT; asp++)
+  for(int asp = 0; asp < ASPECT_COUNT; asp++)
     {
-      mAspectOrbs[asp]    = getAspect((AspectType)asp)->orb;
+      mAspectOrbs[asp]    = getAspectInfo((AspectType)asp)->orb;
       mAspectVisible[asp] = true;
       mAspectFocus[asp]   = false;
     }
@@ -82,8 +79,6 @@ Chart::~Chart()
 {
   for(auto obj : mObjects) { delete obj; }
   mObjects.clear();
-  // for(auto asp : mAspects) { delete asp; }
-  // mApects.clear();
 }
 
 void Chart::setDate(const DateTime &dt)
@@ -99,7 +94,7 @@ void Chart::setDate(const DateTime &dt)
 
 void Chart::setLocation(const Location &loc)
 {
-  if(!loc.valid()) { std::cout << "WARNING: Chart::setLocation --> Invalid location: " << loc << "\n"; }  
+  if(!loc.valid()) { std::cout << "WARNING: Chart::setLocation --> Invalid location: " << loc << "\n"; }
   if(loc != mLocation)
     {
       mLocation = loc;
@@ -116,65 +111,39 @@ int Chart::aspectCount(AspectType a)
   return count;
 }
 
-void Chart::calcAspects()
+std::vector<ChartAspect> Chart::calcAspects(const ChartParams &params)
 {
   mAspects.clear();
-  for(int o1 = OBJ_SUN; o1 < OBJ_COUNT; o1++)
+  for(int o1 = 0; o1 < OBJ_END; o1++)
     {
-      int i1 = o1-OBJ_SUN;
-      double angle1 = mObjects[o1-OBJ_SUN]->angle;
+      if(!params.objVisible[o1]) { continue; } // skip if switched off
+      double angle1 = mObjects[o1]->angle;
       std::string name1 = getObjName((ObjType)o1);
 
-      for(int o2 = OBJ_SUN; o2 < OBJ_COUNT; o2++)
+      for(int o2 = o1+1; o2 < OBJ_END; o2++)
         {
-          if(o1 >= o2) { continue; } // skip duplicates
-          int i2 = o2-OBJ_SUN;
-          
-          double angle2 = mObjects[o2-OBJ_SUN]->angle;
+          if(!params.objVisible[o2]) { continue; } // skip if switched off
+          double angle2 = mObjects[o2]->angle;
           std::string name2 = getObjName((ObjType)o2);
-          
           double diff = angleDiffDegrees(angle1, angle2);
-          
           for(auto &iter : ASPECTS)
             {
+              if(!params.aspVisible[iter.second.type]) { continue; } // skip if switched off
               double aDiff = angleDiffDegrees(diff, iter.second.angle);
-              double orb = mAspectOrbs[(int)iter.second.type];
+              double orb = std::min(params.aspOrbs[(int)iter.second.type], std::min(params.objOrbs[o1], params.objOrbs[o2]));
               if(std::abs(aDiff) <= orb)
                 {
                   // sort aspects from strongest to weakest
                   double strength = 1.0 - (std::abs(aDiff) / orb);
-                  mAspects.emplace_back(mObjects[i1], mObjects[i2], iter.second.type, aDiff, strength);
+                  mAspects.emplace_back(mObjects[o1], mObjects[o2], iter.second.type, aDiff, strength);
                 }
             }
         }
-      //if(mAngleAspects)
-      {
-        for(int o2 = ANGLE_OFFSET; o2 < ANGLE_END; o2++)
-          {
-            if(o1 >= o2) { continue; } // skip duplicates
-            int i2 = OBJ_COUNT + o2-ANGLE_OFFSET;
-              
-            double angle2 = mObjects[o2-ANGLE_OFFSET+OBJ_COUNT]->angle;
-            std::string name2 = getObjName((ObjType)o2);
-            double diff = angleDiffDegrees(angle1, angle2);
-            for(auto &iter : ASPECTS)
-              {
-                double aDiff = angleDiffDegrees(diff, iter.second.angle);
-                double orb = mAspectOrbs[(int)iter.second.type];
-                if(std::abs(aDiff) <= orb)
-                  {
-                    // sort aspects from strongest to weakest
-                    double strength = 1.0 - (std::abs(aDiff) / orb);
-                    mAspects.emplace_back(mObjects[i1], mObjects[i2], iter.second.type, aDiff, strength);
-                  }
-              }
-          }
-      }
     }
 
   // sort aspects by orb (reverse?)
   std::sort(mAspects.begin(), mAspects.end(),
-            [](const Aspect &a, const Aspect &b) -> bool
+            [](const ChartAspect &a, const ChartAspect &b) -> bool
             {
               if(std::abs(a.orb - b.orb) < 0.001)
                 { // differentiate by aspect type, then object types
@@ -186,12 +155,9 @@ void Chart::calcAspects()
               else // return smaller orb
                 { return (a.orb < b.orb); }
             } ); // sort by orb (ascending)
-
+  
+  return mAspects;
 }
-
-// // convert longitude(degrees) to angle on screen (radians) based on chart orientation
-// float Chart::screenAngle(float longitude)
-// { return M_PI/180.0f * (longitude - (mAlignAsc ? mSwe.getDsc() : 0.0f)); }
 
 void Chart::update()
 {
@@ -200,18 +166,24 @@ void Chart::update()
       // update chart info (via Swiss Ephemeris wrapper)
       mLocation.fix();
       mDate.fix();
+      // DateTime minDate = mDate;
+      // minDate.setYear(-8000); minDate.setMonth(1); minDate.setDay(1); minDate.setHour(0); minDate.setMinute(0); minDate.setSecond(0.0); minDate.fix();
+      // if(mDate < DateTime()) { mDate = minDate; }
+      //std::cout << mDate.year() << "\n";
       mSwe.setLocation(mLocation);
       mSwe.setDate(mDate);
-      mSwe.setHouseSystem(mHouseSystem);
       mSwe.setSidereal(mZodiac == ZODIAC_SIDEREAL);
       mSwe.setTruePos(mTruePos);
-      mSwe.calcHouses();
+      mSwe.calcHouses(mHouseSystem);
+
+      for(int hi = 0; hi < 12; hi++) // get house cusps
+        { mHouseCusps[hi] = mSwe.getHouseCusp(hi+1); }
       
       mObjectData.clear();
       for(int i = 0; i < mObjects.size(); i++)
         { // calc objects
-          ObjType o = (ObjType)(OBJ_SUN + i);
-          if(o >= OBJ_COUNT) { o = (ObjType)(o-OBJ_COUNT+ANGLE_OFFSET); } // correct for angles
+          ObjType o = (ObjType)i;//(ObjType)(OBJ_SUN + i);
+          //if(o >= OBJ_COUNT) { o = (ObjType)(o-OBJ_COUNT+ANGLE_OFFSET); } // correct for angles
           ChartObject *obj = mObjects[i];
           mObjectData.push_back(mSwe.getObjData((ObjType)o));
           obj->valid = mObjectData.back().valid;
@@ -222,11 +194,13 @@ void Chart::update()
       if(mZodiac == ZODIAC_DRACONIC)
         { // set aries 0-degrees to true node 
           double nnAngle = mObjects[OBJ_NORTHNODE]->angle;
-          for(auto obj : mObjects)
+          for(auto obj : mObjects)        // orient object positions
             { obj->angle =  fmod(obj->angle - nnAngle + 360.0, 360.0); }
+          for(int hi = 0; hi < 12; hi++) // orient houses
+            { mHouseCusps[hi] = fmod(mHouseCusps[hi] - nnAngle + 360.0, 360.0); }
         }
       
-      calcAspects();
+      //calcAspects();
       mNeedUpdate = false;
     }
 }
@@ -242,10 +216,10 @@ double Chart::getSingleAngle(ObjType obj)
       mDate.fix();
       mSwe.setLocation(mLocation);
       mSwe.setDate(mDate);
-      mSwe.setHouseSystem(mHouseSystem);
       mSwe.setSidereal(mZodiac == ZODIAC_SIDEREAL);
       mSwe.setTruePos(mTruePos);
-      mSwe.calcHouses();
+      
+      if(obj >= ANGLE_OFFSET) { mSwe.calcHouses(mHouseSystem); }
       
       double angle = mSwe.getObjData(obj).longitude;
       if(mZodiac == ZODIAC_DRACONIC) // set aries 0-degrees to true node
@@ -255,29 +229,74 @@ double Chart::getSingleAngle(ObjType obj)
     }
 }
 
+ChartAspect Chart::getAspect(ObjType obj1, ObjType obj2)
+{
+  // TODO: check if need update?
+  int i1 = obj1;//-OBJ_SUN;
+  int i2 = obj2;//-OBJ_SUN;
+  
+  double angle1 = mObjects[obj1]->angle;
+  double angle2 = mObjects[obj2]->angle;
+  double diff = angleDiffDegrees(angle1, angle2);
+  for(auto &iter : ASPECTS)
+    {
+      double aDiff = angleDiffDegrees(diff, iter.second.angle);
+      double orb = mAspectOrbs[(int)iter.second.type];
+      if(std::abs(aDiff) <= orb)
+        {
+          // aspects sorted from strongest to weakest
+          double strength = 1.0 - (std::abs(aDiff) / orb);
+          return ChartAspect(mObjects[i1], mObjects[i2], iter.second.type, aDiff, strength);
+        }
+    }
+  return ChartAspect(); // (valid = false)
+}
+
+double Chart::getHouseCusp(int house) const
+{ return mHouseCusps[house-1]; }
+double Chart::getSignCusp(int sign) const // (aries = 0)
+{ return ((sign >= 0 && sign < 12) ? sign*30.0 : -1.0); }
+double Chart::getSignCusp(const std::string &name) const
+{ return getSignCusp(getSignIndex(name)); }
+
+// return index of the sign containing the given ecliptic angle
+int Chart::getSign(double longitude) const
+{ return (int)std::floor(fmod(longitude, 360.0)/30.0); }
+// return number of the house containing the given ecliptic angle
+int Chart::getHouse(double longitude) const
+{
+  for(int i = 1; i <= 12; i++)
+    {
+      int ni = (i == 12 ? 1 : i+1);
+      double h1 = getHouseCusp(i);
+      double h2 = getHouseCusp(ni);
+      if(anglesContainDegrees(h1, h2, longitude)) { return i; }
+    }
+  return -1;
+}
 
 void Chart::setAspectOrb(AspectType asp, double orb)
 {
   if(asp > ASPECT_INVALID && asp < ASPECT_COUNT)
     {
+      mNeedUpdate |= (mAspectOrbs[(int)asp] != orb);
       mAspectOrbs[(int)asp] = orb;
-      mNeedUpdate = true;
     }
 }
 void Chart::setAspectFocus(AspectType asp, bool focus)
 {
   if(asp > ASPECT_INVALID && asp < ASPECT_COUNT)
     {
+      mNeedUpdate = (mAspectFocus[(int)asp] != focus);
       mAspectFocus[(int)asp] = focus;
-      mNeedUpdate = true;
     }
 }
 void Chart::setAspectVisible(AspectType asp, bool visible)
 {
   if(asp > ASPECT_INVALID && asp < ASPECT_COUNT)
     {
+      mNeedUpdate = (mAspectVisible[(int)asp] != visible);
       mAspectVisible[(int)asp] = visible;
-      mNeedUpdate = true;
     }
 }
 double Chart::getAspectOrb(AspectType asp)

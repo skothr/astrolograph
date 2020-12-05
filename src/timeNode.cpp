@@ -18,16 +18,8 @@ TimeNode::TimeNode(const DateTime &dt)
   outputs()[TIMENODE_OUTPUT_DATE]->set(&mWidget.get());
 }
 
-bool TimeNode::onDraw()
+void TimeNode::onUpdate()
 {
-  float scale = mGraph->getScale();
-  
-  // if(outputs()[TIMENODE_OUTPUT_DATE]->needsReset())
-  //   {
-  //     mWidget.set(mWidget.getSaved());
-  //     outputs()[TIMENODE_OUTPUT_DATE]->setReset(false);
-  //   }
-
   DateTime  dt    = mWidget.get();    
   Location *locIn = inputs()[TIMENODE_INPUT_LOCATION]->get<Location>();
   if(locIn)
@@ -35,6 +27,18 @@ bool TimeNode::onDraw()
       double offset = locIn->getTimezoneOffset(dt); // (sets utcOffset and dstOffset)
       mWidget.set(dt);
     }
+  
+  if(mLiveMode)
+    {
+      mWidget.set(DateTime::now());
+      mWidget.setName("");
+    }
+}
+
+void TimeNode::onDraw()
+{
+  float scale = mGraph->getScale();
+  DateTime dt = mWidget.get();
 
   ImGui::BeginGroup();
   ImGui::TextUnformatted(dt.toString(true, false).c_str());
@@ -48,19 +52,13 @@ bool TimeNode::onDraw()
       ImGui::SameLine();
     }
   else
-    {
-      ImGui::SameLine(276*scale);
-    }
+    { ImGui::SameLine(276*scale); }
+  
   if(ImGui::Button(mLiveMode ? "PAUSE" : "LIVE"))
     { mLiveMode = !mLiveMode; }
   
-  if(mLiveMode) { mWidget.set(DateTime::now()); mWidget.setName(""); }
-  else          { mWidget.draw("", scale); }
-    
-  return true;
+  if(!mLiveMode) { mWidget.draw("", scale, isBlocked()); }
 }
-
-
 
 
 const std::vector<std::string> TimeSpanNode::SPEED_UNITS = {{"secs", "mins", "hours", "days", "years"}};
@@ -78,7 +76,49 @@ TimeSpanNode::TimeSpanNode(const DateTime &dtStart, const DateTime &dtEnd)
   outputs()[TIMESPANNODE_OUTPUT_DATE]->set(&mDate);
 }
 
-bool TimeSpanNode::onDraw()
+void TimeSpanNode::onUpdate()
+{
+  bool startConnected = false;
+  bool endConnected = false;
+  DateTime dtStart = mStartWidget.get();
+  DateTime dtEnd   = mEndWidget.get();
+  if(inputs()[TIMESPANNODE_INPUT_STARTDATE]->get<DateTime>())
+    {
+      startConnected = true;
+      dtStart = *inputs()[TIMESPANNODE_INPUT_STARTDATE]->get<DateTime>();
+    }
+  if(inputs()[TIMESPANNODE_INPUT_ENDDATE]->get<DateTime>())
+    {
+      endConnected = true;
+      dtEnd = *inputs()[TIMESPANNODE_INPUT_ENDDATE]->get<DateTime>();
+    }
+  
+  if(mPlay)
+    { // step date
+      auto tNow = TICK_CLOCK::now();
+      auto tDiff = std::chrono::duration_cast<std::chrono::microseconds>(tNow - mTLast);
+      double dt = (double)tDiff.count() / 1000000.0; // time since last frame in seconds
+      
+      double speedSeconds = mSpeed * SPEED_MULTS[mUnitIndex]; // convert speed from days/realSecond to seconds/realSecond
+      mDate.setSecond(mDate.second() + speedSeconds*dt);
+      mDate.fix();
+      mTLast = tNow;
+    }
+  // clamp date to range
+  if(mDate >= dtEnd)
+    {
+      mDate = dtEnd;
+      if(mSpeed > 0.0) { mPlay = false; }
+    }
+  else if(mDate <= dtStart)
+    {
+      mDate = dtStart;
+      if(mSpeed < 0.0) { mPlay = false; }
+    }
+
+}
+
+void TimeSpanNode::onDraw()
 {
   float scale = mGraph->getScale();
   
@@ -150,36 +190,36 @@ bool TimeSpanNode::onDraw()
       mDate  = dtStart;
     }
 
-  if(mPlay)
-    { // step date
-      auto tNow = TICK_CLOCK::now();
-      auto tDiff = std::chrono::duration_cast<std::chrono::microseconds>(tNow - mTLast);
-      double dt = (double)tDiff.count() / 1000000.0; // time since last frame in seconds
+  // if(mPlay)
+  //   { // step date
+  //     auto tNow = TICK_CLOCK::now();
+  //     auto tDiff = std::chrono::duration_cast<std::chrono::microseconds>(tNow - mTLast);
+  //     double dt = (double)tDiff.count() / 1000000.0; // time since last frame in seconds
       
-      double speedSeconds = mSpeed * SPEED_MULTS[mUnitIndex]; // convert speed from days/realSecond to seconds/realSecond
-      mDate.setSecond(mDate.second() + speedSeconds*dt);
-      mDate.fix();
-      mTLast = tNow;
-    }
-  // clamp date to range
-  if(mDate >= dtEnd)
-    {
-      mDate = dtEnd;
-      if(mSpeed > 0.0)
-        { mPlay = false; }
-    }
-  else if(mDate <= dtStart)
-    {
-      mDate = dtStart;
-      if(mSpeed < 0.0)
-        { mPlay = false; }
-    }
+  //     double speedSeconds = mSpeed * SPEED_MULTS[mUnitIndex]; // convert speed from days/realSecond to seconds/realSecond
+  //     mDate.setSecond(mDate.second() + speedSeconds*dt);
+  //     mDate.fix();
+  //     mTLast = tNow;
+  //   }
+  // // clamp date to range
+  // if(mDate >= dtEnd)
+  //   {
+  //     mDate = dtEnd;
+  //     if(mSpeed > 0.0)
+  //       { mPlay = false; }
+  //   }
+  // else if(mDate <= dtStart)
+  //   {
+  //     mDate = dtStart;
+  //     if(mSpeed < 0.0)
+  //       { mPlay = false; }
+  //   }
 
   ImGui::Spacing(); ImGui::Separator(); ImGui::Spacing();
   ImGui::TextUnformatted("Start Date:");
   ImGui::Spacing();
   if(!startConnected)
-    { mStartWidget.draw("start", scale); }
+    { mStartWidget.draw("start", scale, isBlocked()); }
   else
     { ImGui::Text("  %s", dtStart.toString().c_str()); }
   
@@ -187,9 +227,7 @@ bool TimeSpanNode::onDraw()
   ImGui::TextUnformatted("End Date:");
   ImGui::Spacing();
   if(!endConnected)
-    { mEndWidget.draw("end", scale); }
+    { mEndWidget.draw("end", scale, isBlocked()); }
   else
     { ImGui::Text("  %s", dtEnd.toString().c_str()); }
-  
-  return true;
 }
