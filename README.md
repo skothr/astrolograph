@@ -10,6 +10,7 @@ NOTE: This software is still in development and features may be missing/buggy/br
 ### Linux (tested on Ubuntu 18.04)
 * `sudo apt-get update`
 * `sudo apt-get install build-essential cmake libglfw3-dev libglew-dev libcurl4-openssl-dev`
+  *  (for native file dialogs add `libgtk-3-dev`)
 * `./make-release.sh`
   * Alternatively:
     * `mkdir build && cd build && cmake -DCMAKE_BUILD_TYPE=Release ..`

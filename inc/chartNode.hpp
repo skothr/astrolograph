@@ -7,6 +7,9 @@
 
 namespace astro
 {
+  // forward declarations
+  class SettingForm;
+
   //// node connector indices ////
   // inputs
 #define CHARTNODE_INPUT_DATE        0
@@ -25,7 +28,7 @@ namespace astro
     { return {new Connector<Chart>("Chart")}; }
     
     Chart        *mChart = nullptr;
-    SettingsForm *mSettings = nullptr;
+    SettingForm *mSettings = nullptr;
     
     bool mTruePos = false; // 
     std::vector<std::string> mZNames;
@@ -37,32 +40,8 @@ namespace astro
     virtual void onUpdate() override;
     virtual void onDraw() override;
     
-    virtual std::map<std::string, std::string>& getSaveParams(std::map<std::string, std::string> &params) const override
-    {
-      mSettings->getSaveParams(params);
-      if(!inputs()[CHARTNODE_INPUT_DATE]->get<DateTime>())
-        { params.emplace("date", mChart->date().toSaveString()); }
-      if(!inputs()[CHARTNODE_INPUT_LOCATION]->get<Location>())
-        { params.emplace("location", mChart->location().toSaveString()); }
-      return params;
-    };
-    
-    virtual std::map<std::string, std::string>& setSaveParams(std::map<std::string, std::string> &params) override
-    {
-      mSettings->setSaveParams(params);
-      auto iter = params.find("date");   if(iter != params.end()) { mChart->setDate(DateTime(iter->second)); }
-      iter = params.find("location");    if(iter != params.end()) { mChart->setLocation(Location(iter->second)); }
-
-      HouseSystem hs = HOUSE_INVALID;
-      for(auto h : HOUSE_SYSTEM_NAMES)
-        { if(mHsNames[mHouseSystem] == h.second) { hs = h.first; } }
-      mChart->setHouseSystem(hs);
-      mChart->setZodiac((ZodiacType)mZodiac);
-      mChart->setTruePos(mTruePos);
-      mChart->update();
-      return params;
-    };
-    
+    virtual void getSaveParams(std::map<std::string, std::string> &params) const override;
+    virtual void setSaveParams(std::map<std::string, std::string> &params) override;    
   public:
     ChartNode(Chart *chart=nullptr);
     ChartNode(const DateTime &dt, const Location &loc);
@@ -87,13 +66,11 @@ namespace astro
           
           ((ChartNode*)other)->mChart->setHouseSystem(mChart->getHouseSystem());
           ((ChartNode*)other)->mChart->setZodiac(mChart->getZodiac());
-          // ((ChartNode*)other)->mOptionsOpen = mOptionsOpen;
           // (everything else set by connections)
           return true;
         }
       else { return false; }
     }
-
     
     Chart* chart() { return mChart; }
   };

@@ -29,10 +29,10 @@ LocationWidget& LocationWidget::operator=(const LocationWidget &other)
 
 bool LocationWidget::saveDirCheck()
 {
-  if(!directoryExists(LOCATION_SAVE_DIR)) // fs::exists(LOCATION_SAVE_DIR))
+  if(!directoryExists(LOCATION_SAVE_DIR))
     { // make sure save directory exists
       std::cout << "Creating save directory (" << LOCATION_SAVE_DIR << ")...\n";
-      if(!makeDirectory(LOCATION_SAVE_DIR)) // fs::create_directory(LOCATION_SAVE_DIR))
+      if(!makeDirectory(LOCATION_SAVE_DIR))
         { std::cout << "ERROR: Could not create location save directory.\n"; return false; }
     }
   return true;
@@ -46,7 +46,7 @@ bool LocationWidget::save(const std::string &name)
   // read saved locations
   std::vector<LocationSave> data;
   bool update = false; // if true, updating saved location
-  if(fileExists(LOCATION_SAVE_PATH)) // fs::exists(LOCATION_SAVE_PATH) && fs::is_regular_file(LOCATION_SAVE_PATH))
+  if(fileExists(LOCATION_SAVE_PATH))
     {
       std::ifstream locationFile(LOCATION_SAVE_PATH, std::ifstream::in);
       std::string line  = "";
@@ -75,7 +75,7 @@ bool LocationWidget::load(const std::string &name)
   if(!saveDirCheck()) { std::cout << "ERROR: Could not create location save directory.\n"; return false; }
   
   // read saved locations
-  if(fileExists(LOCATION_SAVE_PATH)) //fs::exists(LOCATION_SAVE_PATH) && fs::is_regular_file(LOCATION_SAVE_PATH))
+  if(fileExists(LOCATION_SAVE_PATH))
     {
       std::ifstream locationFile(LOCATION_SAVE_PATH, std::ifstream::in);
       std::string line  = "";
@@ -104,7 +104,7 @@ bool LocationWidget::remove(const std::string &name)
   // read saved locations
   std::vector<LocationSave> data;
   bool found = false; // if true, updating saved location
-  if(fileExists(LOCATION_SAVE_PATH)) // fs::exists(LOCATION_SAVE_PATH) && fs::is_regular_file(LOCATION_SAVE_PATH))
+  if(fileExists(LOCATION_SAVE_PATH))
     {
       std::ifstream locationFile(LOCATION_SAVE_PATH, std::ifstream::in);
       std::string line  = "";
@@ -130,7 +130,7 @@ std::vector<LocationSave> LocationWidget::loadAll()
   
   // read all saved locations
   std::vector<LocationSave> data;
-  if(fileExists(LOCATION_SAVE_PATH)) // fs::exists(LOCATION_SAVE_PATH) && fs::is_regular_file(LOCATION_SAVE_PATH))
+  if(fileExists(LOCATION_SAVE_PATH))
     {
       std::ifstream locationFile(LOCATION_SAVE_PATH, std::ifstream::in);
       std::string line  = "";

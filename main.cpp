@@ -30,11 +30,10 @@
 #define ENABLE_IMGUI_DEMO true
 
 astro::NodeGraph *graph = nullptr;
-bool closing = false; // set to true when program is being closed
-bool saving = false;  // set to true when user saving project before close
-bool noSave = false;  // set to true if unsaved changes should be discarded
-
-
+bool closing        = false; // set to true when program is being closed
+bool escapeDebounce = false; // when program is closing, then false once escape key is released
+bool saving         = false; // set to true when user saving project before close
+bool noSave         = false; // set to true if unsaved changes should be discarded
 
 // GLFW error callback
 void glfw_error_callback(int error, const char* description)
@@ -143,6 +142,11 @@ int main(int argc, char* argv[])
   if(window == NULL) { return 1; }
   glfwMakeContextCurrent(window);
   glfwSwapInterval(0); // Enable vsync
+
+  // set window icon
+  GLFWimage *appIcon = (GLFWimage*)astro::loadImageData("res/icons/app-icon.png");
+  if(appIcon->pixels)
+    { glfwSetWindowIcon(window, 1, appIcon); }
   
   // get screen size
   GLFWmonitor       *monitor = glfwGetPrimaryMonitor();
@@ -172,8 +176,9 @@ int main(int argc, char* argv[])
   //io.ConfigDockingWithShift = true;                      // docking when shift is held
 #endif // ENABLE_IMGUI_DOCKING
   
-  // io.ConfigFlags |= ImGuiConfigFlags_NavEnableKeyboard; // Enable Keyboard Controls
-
+  io.ConfigFlags |= ImGuiConfigFlags_NavEnableKeyboard; // Enable Keyboard Controls (NOTE: enables escape to close popups)
+  ImGui::PushStyleColor(ImGuiCol_NavHighlight, Vec4f(0,0,0,0)); // no keyboard nav highlighting
+  
   // imgui context init
   ImGui_ImplGlfw_InitForOpenGL(window, true);
   ImGui_ImplOpenGL3_Init(glsl_version);
@@ -183,7 +188,7 @@ int main(int argc, char* argv[])
   astro::ViewSettings viewSettings;
   graph = new astro::NodeGraph(&viewSettings);
 
-  astro::NodeList list(graph);
+  astro::NodeList nodeList(graph);
   
   // Our state
   bool showDemo     = false;
@@ -193,39 +198,28 @@ int main(int argc, char* argv[])
   // keyboard shortcut definitions
   const std::vector<KeyShortcut> shortcuts =
     { //// System/Files
-      { GLFW_MOD_CONTROL,                GLFW_KEY_N,      [](){ graph->clear(); } },            // CTRL+N       --> new file
-      { GLFW_MOD_CONTROL,                GLFW_KEY_O,      [](){ graph->openLoadDialog(); } },   // CTRL+O       --> open file
-      { GLFW_MOD_CONTROL,                GLFW_KEY_S,      [](){ graph->openSaveDialog(); } },   // CTRL+S       --> save file
-      { GLFW_MOD_CONTROL|GLFW_MOD_SHIFT, GLFW_KEY_S,      [](){ graph->openSaveAsDialog(); } }, // CTRL+SHIFT+S --> save file as (rename)
-      { GLFW_MOD_CONTROL,                GLFW_KEY_ESCAPE, [](){ closing = true; } },            // CTRL+ALT+Q   --> quit program
-      { GLFW_MOD_ALT,                    GLFW_KEY_V,      [&viewSettings](){ viewSettings.toggleWindow(); } },    // CTRL+ALT+V --> toggle view settings
+      { GLFW_MOD_CONTROL,                GLFW_KEY_N,      [](){ graph->clear(); }                           }, // CTRL+N       --> new file
+      { GLFW_MOD_CONTROL,                GLFW_KEY_O,      [](){ graph->openLoadDialog(); }                  }, // CTRL+O       --> open file
+      { GLFW_MOD_CONTROL,                GLFW_KEY_S,      [](){ graph->openSaveDialog(); }                  }, // CTRL+S       --> save file
+      { GLFW_MOD_CONTROL|GLFW_MOD_SHIFT, GLFW_KEY_S,      [](){ graph->openSaveAsDialog(); }                }, // CTRL+SHIFT+S --> save file as (rename)
+      { GLFW_MOD_CONTROL,                GLFW_KEY_ESCAPE, [](){ closing = true; escapeDebounce = true; }    }, // CTRL+ALT+Q   --> quit program
+      { GLFW_MOD_ALT,                    GLFW_KEY_V,      [&viewSettings](){ viewSettings.toggleWindow(); } }, // CTRL+ALT+V   --> toggle view settings
       //// Graph Control
-      { GLFW_MOD_CONTROL, GLFW_KEY_X, [](){ graph->cut(); } },                          // CTRL+X       --> cut
-      { GLFW_MOD_CONTROL, GLFW_KEY_C, [](){ graph->copy(); } },                         // CTRL+C       --> copy
-      { GLFW_MOD_CONTROL, GLFW_KEY_V, [](){ graph->paste(); } },                        // CTRL+V       --> paste
-      { GLFW_MOD_CONTROL, GLFW_KEY_A, [](){ graph->selectAll(); } },                    // CTRL+A       --> select all
-      // //// Node Creation
-      // { 0, GLFW_KEY_T, [](){ graph->addNode("TimeNode",         true); } }, // T --> new Time Node
-      // { 0, GLFW_KEY_S, [](){ graph->addNode("TimeSpanNode",     true); } }, // S --> new Time Span Node
-      // { 0, GLFW_KEY_L, [](){ graph->addNode("LocationNode",     true); } }, // L --> new Location Node
-      // { 0, GLFW_KEY_C, [](){ graph->addNode("ChartNode",        true); } }, // C --> new Chart Node
-      // { 0, GLFW_KEY_P, [](){ graph->addNode("ProgressNode",     true); } }, // P --> new Progress Node
-      // { 0, GLFW_KEY_V, [](){ graph->addNode("ChartViewNode",    true); } }, // V --> new Chart View Node
-      // { 0, GLFW_KEY_X, [](){ graph->addNode("ChartCompareNode", true); } }, // X --> new Chart Compare Node
-      // { 0, GLFW_KEY_D, [](){ graph->addNode("ChartDataNode",    true); } }, // D --> new Chart Data Node
-      // { 0, GLFW_KEY_A, [](){ graph->addNode("AspectNode",       true); } }, // A --> new Aspect Node
-      // { 0, GLFW_KEY_M, [](){ graph->addNode("MoonNode",         true); } }, // M --> new Moon Node
+      { GLFW_MOD_CONTROL, GLFW_KEY_X, [](){ graph->cut(); }       },    // CTRL+X --> cut
+      { GLFW_MOD_CONTROL, GLFW_KEY_C, [](){ graph->copy(); }      },    // CTRL+C --> copy
+      { GLFW_MOD_CONTROL, GLFW_KEY_V, [](){ graph->paste(); }     },    // CTRL+V --> paste
+      { GLFW_MOD_CONTROL, GLFW_KEY_A, [](){ graph->selectAll(); } },    // CTRL+A --> select all
       //// Node Creation
-      { 0, GLFW_KEY_T, [](){ graph->placeNode("TimeNode"); } }, // T --> new Time Node
-      { 0, GLFW_KEY_S, [](){ graph->placeNode("TimeSpanNode"); } }, // S --> new Time Span Node
-      { 0, GLFW_KEY_L, [](){ graph->placeNode("LocationNode"); } }, // L --> new Location Node
-      { 0, GLFW_KEY_C, [](){ graph->placeNode("ChartNode"); } }, // C --> new Chart Node
-      { 0, GLFW_KEY_P, [](){ graph->placeNode("ProgressNode"); } }, // P --> new Progress Node
-      { 0, GLFW_KEY_V, [](){ graph->placeNode("ChartViewNode"); } }, // V --> new Chart View Node
+      { 0, GLFW_KEY_T, [](){ graph->placeNode("TimeNode"); }         }, // T --> new Time Node
+      { 0, GLFW_KEY_S, [](){ graph->placeNode("TimeSpanNode"); }     }, // S --> new Time Span Node
+      { 0, GLFW_KEY_L, [](){ graph->placeNode("LocationNode"); }     }, // L --> new Location Node
+      { 0, GLFW_KEY_C, [](){ graph->placeNode("ChartNode"); }        }, // C --> new Chart Node
+      { 0, GLFW_KEY_P, [](){ graph->placeNode("ProgressNode"); }     }, // P --> new Progress Node
+      { 0, GLFW_KEY_V, [](){ graph->placeNode("ChartViewNode"); }    }, // V --> new Chart View Node
       { 0, GLFW_KEY_X, [](){ graph->placeNode("ChartCompareNode"); } }, // X --> new Chart Compare Node
-      { 0, GLFW_KEY_D, [](){ graph->placeNode("ChartDataNode"); } }, // D --> new Chart Data Node
-      { 0, GLFW_KEY_A, [](){ graph->placeNode("AspectNode"); } }, // A --> new Aspect Node
-      { 0, GLFW_KEY_M, [](){ graph->placeNode("MoonNode"); } }, // M --> new Moon Node
+      { 0, GLFW_KEY_D, [](){ graph->placeNode("ChartDataNode"); }    }, // D --> new Chart Data Node
+      { 0, GLFW_KEY_A, [](){ graph->placeNode("AspectNode"); }       }, // A --> new Aspect Node
+      { 0, GLFW_KEY_M, [](){ graph->placeNode("MoonNode"); }         }, // M --> new Moon Node
       //// Debug
       { GLFW_MOD_ALT, GLFW_KEY_D, [&showDemo](){ showDemo = !showDemo; } }, // ALT+D --> open ImGui demo window
     };
@@ -254,7 +248,7 @@ int main(int argc, char* argv[])
                        (io.KeySuper ? GLFW_MOD_SUPER   : 0));
       for(auto s : shortcuts)
         {
-          if(mods == s.mods && ImGui::IsKeyPressed(s.key))// && !ImGui::GetIO().WantCaptureKeyboard)
+          if(mods == s.mods && ImGui::IsKeyPressed(s.key))// && !ImGui::GetIO().WantCaptureKeyboard) // (?)
             { s.action(); }
         }
       
@@ -301,18 +295,17 @@ int main(int argc, char* argv[])
           if(ImGui::BeginMenu("View"))
             {
               if(ImGui::MenuItem("Settings"))
-                {
-                  viewSettings.openWindow();
-                }
+                { viewSettings.openWindow(); }
               ImGui::EndMenu(); // View
             }
           ImGui::EndMainMenuBar();
         }
       menuBarSize = Vec2f(ImGui::GetItemRectMax()) - Vec2f(ImGui::GetItemRectMin());
-      
+
+      bool settingsOpen       = false; // whether view settings are open
+      bool unsavedChangesOpen = false; // whether popup for closing unsaved changes is open
 
       //// DRAWING ////
-      bool settingsOpen = viewSettings.draw(frameSize);
       ImGuiWindowFlags wFlags = (ImGuiWindowFlags_NoTitleBar        |
                                  ImGuiWindowFlags_NoCollapse        |
                                  ImGuiWindowFlags_NoMove            |
@@ -340,64 +333,74 @@ int main(int argc, char* argv[])
         graph->setSize(Vec2f(frameSize.x - 3*framePadding.x - listWidth, frameSize.y - menuBarSize.y - 2*framePadding.y));
         graph->showIds(showDemo);
         graph->draw();
-
         // graph->update(); // TEMP: currently called in graph->draw().  TODO: separate thread?
         
-        list.setPos(Vec2f(frameSize.x - framePadding.x - listWidth, graphPos.y + framePadding.y));
-        list.setSize(Vec2f(listWidth, frameSize.y - menuBarSize.y - 2*framePadding.y));
-        list.draw();
+        nodeList.setPos(Vec2f(frameSize.x - framePadding.x - listWidth, graphPos.y + framePadding.y));
+        nodeList.setSize(Vec2f(listWidth, frameSize.y - menuBarSize.y - 2*framePadding.y));
+        nodeList.draw();
+
+        settingsOpen = viewSettings.draw(frameSize);
+      
+        // unsaved changes popup (TODO: improve/fix)
+        if(closing && !saving)
+          { unsavedChangesOpen = true; ImGui::OpenPopup("Unsaved Changes"); }
+        if(ImGui::BeginPopupModal("Unsaved Changes", &unsavedChangesOpen, ImGuiWindowFlags_NoMove | ImGuiWindowFlags_NoResize))
+          {
+            // ImGui::SetWindowFocus();
+            if(graph->getSaveName().empty())
+              { ImGui::TextUnformatted("Unsaved project has been modified. Do you want to save?"); }
+            else
+              { ImGui::Text("Project '%s' has been modified. Do you want to save?", graph->getSaveName().c_str()); }
+
+            bool hover = false;
+            ImGui::SetNextItemWidth(50);
+            if(ImGui::Button("Yes"))      // YES -- save before closing
+              {
+                closing = true;
+                saving = true;
+                graph->openSaveDialog();
+                ImGui::CloseCurrentPopup();
+              }
+            hover |= ImGui::IsItemHovered();
+            ImGui::SameLine();
+            ImGui::SetNextItemWidth(50);
+            if(ImGui::Button("No"))       // NO -- close without saving
+              {
+                closing = true;
+                noSave = true;
+                ImGui::CloseCurrentPopup();
+              }
+            hover |= ImGui::IsItemHovered();
+            ImGui::SameLine();
+            ImGui::SetNextItemWidth(50);
+            if(ImGui::Button("Cancel") || // CANCEL/ESCAPE/CLICK OUTSIDE -- don't close
+               (!escapeDebounce && ImGui::IsKeyDown(GLFW_KEY_ESCAPE)) ||
+               (!hover && !ImGui::IsWindowHovered() && ImGui::IsMouseClicked(ImGuiMouseButton_Left)))
+              {
+                closing = false;
+                ImGui::CloseCurrentPopup();
+              }
+            hover |= ImGui::IsItemHovered();
+
+            // update escape debounce
+            if(escapeDebounce && ImGui::IsKeyReleased(GLFW_KEY_ESCAPE)) { escapeDebounce = false; }
+            ImGui::EndPopup();
+          }
+        else
+          { unsavedChangesOpen = false; }
+      
       }
       ImGui::End();
-
-      // unsaved changes popup (TODO: improve/fix)
-      static bool popupOpen = false;
-      if(closing && !saving)
-        { popupOpen = true; ImGui::OpenPopup("Unsaved Changes"); }
-      if(ImGui::BeginPopupModal("Unsaved Changes", &popupOpen, ImGuiWindowFlags_NoMove | ImGuiWindowFlags_NoResize))
-        {
-          // ImGui::SetWindowFocus();
-          if(graph->getSaveName().empty())
-            { ImGui::TextUnformatted("Unsaved project has been modified. Do you want to save?"); }
-          else
-            { ImGui::Text("Project '%s' has been modified. Do you want to save?", graph->getSaveName().c_str()); }
-
-          ImGui::SetNextItemWidth(50);
-          if(ImGui::Button("Yes")) // save first
-            {
-              closing = true;
-              saving = true;
-              graph->openSaveDialog();
-              ImGui::CloseCurrentPopup();
-            }
-          ImGui::SameLine();
-          ImGui::SetNextItemWidth(50);
-          if(ImGui::Button("No")) // close immediately
-            {
-              closing = true;
-              noSave = true;
-              ImGui::CloseCurrentPopup();
-            }
-          ImGui::SameLine();
-          ImGui::SetNextItemWidth(50);
-          if(ImGui::Button("Cancel"))
-            {
-              closing = false;
-              ImGui::CloseCurrentPopup();
-            }
-          ImGui::EndPopup();
-        }
-      else
-        { popupOpen = false; }
-
+      
 #if ENABLE_IMGUI_DEMO
       // show demo window if toggled
       if(showDemo) { ImGui::ShowDemoWindow(&showDemo); }
 #endif
 
-      graph->setLocked(settingsOpen || popupOpen || graph->saveOpen() || graph->loadOpen() || graph->isSaving() || graph->isLoading());
+      graph->setLocked(settingsOpen || unsavedChangesOpen || graph->saveOpen() || graph->loadOpen() || graph->isSaving() || graph->isLoading());
       
       if(closing && saving && graph->unsavedChanges() && !graph->saveOpen()) // save cancelled
-        { } // closing = false; saving = false; }
+        { closing = false; saving = false; noSave = false; }
       else if(closing && (!graph->unsavedChanges() || noSave)) // close window
         { glfwSetWindowShouldClose(window, GLFW_TRUE); }
       
@@ -420,7 +423,10 @@ int main(int argc, char* argv[])
 
   std::cout << "Cleaning...\n";
 
+  ImGui::PopStyleColor(); // ImGuiStyleCol_NavHighlight
+  
   astro::MoonNode::cleanShaders();
+  if(appIcon) { delete appIcon; }
 
   // Cleanup
   ImGui_ImplOpenGL3_Shutdown();

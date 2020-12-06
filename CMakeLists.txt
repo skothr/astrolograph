@@ -53,7 +53,7 @@ add_library(astro STATIC
   src/nodeList.cpp
   src/plotNode.cpp
   src/progressNode.cpp
-  src/settingsForm.cpp
+  src/settingForm.cpp
   src/shapeBuffer.cpp
   src/timeNode.cpp
   src/timeWidget.cpp

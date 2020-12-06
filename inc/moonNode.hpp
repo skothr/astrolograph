@@ -50,10 +50,10 @@ namespace astro
     virtual void onUpdate() override;
     virtual void onDraw() override;
     
-    virtual std::map<std::string, std::string>& getSaveParams(std::map<std::string, std::string> &params) const override
-    { return params; };
-    virtual std::map<std::string, std::string>& setSaveParams(std::map<std::string, std::string> &params) override
-    { return params; };
+    virtual void getSaveParams(std::map<std::string, std::string> &params) const override
+    { };
+    virtual void setSaveParams(std::map<std::string, std::string> &params) override
+    { };
     
   public:
     static bool initShaders();

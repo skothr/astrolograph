@@ -4,7 +4,7 @@
 #include "astro.hpp"
 #include "chart.hpp"
 #include "node.hpp"
-#include "settingsForm.hpp"
+#include "settingForm.hpp"
 
 
 namespace astro
@@ -32,25 +32,23 @@ namespace astro
     virtual void onUpdate() override;
     virtual void onDraw() override;
     
-    virtual std::map<std::string, std::string>& getSaveParams(std::map<std::string, std::string> &params) const override
+    virtual void getSaveParams(std::map<std::string, std::string> &params) const override
     {
       // if(!inputs()[PROGRESSNODE_INPUT_DATE]->get<DateTime>())
       //   { params.emplace("date",     mChart->date().toSaveString()); }
       // if(!inputs()[PROGRESSNODE_INPUT_LOCATION]->get<DateTime>())
       //   { params.emplace("location", mChart->location().toSaveString()); }
-      return params;
     };
     
-    virtual std::map<std::string, std::string>& setSaveParams(std::map<std::string, std::string> &params) override
+    virtual void setSaveParams(std::map<std::string, std::string> &params) override
     {
       // auto iter = params.find("date");
       // if(iter != params.end()) { mChart->setDate(DateTime(iter->second)); }
       // iter = params.find("location");
       // if(iter != params.end()) { mChart->setLocation(Location(iter->second)); }
-      return params;
     };
 
-    SettingsForm mSettings;
+    SettingForm mSettings;
     
   public:
     ProgressNode();

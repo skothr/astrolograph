@@ -35,18 +35,16 @@ namespace astro
     virtual void onUpdate() override;
     virtual void onDraw() override;
     
-    virtual std::map<std::string, std::string>& getSaveParams(std::map<std::string, std::string> &params) const override
+    virtual void getSaveParams(std::map<std::string, std::string> &params) const override
     {
       params.emplace("dayRadius", std::to_string(mDayRadius));
       params.emplace("object",    std::to_string((int)mObjType));
-      return params;
     };
     
-    virtual std::map<std::string, std::string>& setSaveParams(std::map<std::string, std::string> &params) override
+    virtual void setSaveParams(std::map<std::string, std::string> &params) override
     {
       auto iter = params.find("dayRadius"); if(iter != params.end()) { std::stringstream ss(iter->second); ss >> mDayRadius; }
       iter = params.find("object");         if(iter != params.end()) { std::stringstream ss(iter->second); ss >> (int&)mObjType; }
-      return params;
     };
     
   public:

@@ -31,17 +31,16 @@ namespace astro
     virtual void onUpdate() override;
     virtual void onDraw() override;
     
-    virtual std::map<std::string, std::string>& getSaveParams(std::map<std::string, std::string> &params) const override
+    virtual void getSaveParams(std::map<std::string, std::string> &params) const override
     {
       // save object visibility
       std::string showObjs = "";
       for(auto show : mShowObjects)
         { showObjs += (show ? "1" : "0"); }
       params.emplace("showObjs", showObjs);
-      return params;
     };
     
-    virtual std::map<std::string, std::string>& setSaveParams(std::map<std::string, std::string> &params) override
+    virtual void setSaveParams(std::map<std::string, std::string> &params) override
     {
       Chart *chart = inputs()[DATANODE_INPUT_CHART]->get<Chart>();
       auto iter = params.find("showObjs");
@@ -66,7 +65,6 @@ namespace astro
                 }
             }
         }
-      return params;
     };
 
     

@@ -17,8 +17,6 @@ PlotNode::~PlotNode()
 void PlotNode::onUpdate()
 {
   Chart *chart = inputs()[PLOTNODE_INPUT_CHART]->get<Chart>();
-  // DateTime *dtStartIn = inputs()[PLOTNODE_INPUT_STARTDATE]->get<DateTime>();
-  // DateTime *dtEndIn   = inputs()[PLOTNODE_INPUT_ENDDATE]->get<DateTime>();
   if(chart)
     { // TODO: May only need to update data points at start and end, or adjust!
       DateTime dtOrig  = chart->date();

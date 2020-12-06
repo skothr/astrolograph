@@ -3,7 +3,6 @@ using namespace astro;
 
 #include "glfwKeys.hpp"
 #include "imgui.h"
-//#include "imgui_internal.h"
 #include "ImGuiFileBrowser.h"
 using namespace imgui_addons;
 
@@ -12,6 +11,7 @@ using namespace imgui_addons;
 
 #include "geometry.hpp"
 #include "viewSettings.hpp"
+//#include "settingsForm.hpp"
 #include "timeNode.hpp"
 #include "locationNode.hpp"
 #include "chartNode.hpp"
@@ -53,10 +53,10 @@ Node* NodeGraph::makeNode(const std::string &nodeType)
 NodeGraph::NodeGraph(ViewSettings *viewSettings)
   : mViewSettings(viewSettings)
 {
-  if(!directoryExists(mProjectDir)) // fs::exists(mProjectDir))
+  if(!directoryExists(mProjectDir))
     { // make sure project directory exists
       std::cout << "Creating project directory (" << mProjectDir << ")...\n";
-      if(!makeDirectory(mProjectDir)) // fs::create_directory(mProjectDir))
+      if(!makeDirectory(mProjectDir))
         { std::cout << "ERROR: Could not create project directory!\n"; }
     }
   mFileDialog = new ImGuiFileBrowser(mProjectDir);
@@ -76,11 +76,17 @@ NodeGraph::~NodeGraph()
 
 
 /**
- * NODEGRAPH FILE FORMAT:
- *  
- *  NODE [nodeType] [nodeName] [nodeID] [nodePos] [nodeSize(?)] [...]   // rest of line specified for each node subclass
+ * NODEGRAPH FILE FORMAT 0.2:
  *
- *  [...]
+ * VERSION [currentVersion]
+ *
+ * CENTER  [graphCenter]
+ * SCALE   [graphScale]
+ *
+ * NODE { nodeType : "", nodeNode : "", nodeId : "", nodePOs : "", ", bodySize : [], inputsSize : [], outputsSize [],
+ *        param1 : [],
+ *        param2 : [],
+ *        [...]
  *  
  *  // (after all nodes defined)
  *  CONN [nodeID1] [INPUT/OUTPUT] [connectorIndex1] [nodeID2] [INPUT/OUTPUT] [connectorIndex2]   // specifies node connection
@@ -90,9 +96,9 @@ bool NodeGraph::saveToFile(const std::string &path)
 {
   std::ofstream f(path, std::ios::out);
   // save graph center/scale
-  f << "VERSION " << SAVE_FILE_VERSION << "\n";
+  f << "VERSION " << SAVE_FILE_VERSION << "\n\n";
   f << "CENTER " << mGraphCenter << "\n";
-  f << "SCALE "  << mGraphScale  << "\n";
+  f << "SCALE  "  << mGraphScale  << "\n";
   // save nodes
   for(auto n : mNodes)
     {
@@ -125,7 +131,7 @@ bool NodeGraph::saveToFile(const std::string &path)
 
 bool NodeGraph::loadFromFile(const std::string &path)
 {
-  if(fileExists(path)) // fs::exists(path) && fs::is_regular_file(path))
+  if(fileExists(path))
     {
       clear();
       std::ifstream f(path, std::ios::in);
@@ -142,13 +148,13 @@ bool NodeGraph::loadFromFile(const std::string &path)
           std::istringstream ss(line);
           std::string lineType, type, name;
           int id;
-          Vec2f pos;
+          Vec2f pos, size;
           ss >> lineType;
 
           if(lineType == "VERSION" || firstLine)
             { // save file version
               if(lineType == "VERSION") { ss >> version; }
-              std::cout << "= VERSION: " << version << "\n";
+              std::cout << "= Save file version: " << version << "\n";
               if(version != SAVE_FILE_VERSION)
                 { std::cout << "= WARNING: Save file may be out of date! (current version: " << SAVE_FILE_VERSION << ")\n"; }
               std::cout << "=============================================================================================\n";
@@ -165,23 +171,34 @@ bool NodeGraph::loadFromFile(const std::string &path)
               type = saveHeader["nodeType"];
               name = saveHeader["nodeName"];
               pos.fromString(saveHeader["nodePos"]);
+              size.fromString(saveHeader["nodeSize"]);
               ss.str(saveHeader["nodeId"]); ss >> id;
-              
-              std::cout << " --> ADDING NODE '" << name << "': type=" << type << " | id=" << id << " | pos=" << pos << "\n";
+
+              std::string paramString = "";
+              while(std::getline(f, line) && line.find("}") == std::string::npos)
+                { paramString += line + "\n"; } // one line per node param
+
+              std::cout << "============================================================================\n";
+              std::cout << "= NODE\n"
+                        << "============================================================================\n"
+                        << "=   name = " << name << "\n"
+                        << "=   type = " << type << "\n"
+                        << "=   id   = " << id   << "\n"
+                        << "=   pos  = " << pos  << "\n"
+                        << "============================================================================\n";
               Node *newNode = makeNode(type);
               if(newNode)
                 {
-                  newNode->fromSaveString(line);
-                  std::cout << "N" << id << " --> " << newNode->id() << "\n";
+                  newNode->fromSaveString(saveHeader, paramString);
                   newNode->setGraph(this);
                   mNodes.emplace(newNode->id(), newNode);
                 }
               else
-                { std::cout << "ERROR: Could not load Node '" << name << "'!\n"; }
+                { std::cout << "===> ERROR: Could not load Node!\n"; }
+              std::cout << "============================================================================\n";
             }
           else if(lineType == "CON")
             { // load connections
-              for(auto n : mNodes) { std::cout << n.first << " --> " << n.second->id() << "\n"; }
               std::stringstream ss(line);
               std::string temp, io;
               int nId, cId;
@@ -196,8 +213,6 @@ bool NodeGraph::loadFromFile(const std::string &path)
               else
                 { std::cout << "WARNING: Node connector missing! May be an old save file.\n"; continue; }
 
-              std::cout << "SS: '" << ss.str() << "'\n";
-
               while(!ss.eof())
                 { // check if end of line
                   ss >> std::skipws;
@@ -205,8 +220,7 @@ bool NodeGraph::loadFromFile(const std::string &path)
                   // read connection ids
                   int nId2, cId2;
                   ss >> nId2; ss >> cId2;
-                  std::cout << "|  Connecting N" << nId << "[C" << cId << "] --> N" << nId2 << "[C" << cId2 << "] \n";
-                  std::cout << "(" << mNodes[nId]->outputs().size() << "|" << mNodes[nId2]->inputs().size() << ")\n";
+                  std::cout << "==== Connecting N" << nId << "[C" << cId << "] --> N" << nId2 << "[C" << cId2 << "] \n";
                   ConnectorBase *con2 = mNodes[nId2]->inputs()[cId2];
                   // force connection
                   if(!con->connect(con2)) { std::cout << "Failed to connect!\n"; }
@@ -229,7 +243,7 @@ bool NodeGraph::loadFromFile(const std::string &path)
           n.second->setChanged(false);
         }
       mChangedSinceSave = false;
-      std::cout << "=============================================================================================\n";
+      std::cout     << "=============================================================================================\n";
       if(version != SAVE_FILE_VERSION)
         {
           std::cout << "= WARNING: Save file may be out of date! (current version: " << SAVE_FILE_VERSION << ")\n";
@@ -985,7 +999,6 @@ void NodeGraph::draw()
 
   if(mFileDialog->showFileDialog("Save File", ImGuiFileBrowser::DialogMode::SAVE, FILE_DIALOG_SIZE, ".ags"))
     {
-      // fs::path fp = mFileDialog->selected_path;
       std::string path = mFileDialog->selected_path;
       std::string ext = getFileExtension(path);
       if(ext != ".ags")

@@ -21,13 +21,12 @@ namespace astro
     
     LocationWidget mWidget;
     
-    virtual std::map<std::string, std::string>& getSaveParams(std::map<std::string, std::string> &params) const override
+    virtual void getSaveParams(std::map<std::string, std::string> &params) const override
     {
       params.emplace("location",  mWidget.get().toSaveString());
       params.emplace("savedName", mWidget.getName());
-      return params;
     };
-    virtual std::map<std::string, std::string>& setSaveParams(std::map<std::string, std::string> &params) override
+    virtual void setSaveParams(std::map<std::string, std::string> &params) override
     {
       auto iter = params.find("savedName");
       std::string saveName = ((iter != params.end()) ? iter->second : "");
@@ -37,8 +36,6 @@ namespace astro
       iter = params.find("location");
       if(iter != params.end()) { mWidget.get().fromSaveString(iter->second); }
       else { std::cout << "WARNING: Could not find 'location' param!\n"; }
-
-      return params;
     };
     virtual void onUpdate() override;
     virtual void onDraw() override;

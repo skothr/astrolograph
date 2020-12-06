@@ -48,7 +48,7 @@ namespace astro
     virtual void onUpdate() override;
     virtual void onDraw() override;
     
-    virtual std::map<std::string, std::string>& getSaveParams(std::map<std::string, std::string> &params) const override
+    virtual void getSaveParams(std::map<std::string, std::string> &params) const override
     {
       params.emplace("width",       std::to_string(mChartWidth));
       params.emplace("optionsOpen", (mOptionsOpen ? "1" : "0"));
@@ -74,10 +74,9 @@ namespace astro
         }
       params.emplace("aspVisible",  visStr);
       params.emplace("aspOrbs",     orbStr);
-      return params;
     };
     
-    virtual std::map<std::string, std::string>& setSaveParams(std::map<std::string, std::string> &params) override
+    virtual void setSaveParams(std::map<std::string, std::string> &params) override
     {
       auto iter = params.find("width");
       if(iter != params.end()) { std::istringstream(iter->second) >> mChartWidth; }
@@ -131,7 +130,6 @@ namespace astro
               is >> mParams.aspOrbs[i++];
             }
         }
-      return params;
     };
     
   public:

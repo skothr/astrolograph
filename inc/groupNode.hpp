@@ -13,15 +13,14 @@ namespace astro
 
     std::vector<Node*> mContents;
     
-    virtual std::map<std::string, std::string>& getSaveParams(std::map<std::string, std::string> &params) const override
+    virtual void getSaveParams(std::map<std::string, std::string> &params) const override
     {
       // params.emplace("savedName", mWidget.getName());
       // if(mWidget.getName().empty() || mWidget.get() != mWidget.getSaved())
       //   { params.emplace("location",  mWidget.get().toSaveString()); }
       // //params.emplace("dst",  (mWidget.getDST() ? "1" : "0"));
-      return params;
     };
-    virtual std::map<std::string, std::string>& setSaveParams(std::map<std::string, std::string> &params) override
+    virtual void setSaveParams(std::map<std::string, std::string> &params) override
     {
       // std::string saveName = params["savedName"];
       // std::cout << "LOC: " << params["location"] << " | NAME: " << saveName << "\n";
@@ -38,7 +37,6 @@ namespace astro
       //     mWidget.setName(saveName);
       //     mWidget.setSaveName(saveName);
       //   }
-      return params;
     };
     virtual void onUpdate() override;
     virtual void onDraw() override;

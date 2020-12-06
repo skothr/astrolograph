@@ -49,16 +49,14 @@ namespace astro
     virtual void onUpdate() override;
     virtual void onDraw() override;
     
-    virtual std::map<std::string, std::string>& getSaveParams(std::map<std::string, std::string> &params) const override
+    virtual void getSaveParams(std::map<std::string, std::string> &params) const override
     {
       params.emplace("width", std::to_string(mChartWidth));
-      return params;
     };
-    virtual std::map<std::string, std::string>& setSaveParams(std::map<std::string, std::string> &params) override
+    virtual void setSaveParams(std::map<std::string, std::string> &params) override
     {
       std::stringstream ss(params["width"]);
       ss >> mChartWidth;
-      return params;
     };
     
   public:

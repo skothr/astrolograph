@@ -3,7 +3,7 @@ using namespace astro;
 
 #include "imgui.h"
 #include "tools.hpp"
-#include "settingsForm.hpp"
+#include "settingForm.hpp"
 
 ChartNode::ChartNode(Chart *chart)
   : Node(CONNECTOR_INPUTS(), CONNECTOR_OUTPUTS(), "Chart Node"), mChart(chart)
@@ -11,9 +11,7 @@ ChartNode::ChartNode(Chart *chart)
   for(auto hs : HOUSE_SYSTEM_NAMES)     { mHsNames.push_back(hs.second); if(hs.first == HOUSE_PLACIDUS) { mHouseSystem = mHsNames.size()-1; } }
   for(int i = 0; i < ZODIAC_COUNT; i++) { mZNames.push_back(getZodiacName((ZodiacType)i)); }
   
-  mSettings = new SettingsForm();
-  mSettings->setLabelColWidth(120.0f);
-  mSettings->setInputColWidth(135.0f);
+  mSettings = new SettingForm(150.0f, 135.0f);
   mSettings->add(new SettingGroup("Options", "opt",
                                   {   new ComboSetting ("House System",   "hsys",     &mHouseSystem, mHsNames),
                                       new ComboSetting ("Zodiac",         "zodiac",   &mZodiac,      mZNames),
@@ -41,6 +39,34 @@ ChartNode::~ChartNode()
   delete mSettings;
   delete mChart;
 }
+
+    
+void ChartNode::getSaveParams(std::map<std::string, std::string> &params) const
+{
+  mSettings->getSaveParams(params);
+  if(!inputs()[CHARTNODE_INPUT_DATE]->get<DateTime>())
+    { params.emplace("date", mChart->date().toSaveString()); }
+  if(!inputs()[CHARTNODE_INPUT_LOCATION]->get<Location>())
+    { params.emplace("location", mChart->location().toSaveString()); }
+};
+    
+void ChartNode::setSaveParams(std::map<std::string, std::string> &params)
+{
+  mSettings->setSaveParams(params);
+  auto iter = params.find("date");   if(iter != params.end()) { mChart->setDate(DateTime(iter->second)); }
+  iter = params.find("location");    if(iter != params.end()) { mChart->setLocation(Location(iter->second)); }
+
+  HouseSystem hs = HOUSE_INVALID;
+  for(auto h : HOUSE_SYSTEM_NAMES)
+    { if(mHsNames[mHouseSystem] == h.second) { hs = h.first; } }
+  mChart->setHouseSystem(hs);
+  mChart->setZodiac((ZodiacType)mZodiac);
+  mChart->setTruePos(mTruePos);
+  mChart->update();
+};
+
+
+
 
 bool ChartNode::onConnect(ConnectorBase *con)
 {

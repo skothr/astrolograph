@@ -636,7 +636,7 @@ std::map<std::string, std::string> Node::getSaveHeader(const std::string &saveSt
 
       if(name == "nodeType" || name == "nodeName" || name == "nodeId" || name == "nodePos")
         { header.emplace(name, value); }
-    } while(!name.empty() && name != "\n" && name.find("}") == std::string::npos && value.find("}") == std::string::npos);
+    } while(!ss.eof());//!name.empty() && name != "\n" && name.find("}") == std::string::npos && value.find("}") == std::string::npos);
       
   return header;
 }
@@ -644,62 +644,64 @@ std::map<std::string, std::string> Node::getSaveHeader(const std::string &saveSt
 std::string Node::toSaveString() const
 {
   std::map<std::string, std::string> params;
-  params.emplace("nodeType", type());
-  params.emplace("nodeName", mParams->name);
-  params.emplace("nodeId",   std::to_string(id()));
-  params.emplace("nodePos",  mParams->rect.p1.toString());
-  params.emplace("nodeSize", mParams->rect.size().toString());
-  params.emplace("bodySize", mBodySize.toString());
-  params.emplace("inputsSize", mInputsSize.toString());
-  params.emplace("outputsSize", mOutputsSize.toString());
+  // params.emplace("nodeType",    type());
+  // params.emplace("nodeName",    mParams->name);
+  // params.emplace("nodeId",      std::to_string(id()));
+  // params.emplace("nodePos",     mParams->rect.p1.toString());
+  // params.emplace("nodeSize",    mParams->rect.size().toString());
+  // params.emplace("bodySize",    mBodySize.toString());
+  // params.emplace("inputsSize",  mInputsSize.toString());
+  // params.emplace("outputsSize", mOutputsSize.toString());
   getSaveParams(params);
       
   std::ostringstream ss;
   ss << "NODE { ";
+  ss << "nodeType : "    << std::quoted(type())                  << ", ";
+  ss << "nodeName : "    << std::quoted(name())                  << ", ";
+  ss << "nodeId : "      << std::quoted(std::to_string(id()))    << ", ";
+  ss << "nodePos : "     << std::quoted(pos().toString())        << ", ";
+  ss << "nodeSize : "    << std::quoted(size().toString())       << ", ";
+  ss << "bodySize : "    << std::quoted(mBodySize.toString())    << ", ";
+  ss << "inputsSize : "  << std::quoted(mInputsSize.toString())  << ", ";
+  ss << "outputsSize : " << std::quoted(mOutputsSize.toString()) << ",\n";
+
   for(auto &p : params)
-    { ss << p.first << " : " << std::quoted(p.second) << ", "; }
+    { ss << p.first << " : " << std::quoted(p.second) << ",\n"; }
   ss << "}";
   return ss.str();
 }
 
 // returns remaining string after base class parameters
-std::string Node::fromSaveString(const std::string &saveStr)
+std::string Node::fromSaveString(const std::map<std::string, std::string> &header, const std::string &saveStr)
 {
   // convert string to params
-  std::map<std::string, std::string> params;
+  std::map<std::string, std::string> params = header;
   std::istringstream ss(saveStr);
-  std::string temp, nodeType;
-  ss >> temp; // "NODE {"
-  ss.ignore(2, '{');
-  std::string name, value;
-  do
+  std::string line, name, value;
+  std::cout << "= ----------------------------------------------------------------------\n";
+  std::cout << "= - PARAMS\n";
+  while(std::getline(ss, line, '\n') && !line.empty())
     {
-      ss >> name;
-      ss.ignore(2, ':');
-      ss >> std::quoted(value);
-      ss.ignore(2, ',');
-      if(!name.empty() && name != "\n" && name.find("}") == std::string::npos && value.find("}") == std::string::npos)
+      std::stringstream ss2(line);
+      ss2 >> name;
+      ss2.ignore(2, ':');
+      ss2 >> std::quoted(value);
+      ss2.ignore(2, ',');
+      if(!name.empty() && name != "\n")
         {
-          std::cout << "     -->  '" << name << "' = '" << value << "'\n";
+          std::cout << "= -   " << std::left << std::setw(20) << name << " = " << value << "\n";
           params.emplace(name, value);
         }
-    } while(!name.empty() && name != "\n" && name.find("}") == std::string::npos && value.find("}") == std::string::npos);
+    }
+  std::cout << "= ----------------------------------------------------------------------\n";
   
   // load stored values
-  ss.str(params["nodeType"]); ss.clear();
-  ss >> nodeType;
   ss.str(params["nodeName"]); ss.clear();
   ss >> mParams->name;
   ss.str(params["nodeId"]); ss.clear();
   ss >> mParams->id;
   
-  setFirstFrame(false);
-  Vec2f nextPos;
-  Vec2f nextSize;
-  Vec2f bodySize;
-  Vec2f inputsSize;
-  Vec2f outputsSize;
-
+  Vec2f nextPos, nextSize, bodySize, inputsSize, outputsSize;
   auto iter = params.find("nodePos"); if(iter != params.end()) { nextPos.fromString(iter->second); }
   iter = params.find("nodeSize");     if(iter != params.end()) { nextSize.fromString(iter->second); }
   iter = params.find("bodySize");     if(iter != params.end()) { bodySize.fromString(iter->second); }
@@ -712,5 +714,6 @@ std::string Node::fromSaveString(const std::string &saveStr)
   mOutputsSize = outputsSize;
   mInputsSize  = inputsSize;
   setSaveParams(params);
+  setFirstFrame(false);
   return "";
 }

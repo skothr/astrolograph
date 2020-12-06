@@ -31,15 +31,14 @@ namespace astro
     virtual void onUpdate() override;
     virtual void onDraw() override;
     
-    virtual std::map<std::string, std::string>& getSaveParams(std::map<std::string, std::string> &params) const override
+    virtual void getSaveParams(std::map<std::string, std::string> &params) const override
     {
       params.emplace("savedName", mWidget.getName());
       params.emplace("date",      mWidget.get().toSaveString());
       params.emplace("live",      (mLiveMode ? "1" : "0"));
-      return params;
     };
 
-    virtual std::map<std::string, std::string>& setSaveParams(std::map<std::string, std::string> &params) override
+    virtual void setSaveParams(std::map<std::string, std::string> &params) override
     {
       auto iter = params.find("savedName");
       std::string saveName = ((iter != params.end()) ? iter->second : "");
@@ -54,7 +53,6 @@ namespace astro
       iter = params.find("live");
       if(iter != params.end()) { mLiveMode = (iter->second != "0"); }
       else { std::cout << "WARNING: Could not find 'live' param!\n"; }
-      return params;
     };
     
   public:
@@ -107,7 +105,7 @@ namespace astro
     virtual void onUpdate() override;
     virtual void onDraw() override;
     
-    virtual std::map<std::string, std::string>& getSaveParams(std::map<std::string, std::string> &params) const override
+    virtual void getSaveParams(std::map<std::string, std::string> &params) const override
     {
       params.emplace("startSavedName", mStartWidget.getName());
       params.emplace("startDate",      mStartWidget.get().toSaveString());
@@ -116,10 +114,9 @@ namespace astro
       params.emplace("currentDate",    mDate.toSaveString());
       params.emplace("speed",          std::to_string(mSpeed));
       params.emplace("unit",           std::to_string(mUnitIndex));
-      return params;
     };
 
-    virtual std::map<std::string, std::string>& setSaveParams(std::map<std::string, std::string> &params) override
+    virtual void setSaveParams(std::map<std::string, std::string> &params) override
     {
       // start date
       auto iter = params.find("startDate");
@@ -152,7 +149,6 @@ namespace astro
       if(iter != params.end()) { std::stringstream ss(iter->second); ss >> mSpeed; }
       iter = params.find("unit");
       if(iter != params.end()) { std::stringstream ss(iter->second); ss >> mUnitIndex; }
-      return params;
     };
     
   public:

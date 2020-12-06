@@ -4,6 +4,7 @@
 #include "astro.hpp"
 #include "rect.hpp"
 
+#include "param.hpp"
 #include "viewSettings.hpp"
 
 #include <vector>
@@ -137,6 +138,9 @@ namespace astro
     }
   };
   ///////////////////
+
+
+  
   
   //// NODE ////
   class Node
@@ -147,7 +151,7 @@ namespace astro
     {
       int         id = -1;
       std::string name;
-      Rect2f      rect;   // rectangle around node
+      Rect2f      rect;   // node border rect
       float       z = -1; // for z ordering
     };
 
@@ -167,13 +171,12 @@ namespace astro
     bool mHover        = false;   // whether mouse is over node window (window background)
     bool mActive       = false;   // whether mouse is over node window (interactive ui element)
     bool mDragging     = false;   // whether mouse is dragging window
-
+    bool mDrawing      = false;   // set to true by BeginDraw() if visible, set to false by EndDraw()
     bool mBlocked      = false;   // whether mouse is blocked by other nodes
     
     // Vec2f mNextPos = Vec2f(0,0);  // node window pos
     Vec2f mMinSize = Vec2f(1,1);     // min size (to be set by child class)
 
-    bool mDrawing = false; // set to true by BeginDraw() if visible, set to false by EndDraw()
     
     std::vector<ConnectorBase*> mInputs;
     std::vector<ConnectorBase*> mOutputs;
@@ -182,8 +185,8 @@ namespace astro
     virtual void onDraw()   { }
     virtual void onUpdate() { }
 
-    virtual std::map<std::string, std::string>& getSaveParams(std::map<std::string, std::string> &params) const { return params; }
-    virtual std::map<std::string, std::string>& setSaveParams(std::map<std::string, std::string> &params)       { return params; }
+    virtual void getSaveParams(std::map<std::string, std::string> &params) const { }
+    virtual void setSaveParams(std::map<std::string, std::string> &params)       { }
 
     float getBorderWidth() const
     {
@@ -257,7 +260,7 @@ namespace astro
     static std::map<std::string, std::string> getSaveHeader(const std::string &saveStr);    
     std::string toSaveString() const;
     // returns remaining string after base class parameters
-    std::string fromSaveString(const std::string &saveStr);
+    std::string fromSaveString(const std::map<std::string, std::string> &header, const std::string &saveStr);
     
     int id() const     { return mParams->id; }
     void setid(int id) { mParams->id = id; }

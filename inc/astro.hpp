@@ -461,6 +461,13 @@ namespace astro
 
 #define SYMBOL_STYLE "light" // style of symbols  (light/dark)
 
+  struct IconImage
+  {
+    int width;
+    int height;
+    unsigned char *pixels;
+  };
+  
   typedef unsigned int GLuint;
   typedef void* ImTextureID;
   struct ChartImage
@@ -473,9 +480,10 @@ namespace astro
   };
   
   bool loadSymbolImages(const std::string &resPath="./res");
-  ChartImage loadImageTex(const std::string &path);
   ChartImage* getImage(const std::string &name);
   ChartImage* getWhiteImage(const std::string &name);
+  ChartImage loadImageTex(const std::string &path);
+  IconImage* loadImageData(const std::string &path);
 
   ////////////////////////////////////////////////////////////////////////////    
   

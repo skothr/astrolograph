@@ -37,6 +37,15 @@ ChartImage astro::loadImageTex(const std::string &path)
   return img;
 }
 
+// loads the image from given path and sends it to an opengl texture
+IconImage* astro::loadImageData(const std::string &path)
+{
+  IconImage *img = new IconImage();
+  int channels;
+  img->pixels = stbi_load(path.c_str(), &img->width, &img->height, &channels, STBI_rgb_alpha);
+  return img;
+}
+
 // loads all chart images (object/angle/sign/aspect/flag symbols)
 bool astro::loadSymbolImages(const std::string &resPath)
 {

@@ -16,13 +16,15 @@ namespace imgui_addons { class ImGuiFileBrowser; }
 struct ImDrawList;
 
 #define DEFAULT_PROJECT_DIR "./projects"
-#define SAVE_FILE_VERSION   "0.1"
+#define SAVE_FILE_VERSION   "0.2"
 
 #define FILE_DIALOG_SIZE Vec2f(960, 690)
 
 namespace astro
 {
+  // forward declarations
   class ViewSettings;
+
   
   struct NodeType
   {

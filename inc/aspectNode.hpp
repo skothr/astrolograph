@@ -29,7 +29,7 @@ namespace astro
     virtual void onUpdate() override;
     virtual void onDraw() override;
     
-    virtual std::map<std::string, std::string>& getSaveParams(std::map<std::string, std::string> &params) const override
+    virtual void getSaveParams(std::map<std::string, std::string> &params) const override
     {
       params.emplace("listOpen", (mListOpen ? "1" : "0"));
       params.emplace("orbsOpen", (mOrbsOpen ? "1" : "0"));
@@ -42,10 +42,9 @@ namespace astro
         }
       params.emplace("aspVisible", visStr);
       params.emplace("aspOrbs", orbStr);
-      return params;
     };
     
-    virtual std::map<std::string, std::string>& setSaveParams(std::map<std::string, std::string> &params) override
+    virtual void setSaveParams(std::map<std::string, std::string> &params) override
     {
       auto iter = params.find("listOpen"); if(iter != params.end()) { mListOpen = (iter->second != "0"); }
       iter = params.find("orbsOpen"); if(iter != params.end()) { mOrbsOpen = (iter->second != "0"); }
@@ -69,7 +68,6 @@ namespace astro
               is >> mAspOrbs[a++];
             }
         }
-      return params;
     };
     
   public:

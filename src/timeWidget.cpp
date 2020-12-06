@@ -33,10 +33,10 @@ TimeWidget& TimeWidget::operator=(const TimeWidget &other)
 
 bool TimeWidget::save(const std::string &name)
 {
-  if(!directoryExists(DATE_SAVE_DIR)) // fs::exists(DATE_SAVE_DIR))
+  if(!directoryExists(DATE_SAVE_DIR))
     { // make sure save directory exists
       std::cout << "Creating save directory (" << DATE_SAVE_DIR << ")...\n";
-      if(!makeDirectory(DATE_SAVE_DIR)) // fs::create_directory(DATE_SAVE_DIR))
+      if(!makeDirectory(DATE_SAVE_DIR))
         { std::cout << "ERROR: Could not create date save directory.\n"; return false; }
     }
   if(name.empty())
@@ -45,7 +45,7 @@ bool TimeWidget::save(const std::string &name)
   // read saved dates
   std::vector<DateSave> data;
   bool update = false; // if true, updating saved date
-  if(fileExists(DATE_SAVE_PATH)) // fs::exists(DATE_SAVE_PATH) && fs::is_regular_file(DATE_SAVE_PATH))
+  if(fileExists(DATE_SAVE_PATH))
     {
       std::ifstream dateFile(DATE_SAVE_PATH, std::ifstream::in);
       std::string line  = "";
@@ -75,10 +75,10 @@ bool TimeWidget::save(const std::string &name)
 
 bool TimeWidget::load(const std::string &name)
 {
-  if(!directoryExists(DATE_SAVE_DIR)) { return false; } // fs::exists(DATE_SAVE_DIR)) { return false; }
+  if(!directoryExists(DATE_SAVE_DIR)) { return false; }
   
   // read saved dates
-  if(fileExists(DATE_SAVE_PATH)) // fs::exists(DATE_SAVE_PATH) && fs::is_regular_file(DATE_SAVE_PATH))
+  if(fileExists(DATE_SAVE_PATH))
     {
       std::ifstream dateFile(DATE_SAVE_PATH, std::ifstream::in);
       std::string line  = "";
@@ -102,10 +102,10 @@ bool TimeWidget::load(const std::string &name)
 
 bool TimeWidget::remove(const std::string &name)
 {
-  if(!directoryExists(DATE_SAVE_DIR)) // fs::exists(DATE_SAVE_DIR))
+  if(!directoryExists(DATE_SAVE_DIR))
     { // make sure save directory exists
       std::cout << "Creating save directory (" << DATE_SAVE_DIR << ")...\n";
-      if(!makeDirectory(DATE_SAVE_DIR)) // fs::create_directory(DATE_SAVE_DIR))
+      if(!makeDirectory(DATE_SAVE_DIR))
         { std::cout << "ERROR: Could not create date save directory.\n"; return false; }
     }
   if(name.empty()) { std::cout << "TimeWidget::remove() --> Empty name!\n"; return false; }
@@ -113,7 +113,7 @@ bool TimeWidget::remove(const std::string &name)
   // read saved dates
   std::vector<DateSave> data;
   bool found = false; // if true, updating saved date
-  if(fileExists(DATE_SAVE_PATH)) // fs::exists(DATE_SAVE_PATH) && fs::is_regular_file(DATE_SAVE_PATH))
+  if(fileExists(DATE_SAVE_PATH))
     {
       std::ifstream dateFile(DATE_SAVE_PATH, std::ifstream::in);
       std::string line  = "";
@@ -134,11 +134,11 @@ bool TimeWidget::remove(const std::string &name)
 
 std::vector<DateSave> TimeWidget::loadAll()
 {
-  if(!directoryExists(DATE_SAVE_DIR)) { return {}; } // fs::exists(DATE_SAVE_DIR)) { return {}; }
+  if(!directoryExists(DATE_SAVE_DIR)) { return {}; }
   
   // read all saved dates
   std::vector<DateSave> data;
-  if(fileExists(DATE_SAVE_PATH)) // fs::exists(DATE_SAVE_PATH) && fs::is_regular_file(DATE_SAVE_PATH))
+  if(fileExists(DATE_SAVE_PATH))
     {
       std::ifstream dateFile(DATE_SAVE_PATH, std::ifstream::in);
       std::string line = "";
