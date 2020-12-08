@@ -35,33 +35,10 @@ namespace astro
     virtual void onUpdate() override;
     virtual void onDraw() override;
     
-    virtual void getSaveParams(std::map<std::string, std::string> &params) const override
-    {
-      params.emplace("dayRadius", std::to_string(mDayRadius));
-      params.emplace("object",    std::to_string((int)mObjType));
-    };
-    
-    virtual void setSaveParams(std::map<std::string, std::string> &params) override
-    {
-      auto iter = params.find("dayRadius"); if(iter != params.end()) { std::stringstream ss(iter->second); ss >> mDayRadius; }
-      iter = params.find("object");         if(iter != params.end()) { std::stringstream ss(iter->second); ss >> (int&)mObjType; }
-    };
-    
   public:
     PlotNode();
     ~PlotNode();
     virtual std::string type() const { return "PlotNode"; }
-    virtual bool copyTo(Node *other) override
-    { // copy settings
-      if(Node::copyTo(other))
-        {
-          // ((PlotNode*)other)->mData = mData;
-          ((PlotNode*)other)->mDayRadius = mDayRadius;
-          ((PlotNode*)other)->mObjType = mObjType;
-          return true;
-        }
-      else { return false; }
-    }
   };
 }
 

@@ -21,7 +21,6 @@
 
 #define WINDOW_W    2400
 #define WINDOW_H    1600
-
 #define SIDEBAR_W   512
 
 #define GL_MAJOR 4 // OpenGL 4.4
@@ -73,9 +72,7 @@ int main(int argc, char* argv[])
         { // long name argument
           std::string argStr = std::string(&arg[2]);
           if(argStr == "version")
-            {
-              argVersion = true;
-            }
+            { argVersion = true; }
           else
             { // unknown command
               std::cout << "Error: Unknown command '--" << argStr << "'!\n";
@@ -91,7 +88,6 @@ int main(int argc, char* argv[])
                 case 'v':
                   argVersion = true;
                   break;
-              
                 default: // unknown command
                   std::cout << "Error: Unknown command '-" << arg[j] << "'!\n";
                   return 1;
@@ -102,8 +98,7 @@ int main(int argc, char* argv[])
 
   if(argVersion)
     { // print version and exit
-      std::cout << "\n"
-                << "Astrolograph Version: v" << ASTROLOGRAPH_VERSION_MAJOR << "." << ASTROLOGRAPH_VERSION_MINOR << "\n\n";
+      std::cout << "\n" << "Astrolograph Version: v" << ASTROLOGRAPH_VERSION_MAJOR << "." << ASTROLOGRAPH_VERSION_MINOR << "\n\n";
       return 0;
     }
   
@@ -136,6 +131,8 @@ int main(int argc, char* argv[])
 
   // maximized window
   //glfwWindowHint(GLFW_MAXIMIZED, GL_TRUE);
+  glfwWindowHint(GLFW_SAMPLES, 4); // 4x antialiasing
+  
   
   // create window with graphics context
   GLFWwindow* window = glfwCreateWindow(WINDOW_W, WINDOW_H, "AstroloGraph", NULL, NULL);
@@ -159,6 +156,9 @@ int main(int argc, char* argv[])
   bool err = glewInit() != GLEW_OK;
   if(err) { fprintf(stderr, "Failed to initialize OpenGL loader!\n"); return 1; }
 
+
+  glEnable(GL_MULTISAMPLE); // enable antialiasing
+  
   // set up imgui context
   IMGUI_CHECKVERSION();
   ImGui::CreateContext();
@@ -321,7 +321,7 @@ int main(int argc, char* argv[])
       ImGui::PushStyleVar(ImGuiStyleVar_FrameRounding,  0);
       ImGui::PushStyleVar(ImGuiStyleVar_WindowPadding, Vec2f(0, 0));
       ImGui::PushStyleColor(ImGuiCol_WindowBg, Vec4f(0,0,0,1));
-      ImGui::Begin("##mainView", nullptr, wFlags);
+      ImGui::Begin("##mainView", nullptr, wFlags); // ImGui window covering full application window
       ImGui::PopStyleColor(1);
       ImGui::PopStyleVar(3);
       {
@@ -332,8 +332,7 @@ int main(int argc, char* argv[])
         graph->setPos(graphPos + framePadding);
         graph->setSize(Vec2f(frameSize.x - 3*framePadding.x - listWidth, frameSize.y - menuBarSize.y - 2*framePadding.y));
         graph->showIds(showDemo);
-        graph->draw();
-        // graph->update(); // TEMP: currently called in graph->draw().  TODO: separate thread?
+        graph->draw(); // graph->update(); // TEMP: update currently called in graph->draw().  TODO: separate thread?
         
         nodeList.setPos(Vec2f(frameSize.x - framePadding.x - listWidth, graphPos.y + framePadding.y));
         nodeList.setSize(Vec2f(listWidth, frameSize.y - menuBarSize.y - 2*framePadding.y));
@@ -346,7 +345,7 @@ int main(int argc, char* argv[])
           { unsavedChangesOpen = true; ImGui::OpenPopup("Unsaved Changes"); }
         if(ImGui::BeginPopupModal("Unsaved Changes", &unsavedChangesOpen, ImGuiWindowFlags_NoMove | ImGuiWindowFlags_NoResize))
           {
-            // ImGui::SetWindowFocus();
+            ImGui::SetWindowFocus();
             if(graph->getSaveName().empty())
               { ImGui::TextUnformatted("Unsaved project has been modified. Do you want to save?"); }
             else

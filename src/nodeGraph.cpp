@@ -11,7 +11,6 @@ using namespace imgui_addons;
 
 #include "geometry.hpp"
 #include "viewSettings.hpp"
-//#include "settingsForm.hpp"
 #include "timeNode.hpp"
 #include "locationNode.hpp"
 #include "chartNode.hpp"
@@ -73,57 +72,55 @@ NodeGraph::~NodeGraph()
 // TODO: SAVE CONFIRMATIONS --> currently only done when program is exiting (from main.cpp)
 //       ALSO --> mark modified when node positions changed
 /////
-
-
-/**
- * NODEGRAPH FILE FORMAT 0.2:
- *
- * VERSION [currentVersion]
- *
- * CENTER  [graphCenter]
- * SCALE   [graphScale]
- *
- * NODE { nodeType : "", nodeNode : "", nodeId : "", nodePOs : "", ", bodySize : [], inputsSize : [], outputsSize [],
- *        param1 : [],
- *        param2 : [],
- *        [...]
- *  
- *  // (after all nodes defined)
- *  CONN [nodeID1] [INPUT/OUTPUT] [connectorIndex1] [nodeID2] [INPUT/OUTPUT] [connectorIndex2]   // specifies node connection
- *  
- **/
 bool NodeGraph::saveToFile(const std::string &path)
 {
-  std::ofstream f(path, std::ios::out);
-  // save graph center/scale
-  f << "VERSION " << SAVE_FILE_VERSION << "\n\n";
-  f << "CENTER " << mGraphCenter << "\n";
-  f << "SCALE  "  << mGraphScale  << "\n";
-  // save nodes
+  json header      = json::object();
+  json nodes       = json::array();
+  json connections = json::array();
+  
+  // HEADER
+  header["VERSION"] = SAVE_FILE_VERSION;
+  header["center"]  = mGraphCenter.toString();
+  header["scale"]   = mGraphScale;
+
+  // NODES/SETTINGS
   for(auto n : mNodes)
     {
-      std::ostringstream ss;
-      ss << n.second->toSaveString() << "\n";
-      std::cout << "--> " << ss.str();
-      f << ss.str();
+      json jsn = n.second->toJson();
+      std::cout << "Saving NODE:\n" << jsn << "\n";
+      nodes.push_back(jsn);
     }
-  // save connections
+  
+  // CONNECTIONS (only outputs recorded)
   for(auto n : mNodes)
     {
       for(int i = 0; i < n.second->outputs().size(); i++)
         {
-          if(n.second->outputs()[i]->getConnected().size() == 0)
-            { continue; } // no connections
-          std::ostringstream ss;
-          ss << "CON " << n.first << " OUTPUT " << i;
-          // list all connected node ids
+          if(n.second->outputs()[i]->getConnected().size() == 0) { continue; } // no connections
+
+          // list all connections to node output connector [i] 
           for(auto con : n.second->outputs()[i]->getConnected())
-            { ss << " " << con->parent()->id() << " " << con->conId(); }
-          ss << "\n";
-          std::cout << "--> " << ss.str();
-          f << ss.str();
+            {
+              json jsc = json::object();
+              jsc["nodeId"]      = n.first;             // this node id
+              jsc["conId"]       = i;                   // this connector id
+              jsc["otherNodeId"] = con->parent()->id(); // other node id
+              jsc["otherConId"]  = con->conId();        // other connector id
+              connections.push_back(jsc);
+            }
         }
     }
+
+  // combine
+  json js = json::object();
+  js["header"]      = header;
+  js["nodes"]       = nodes;
+  js["connections"] = connections;
+
+  // write to file
+  std::ofstream f(path, std::ios::out);
+  f << js.dump() << "\n";
+  
   mSaveFile = path;
   mChangedSinceSave = false;
   return true;
@@ -133,99 +130,78 @@ bool NodeGraph::loadFromFile(const std::string &path)
 {
   if(fileExists(path))
     {
-      clear();
+      clear(); // clear nodes
+      
+      // read file
+      std::cout << "=============================================================================================\n";
+      std::cout << "= Reading file '" << path << "'...\n";
       std::ifstream f(path, std::ios::in);
+      json js;
+      f >> js;
 
-      std::cout << "=============================================================================================\n";
-      std::cout << "= READING FILE '" << path << "'...\n";
-      std::cout << "=============================================================================================\n";
-      std::string line;
-      std::string version="0.0";
-      bool firstLine = true;
-      while(std::getline(f, line))
+      //// HEADER ////
+      json header;
+      if(js.contains("header")) { header = js["header"]; }
+      else
         {
-          if(line.empty() || line == "\n") { continue; }
-          std::istringstream ss(line);
-          std::string lineType, type, name;
-          int id;
-          Vec2f pos, size;
-          ss >> lineType;
+          std::cout << "ERROR: No header!\n";
+          return false;
+        }
+      
+      // check version
+      std::string version = header["VERSION"];
+      std::cout << "=   Save file version: " << version << "\n";
+      if(version != SAVE_FILE_VERSION)
+        { std::cout << "= WARNING: Save file may be out of date! (current version: " << SAVE_FILE_VERSION << ")\n"; }
+      std::cout << "=============================================================================================\n";
+      std::cout << "= Creating nodes...\n";
 
-          if(lineType == "VERSION" || firstLine)
-            { // save file version
-              if(lineType == "VERSION") { ss >> version; }
-              std::cout << "= Save file version: " << version << "\n";
-              if(version != SAVE_FILE_VERSION)
-                { std::cout << "= WARNING: Save file may be out of date! (current version: " << SAVE_FILE_VERSION << ")\n"; }
-              std::cout << "=============================================================================================\n";
-            }
-          firstLine = false;
+      // graph center/scale
+      if(!header.contains("center")) { mGraphCenter.fromString(header["center"]); }
+      if(!header.contains("scale"))  { mGraphScale = header["scale"];  }
 
-          if(lineType == "CENTER")
-            { ss >> mGraphCenter; }
-          else if(lineType == "SCALE")
-            { ss >> mGraphScale; }
-          else if(lineType == "NODE")
+      // set up nodes
+      json nodes;
+      if(js.contains("nodes")) { nodes = js["nodes"]; }
+      for(auto &jsn : nodes)
+        {
+          std::cout << "LOADING NODE --> \n" << jsn << "\n";
+          json nodeHeader; // get node header
+          if(jsn.contains("header"))
             {
-              std::map<std::string, std::string> saveHeader = Node::getSaveHeader(line);
-              type = saveHeader["nodeType"];
-              name = saveHeader["nodeName"];
-              pos.fromString(saveHeader["nodePos"]);
-              size.fromString(saveHeader["nodeSize"]);
-              ss.str(saveHeader["nodeId"]); ss >> id;
-
-              std::string paramString = "";
-              while(std::getline(f, line) && line.find("}") == std::string::npos)
-                { paramString += line + "\n"; } // one line per node param
-
-              std::cout << "============================================================================\n";
-              std::cout << "= NODE\n"
-                        << "============================================================================\n"
-                        << "=   name = " << name << "\n"
-                        << "=   type = " << type << "\n"
-                        << "=   id   = " << id   << "\n"
-                        << "=   pos  = " << pos  << "\n"
-                        << "============================================================================\n";
-              Node *newNode = makeNode(type);
-              if(newNode)
+              nodeHeader = jsn["header"];
+              if(nodeHeader.contains("nodeType"))
                 {
-                  newNode->fromSaveString(saveHeader, paramString);
-                  newNode->setGraph(this);
-                  mNodes.emplace(newNode->id(), newNode);
+                  std::string nodeType = nodeHeader["nodeType"];
+                  std::cout << "TYPE: " << nodeType << "\n";
+                  Node *n = makeNode(nodeType);
+                  if(n)
+                    {
+                      n->setGraph(this);
+                      n->fromJson(jsn);
+                      mNodes.emplace(n->id(), n);
+                    }
                 }
-              else
-                { std::cout << "===> ERROR: Could not load Node!\n"; }
-              std::cout << "============================================================================\n";
+              std::cout << "\n";
             }
-          else if(lineType == "CON")
-            { // load connections
-              std::stringstream ss(line);
-              std::string temp, io;
-              int nId, cId;
-              ss >> temp; // "CON "
-              ss >> nId;  // node id
-              ss >> io;   // always OUTPUT (TODO: ?)
-              ss >> cId;  // output connector index
+        }
+      
+      // set up connections
+      std::cout << "= Connecting nodes...\n";
+      json connections;
+      if(js.contains("connections")) { connections = js["connections"]; }
+      for(auto &jsc : connections)
+        {
+          int nodeId      = jsc["nodeId"];
+          int conId       = jsc["conId"];
+          int otherNodeId = jsc["otherNodeId"];
+          int otherConId  = jsc["otherConId"];
 
-              ConnectorBase *con = nullptr;
-              if(mNodes[nId]->outputs().size() > cId)
-                { con = mNodes[nId]->outputs()[cId]; }
-              else
-                { std::cout << "WARNING: Node connector missing! May be an old save file.\n"; continue; }
-
-              while(!ss.eof())
-                { // check if end of line
-                  ss >> std::skipws;
-                  if(ss.str().substr(ss.tellg()).empty()) { break; }
-                  // read connection ids
-                  int nId2, cId2;
-                  ss >> nId2; ss >> cId2;
-                  std::cout << "==== Connecting N" << nId << "[C" << cId << "] --> N" << nId2 << "[C" << cId2 << "] \n";
-                  ConnectorBase *con2 = mNodes[nId2]->inputs()[cId2];
-                  // force connection
-                  if(!con->connect(con2)) { std::cout << "Failed to connect!\n"; }
-                }
-            }
+          std::cout << "NODE CONNECTION --> Node" << nodeId << "[" << conId << "]" << " --> Node" << otherNodeId << "[" << otherConId << "]\n";
+          
+          ConnectorBase *con1 = mNodes[nodeId]->outputs()[conId];
+          ConnectorBase *con2 = mNodes[otherNodeId]->inputs()[otherConId];
+          if(con1 && con2 && !con1->connect(con2, false)) { std::cout << "Failed to connect!\n"; }
         }
       // new node ids start right after maximum saved id
       int maxId = -1;
@@ -249,11 +225,9 @@ bool NodeGraph::loadFromFile(const std::string &path)
           std::cout << "= WARNING: Save file may be out of date! (current version: " << SAVE_FILE_VERSION << ")\n";
           std::cout << "=============================================================================================\n";
         }
-      
       return true;
     }
-  else
-    { return false; }
+  else { return false; }
 }
 
 void NodeGraph::openSaveDialog()
@@ -291,6 +265,11 @@ void NodeGraph::placeNode(const std::string &type)
       mPlaceNode = makeNode(type);
       mPlaceNode->setPos(screenToGraph(ImGui::GetMousePos()) - mPlaceNode->size()/2.0f);
       mPlaceNode->setGraph(this);
+
+      // transparent alpha (place "ghost")
+      Vec4f mask = mPlaceNode->getColorMask();
+      mask.w = GHOST_ALPHA;
+      mPlaceNode->setColorMask(mask);
     }
 }
 
@@ -306,9 +285,16 @@ void NodeGraph::addNode(Node *n, bool select)
   if(n && !mLocked)
     {
       mChangedSinceSave = true;
+      if(mNodes.find(n->id()) != mNodes.end()) { n->setId(Node::NEXT_ID++); }
+      
       n->setGraph(this);
       mNodes.emplace(n->id(), n);
       if(select) { deselectAll(); n->setSelected(true); }
+
+      // normal alpha
+      Vec4f mask = n->getColorMask();
+      mask.w = 1.0f;
+      n->setColorMask(mask);
     }
 }
 
@@ -339,6 +325,9 @@ void NodeGraph::cut()
       
       // move selected nodes to clipboard
       mClipboard = selected;
+      // hide connections until pasting
+      for(auto n : mClipboard) { n->setShowConnections(false); }
+      
       mChangedSinceSave = true;
     }
 }
@@ -356,7 +345,8 @@ void NodeGraph::copy()
       mClipboard.clear();
 
       std::cout << "MAKING COPIES...\n";
-      mClipboard = makeCopies(selected, false);
+      mClipboard = makeCopies(selected, true);
+      for(auto n : mClipboard) { n->setShowConnections(false); } // hide connections until pasting
     }
 }
 
@@ -365,27 +355,15 @@ void NodeGraph::paste()
   if(!mLocked && mClipboard.size() > 0)
     {
       mPlacing = false;
-      // deselectAll();
-      
-      // Vec2f avgPos(0,0);
-      // for(auto n : mClipboard)
-      //   { avgPos += n->rect().center(); }
-      // avgPos /= mClipboard.size();
-  
-      // std::vector<Node*> copied = makeCopies(mClipboard, false);
-
-      // Vec2f offset = screenToGraph(ImGui::GetMousePos()) - avgPos;
-      // for(auto n : mClipboard)
-      //   {
-      //     n->setPos(n->pos() + offset);
-      //     n->setSelected(true);
-      //     n->setFirstFrame(true);
-      //     mNodes.emplace(n->id(), n);
-      //   }
-      // mClipboard.clear();
-      // mClipboard = copied;
-      // mChangedSinceSave = true;
       mPasting = true;
+
+      for(auto n : mClipboard)
+        { // transparent "ghost" alpha
+          Vec4f mask = n->getColorMask();
+          mask.w = GHOST_ALPHA;
+          n->setColorMask(mask);
+          n->setGraph(this);
+        }
     }
 }
 
@@ -488,6 +466,7 @@ std::vector<Node*> NodeGraph::makeCopies(const std::vector<Node*> &group, bool e
       copies.push_back(newNode);
       oldToNew.emplace(n, newNode);
       newToOld.emplace(newNode, n);
+      std::cout << "Copying node --> pos=" << n->pos() << ", size=" << n->size() << ", id=" << n->id() << ", type=" << n->type() << "\n";
     }
 
   for(auto n : copies)
@@ -513,8 +492,9 @@ std::vector<Node*> NodeGraph::makeCopies(const std::vector<Node*> &group, bool e
           else if(externalConnections)
             { std::cout << "WARNING: Node connection not copied! ( " << c.nodeOut << "[" << c.conOut << "] --> [" << c.nodeIn << "[" << c.conIn << "] )\n"; }
         }
+      std::cout << "Copied node --> pos=" << n->pos() << ", size=" << n->size() << ", id=" << n->id() << ", type=" << n->type() << "\n";
     }
-
+  std::cout << copies.size() << "\n";
   return copies;
 }
 
@@ -708,7 +688,9 @@ void NodeGraph::draw()
     
     ImGuiIO &io = ImGui::GetIO();
     ImDrawList *winDrawList = ImGui::GetWindowDrawList();
+    winDrawList->_FringeScale = getScale();
     ImDrawList *fgDrawList = ImGui::GetForegroundDrawList();
+    fgDrawList->_FringeScale = getScale();
     
     // reset click copy flag if mouse released
     if(ImGui::IsMouseReleased(ImGuiMouseButton_Left))
@@ -718,10 +700,10 @@ void NodeGraph::draw()
     update();
     
     // draw background graph lines
-    drawLines(winDrawList);
+    drawLines(winDrawList); //  graph lines
 
     // fix node positions (no overlapping) -- TODO
-    fixPositions();
+    // fixPositions();
     
     // move selected nodes to front
     if(!mSelecting)
@@ -750,6 +732,7 @@ void NodeGraph::draw()
     // draw nodes
     for(int i = 0; i < sorted.size(); i++) // draw from back to front
       {
+        Node *n = sorted[i].second;;
         sorted[i].second->draw(winDrawList, blocked[i]);
         if(mShowIds)
           {
@@ -763,6 +746,11 @@ void NodeGraph::draw()
 
     if(!mLocked)
       {
+    
+        // deselect all nodes if escape pressed
+        if(ImGui::IsKeyPressed(GLFW_KEY_ESCAPE))
+          { deselectAll(); }
+    
         // determine if mouse is hovering over a node, or if node UI is active
         bool active = false;
         bool hover = false;
@@ -797,7 +785,7 @@ void NodeGraph::draw()
               { // zoom/scale
                 Vec2f mposOld = screenToGraph(ImGui::GetMousePos());
                 float scaleOld = mGraphScale;
-                mGraphScale *= (io.MouseWheel > 0.0f ? 1.05f : 1.0f/1.05f);
+                mGraphScale *= (io.MouseWheel > 0.0f ? 1.025f : 1.0f/1.025f);
                 mGraphScale = std::max(mGraphScale, 0.25f);
                 mGraphScale = std::min(mGraphScale, 4.0f);
 
@@ -888,8 +876,8 @@ void NodeGraph::draw()
             else
               {
                 mPlaceNode->setPos(screenToGraph(ImGui::GetMousePos()) - mPlaceNode->size()/2.0f);
-                mPlaceNode->draw(winDrawList, true, true); // draw "ghost" under mouse
-                mPlaceNode->drawConnections(winDrawList, true);
+                mPlaceNode->draw(winDrawList, true); // draw "ghost" under mouse
+                mPlaceNode->drawConnections(winDrawList);
 
                 if(ImGui::IsMouseClicked(ImGuiMouseButton_Left))
                   {
@@ -903,13 +891,12 @@ void NodeGraph::draw()
                   }
               }
           }
+
         // PASTING
         else if(mPasting)
           {
             if(ImGui::IsKeyPressed(GLFW_KEY_ESCAPE))
-              {
-                mPasting = false;
-              }
+              { mPasting = false; }
             else
               {
                 Vec2f avgPos(0,0);
@@ -920,28 +907,59 @@ void NodeGraph::draw()
                 for(auto n : mClipboard)
                   {
                     n->setPos(n->pos() + offset);
-                    n->draw(winDrawList, true, true); // draw "ghost" under mouse
+                    n->draw(winDrawList, true); // draw "ghost" under mouse
                   }
-                for(auto n : mClipboard)
-                  { n->drawConnections(winDrawList); }
+                
+                if(ImGui::IsKeyDown(GLFW_KEY_LEFT_ALT))
+                  { // ALT pastes without external connections (don't draw)
+                    for(auto n : mClipboard) { n->setShowConnections(false); }
+                  }
+                else
+                  { // show external connections
+                    for(auto n : mClipboard)
+                      {
+                        n->setShowConnections(true); 
+                        n->drawConnections(winDrawList);
+                      }
+                  }
 
                 if(ImGui::IsMouseClicked(ImGuiMouseButton_Left))
                   {
                     deselectAll();
-                    std::vector<Node*> copied = makeCopies(mClipboard, false);
-
+                    std::vector<Node*> copied = makeCopies(mClipboard, true);
+                    
+                    // don't disable connections
+                    for(auto n : mClipboard) { n->setShowConnections(true); };
+                        
+                    if(ImGui::IsKeyDown(GLFW_KEY_LEFT_ALT))
+                      { // ALT pastes without external connections
+                        disconnectExternal(mClipboard, true, true);
+                      }
+                    
                     for(auto n : mClipboard)
-                      {
+                      { // normal alpha
+                        Vec4f mask = n->getColorMask();
+                        mask.w = 1.0f;
+                        n->setColorMask(mask);
+                        
                         n->setSelected(true);
                         n->setFirstFrame(true);
                         mNodes.emplace(n->id(), n);
                       }
                     mClipboard.clear();
                     mClipboard = copied;
+                    for(auto n : mClipboard)
+                      { // transparent "ghost" alpha
+                        Vec4f mask = n->getColorMask();
+                        mask.w = GHOST_ALPHA;
+                        n->setColorMask(mask);
+                      }
                     mChangedSinceSave = true;
 
                     if(!ImGui::IsKeyDown(GLFW_KEY_LEFT_SHIFT))  // stop pasting unless shfit is held
                       { mPasting = false; }
+                    else
+                      { } // keep pasting -- enable copied nodes again
                     
                   }
               }

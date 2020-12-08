@@ -7,7 +7,15 @@ using namespace astro;
 
 ChartViewNode::ChartViewNode()
   : Node(CONNECTOR_INPUTS(), CONNECTOR_OUTPUTS(), "Chart View Node")
-{ }
+{
+  mSettings.push_back(new Setting<float>("Chart Width",     "width",      &mChartWidth));
+  mSettings.push_back(new Setting<bool> ("Align Ascendant", "alignAsc",   &mAlignAsc));
+  mSettings.push_back(new Setting<bool> ("Show Houses",     "showHouses", &mShowHouses));
+  mSettings.push_back(makeSettingGroup<BoolStruct, (OBJ_COUNT+OBJ_END-ANGLE_OFFSET)> ("Visible Objects", "objVisible", &mParams.objVisible));
+  mSettings.push_back(makeSettingGroup<double,     (OBJ_COUNT+OBJ_END-ANGLE_OFFSET)> ("Object Orbs",     "objOrbs",    &mParams.objOrbs));
+  mSettings.push_back(makeSettingGroup<BoolStruct, ASPECT_COUNT>                     ("Visible Aspects", "aspVisible", &mParams.aspVisible));
+  mSettings.push_back(makeSettingGroup<double,     ASPECT_COUNT>                     ("Aspect Orbs",     "aspOrbs",    &mParams.aspOrbs));
+}
 
 void ChartViewNode::processInput(Chart *chart)
 {
@@ -103,9 +111,11 @@ void ChartViewNode::onDraw()
         ImGui::SameLine(columnW);
         ImGui::SetCursorPos(Vec2f(ImGui::GetCursorPos()) - Vec2f(0.0f, 2.0f));
         ImGui::SetNextItemWidth(330*scale);
-        ImGui::PushStyleVar(ImGuiStyleVar_FramePadding, Vec2f(2.0f, 2.0f));
+        ImGui::PushStyleVar(ImGuiStyleVar_FramePadding, Vec2f(0.0f, 0.0f));
+        ImGui::PushStyleVar(ImGuiStyleVar_GrabMinSize, ImGui::GetStyle().GrabMinSize*scale);
+        ImGui::PushStyleVar(ImGuiStyleVar_ItemInnerSpacing, Vec2f(2.0f, 2.0f)*scale);
         ImGui::SliderFloat("##chartWidth", &mChartWidth, CHART_SIZE_MIN, CHART_SIZE_MAX, "%.0f");
-        ImGui::PopStyleVar();
+        ImGui::PopStyleVar(3);
       }
 
 
@@ -113,6 +123,7 @@ void ChartViewNode::onDraw()
       ImGui::TextUnformatted("Align Ascendant");
       ImGui::SameLine(columnW);
       bool align = mAlignAsc;
+      ImGui::PushStyleVar(ImGuiStyleVar_FramePadding, Vec2f(0,0));
       if(ImGui::Checkbox("##align", &align))
         {
           mAlignAsc = align;
@@ -127,7 +138,7 @@ void ChartViewNode::onDraw()
           mShowHouses = show;
           mView.setShowHouses(mShowHouses);
         }
-
+      ImGui::PopStyleVar();
       
       // display settings (toggle object/angle visibility)
       // ImGui::SetCursorPos(Vec2f(ImGui::GetCursorPos()) + Vec2f(20*scale, 0.0f));
@@ -174,12 +185,14 @@ void ChartViewNode::onDraw()
                 {
                   bool checked = mParams.objVisible[i];
                   // if(a > ANGLE_OFFSET) { ImGui::SameLine(columnW*(a-ANGLE_OFFSET)); }
+                  ImGui::PushStyleVar(ImGuiStyleVar_FramePadding, Vec2f(0,0));
                   if(ImGui::Checkbox(("##show-"+name).c_str(), &checked))
                     {
                       mParams.objVisible[i] = checked;
                       if(chart) { chart->showObject((ObjType)a, checked); }
                     }
-
+                  ImGui::PopStyleVar();
+                  
                   ImGui::SetNextItemWidth(symSize+10.0f*scale);
                   ImGui::SameLine(); ImGui::Image(img->id(), ImVec2(symSize, symSize), ImVec2(0,0), ImVec2(1,1), tintCol, ImVec4(0,0,0,0));
                   ImGui::SameLine(); ImGui::Text("%s", longName.c_str());
@@ -248,11 +261,14 @@ void ChartViewNode::onDraw()
                 {
                   // if(chart) { mShowObjects[i] = chart->getObject((ObjType)i)->visible; }
                   bool checked = mParams.objVisible[i];
+                  
+                  ImGui::PushStyleVar(ImGuiStyleVar_FramePadding, Vec2f(0,0));
                   if(ImGui::Checkbox(("##show-"+name).c_str(), &checked))
                     {
                       mParams.objVisible[i] = checked;
                       if(chart) { chart->showObject((ObjType)i, checked); }
                     }
+                  ImGui::PopStyleVar();
               
                   ImGui::SetNextItemWidth(symSize+10.0f*scale);
                   ImGui::SameLine(); ImGui::Image(img->id(), ImVec2(symSize, symSize), ImVec2(0,0), ImVec2(1,1), tintCol, ImVec4(0,0,0,0));

@@ -62,9 +62,11 @@ namespace astro
     double getTimezoneOffset(DateTime &dt) const;
 
     std::string toString() const
-    {
+    { // visually formatted
       std::ostringstream os;
-      os << (*this);
+      os << std::fixed << std::setprecision(6) << latitude << "°" << (latitude < 0 ? "S" : "N") << "  "
+         << longitude << "°" << (longitude < 0 ? "W" : "E") << "  "
+         << std::setprecision(2) << altitude << " m";
       return os.str();
     }
     std::string toSaveString() const
@@ -91,29 +93,35 @@ namespace astro
     { return !(*this == other); }
     
     friend std::ostream& operator<<(std::ostream &os, const Location &loc);
-    friend std::basic_ostream<wchar_t>& operator<<(std::basic_ostream<wchar_t> &os, const Location &loc);
-    //friend std::istream& operator>>(std::istream &is, Location &loc);
+    friend std::istream& operator>>(std::istream &is, Location loc);
+      
+    //friend std::basic_ostream<wchar_t>& operator<<(std::basic_ostream<wchar_t> &os, const Location &loc);
   };
 
   inline std::ostream& operator<<(std::ostream &os, const Location &loc)
   {
-    os << std::fixed << std::setprecision(6) << loc.latitude << "°" << (loc.latitude < 0 ? "S" : "N") << "  "
-       << loc.longitude << "°" << (loc.longitude < 0 ? "W" : "E") << "  "
-       << std::setprecision(2) << loc.altitude << " m";
-    
+    os << loc.toSaveString();
     // os << "[" << loc.latitude << ", " << loc.longitude << ", " << loc.altitude << "]";
     return os;
+  }
+  inline std::istream& operator>>(std::istream &is, Location loc)
+  {
+    is >> loc.latitude; is >> loc.longitude; is >> loc.altitude; is >> std::quoted(loc.timezoneId); is >> loc.utcOffset;
+    loc.updateUtcOffset();
+    // os << "[" << loc.latitude << ", " << loc.longitude << ", " << loc.altitude << "]";
+    return is;
   }
   
-  inline std::basic_ostream<wchar_t>& operator<<(std::basic_ostream<wchar_t> &os, const Location &loc)
-  {
-    os << std::fixed << std::setprecision(6) << loc.latitude << L"°" << (loc.latitude < 0 ? L"S" : L"N") << L" / "
-       << loc.longitude << L"°" << (loc.longitude < 0 ? L"W" : L"E") << L" / "
-       << std::setprecision(2) << loc.altitude << L"m";
+  
+  // inline std::basic_ostream<wchar_t>& operator<<(std::basic_ostream<wchar_t> &os, const Location &loc)
+  // {
+  //   os << std::fixed << std::setprecision(6) << loc.latitude << L"°" << (loc.latitude < 0 ? L"S" : L"N") << L" / "
+  //      << loc.longitude << L"°" << (loc.longitude < 0 ? L"W" : L"E") << L" / "
+  //      << std::setprecision(2) << loc.altitude << L"m";
     
-    // os << "[" << loc.latitude << ", " << loc.longitude << ", " << loc.altitude << "]";
-    return os;
-  }
+  //   // os << "[" << loc.latitude << ", " << loc.longitude << ", " << loc.altitude << "]";
+  //   return os;
+  // }
 
   // inline std::istream& operator>>(std::istream &is, Location &loc)
   // {

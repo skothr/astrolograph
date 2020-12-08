@@ -1,13 +1,15 @@
 #include "location.hpp"
 using namespace astro;
 
-#include "dateTime.hpp"
 #include "date/tz.h"
 #include <curl/curl.h>
+#include "nlohmann/json.hpp"
+using json = nlohmann::json;
+
+#include "dateTime.hpp"
+
 
 //// LOCATION ////
-// Location::Location() : Location(NYSE_LAT, NYSE_LON, NYSE_ALT) { }
-
 Location::Location(double lat, double lon, double alt)
   : latitude(lat), longitude(lon), altitude(alt)
 {
@@ -89,21 +91,12 @@ std::string Location::getTimezoneCurl(const astro::Location &loc)
       curl_easy_getinfo(curl, CURLINFO_RESPONSE_CODE, &httpCode);
       curl_easy_cleanup(curl);
 
-      // TODO: proper JSON parsing
       if(httpCode == 200)
-        {
-          std::cout << "  --> Result: " << *httpData.get() << "\n";
-          // find "timezoneId" section
-          std::string tzLabel = "timezoneId";
-          std::size_t labelPos = httpData.get()->find(tzLabel);
-          if(labelPos != std::string::npos)
-            { // separate value from label
-              std::string rest = httpData.get()->substr(labelPos+tzLabel.size()+1);
-              std::size_t colonPos = rest.find(":");
-              std::size_t commaPos = rest.find(",");
-              std::string valueStr = rest.substr(colonPos+2, commaPos-(colonPos+2)-1);
-              timezone = valueStr;
-            }
+        { // parse JSON
+          json response = json::parse(*httpData.get());
+          std::cout << response << "\n";
+          if(response.contains("timezoneId"))
+            { timezone = response["timezoneId"].get<std::string>(); }
         }
     }
   return timezone;
@@ -128,7 +121,6 @@ void Location::updateUtcOffset()
       DateTime dt = DateTime::now();
       const date::time_zone* tz = date::locate_zone(timezoneId);
       auto sysTime = date::sys_time<date::days>{date::year(dt.year()) / date::month(dt.month()) / date::day(dt.day())};
-      // + (dt.hour())h + (dt.minute())n + (dt.second())s;
       date::sys_info info = tz->get_info(sysTime);
       utcOffset = ((info.offset).count()/60.0 + info.save.count())/60.0;
       dstOffset = (info.save.count())/60.0;
@@ -141,7 +133,6 @@ double Location::getTimezoneOffset(DateTime &dt) const
   
   const date::time_zone* tz = date::locate_zone(timezoneId);
   auto sysTime = date::sys_time<date::days>{date::year(dt.year()) / date::month(dt.month()) / date::day(dt.day())};
-  // + (dt.hour())h + (dt.minute())n + (dt.second())s;
   date::sys_info info = tz->get_info(sysTime);
 
   // offset in seconds, save in minutes --> convert to hours

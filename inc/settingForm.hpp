@@ -33,8 +33,8 @@ namespace astro
     SettingBase* get(const std::string &name);
     bool draw(float scale, bool busy=false);
         
-    void getSaveParams(std::map<std::string, std::string> &params) const;
-    void setSaveParams(std::map<std::string, std::string> &params);
+    json getJson() const;
+    void setJson(const json &js);
     
     void setLabelColWidth(float w) { mLabelColW = w; for(auto s : mSettings) { s->setLabelColWidth(w); } }
     void setInputColWidth(float w) { mInputColW = w; for(auto s : mSettings) { s->setInputColWidth(w); } }

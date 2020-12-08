@@ -16,6 +16,10 @@ TimeNode::TimeNode(const DateTime &dt)
 {
   // setMinSize(Vec2f(512, 512));
   outputs()[TIMENODE_OUTPUT_DATE]->set(&mWidget.get());
+
+  mSettings.push_back(new Setting<DateTime>   ("Date",       "date",      &mWidget.get()));
+  mSettings.push_back(new Setting<std::string>("Saved Name", "savedName", &mWidget.getName()));
+  mSettings.push_back(new Setting<bool>       ("Live",       "live",      &mLiveMode));
 }
 
 void TimeNode::onUpdate()
@@ -74,6 +78,14 @@ TimeSpanNode::TimeSpanNode(const DateTime &dtStart, const DateTime &dtEnd)
 {
   // setMinSize(Vec2f(512, 512));
   outputs()[TIMESPANNODE_OUTPUT_DATE]->set(&mDate);
+
+  mSettings.push_back(new Setting<std::string>("Start Saved Name", "startSavedName", &mStartWidget.getName()));
+  mSettings.push_back(new Setting<DateTime>   ("Start Date",       "startDate",      &mStartWidget.get()));
+  mSettings.push_back(new Setting<std::string>("End Saved Name",   "endSavedName",   &mEndWidget.getName()));
+  mSettings.push_back(new Setting<DateTime>   ("End Date",         "endDate",        &mEndWidget.get()));
+  mSettings.push_back(new Setting<DateTime>   ("Current Date",     "currentDate",    &mDate));
+  mSettings.push_back(new Setting<double>     ("Speed",            "speed",          &mSpeed));
+  mSettings.push_back(new Setting<int>        ("Units",            "units",          &mUnitIndex));
 }
 
 void TimeSpanNode::onUpdate()

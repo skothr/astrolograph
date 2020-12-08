@@ -49,12 +49,7 @@ namespace astro
     
     virtual void onUpdate() override;
     virtual void onDraw() override;
-    
-    virtual void getSaveParams(std::map<std::string, std::string> &params) const override
-    { };
-    virtual void setSaveParams(std::map<std::string, std::string> &params) override
-    { };
-    
+        
   public:
     static bool initShaders();
     static void cleanShaders();
@@ -62,14 +57,6 @@ namespace astro
     MoonNode();
     ~MoonNode();
     virtual std::string type() const { return "MoonNode"; }
-    virtual bool copyTo(Node *other) override
-    { // copy settings
-      if(Node::copyTo(other))
-        { // (everything else set by connections)
-          return true;
-        }
-      else { return false; }
-    }
   };
 }
 

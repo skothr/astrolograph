@@ -1,14 +1,16 @@
 #ifndef SETTING_HPP
 #define SETTING_HPP
 
-#include <map>
 #include <vector>
 #include <sstream>
-#include "vector.hpp"
-
 #include <iostream>
 #include "imgui.h"
 #include "glfwKeys.hpp"
+#include "vector.hpp"
+
+// TODO: avoid including big file in header
+#include "nlohmann/json.hpp" // #include "nlohmann/json_fwd.hpp" // json forward declarations
+using json = nlohmann::json;
 
 namespace astro
 {
@@ -16,8 +18,8 @@ namespace astro
   class SettingBase
   {
   protected:
-    std::string mName;
-    std::string mId;
+    std::string mName = "";
+    std::string mId   = "";
     float mLabelColW = 200; // width of column with setting name labels    
     float mInputColW = 150; // width of column with setting input widget(s)
     virtual bool onDraw(float scale, bool busy=false) { return busy; }
@@ -26,16 +28,20 @@ namespace astro
     SettingBase(const std::string &name, const std::string &id) : mName(name), mId(id) { }
     virtual ~SettingBase() { }
 
+    virtual bool isGroup() const { return false; }
+    std::string getName() const  { return mName; }
+    std::string getId() const    { return mId; }
+    
+    // JSON
+    virtual json getJson() const         { return json::object(); }
+    virtual bool setJson(const json &js) { return true; }
+    
     virtual void setLabelColWidth(float width) { mLabelColW = width; }
     virtual void setInputColWidth(float width) { mInputColW = width; }
-    std::string getName() const { return mName; }
-    std::string getId() const   { return mId; }
+
+    virtual bool hasChanged() const { return false; } // TODO
     
-    virtual bool isGroup() const    { return false; }
-    virtual bool hasChanged() const { return false; }
-    virtual void getSaveParams(std::map<std::string, std::string> &params) const { }
-    virtual void setSaveParams(std::map<std::string, std::string> &params)       { }
-    
+    // TODO: improve flexibility
     bool draw(float scale, bool busy=false)
     {
       if(!isGroup())
@@ -48,13 +54,14 @@ namespace astro
     }
   };
 
+
+  
   //// SETTING TEMPLATE CLASS ////
   template<typename T>
   class Setting : public SettingBase
   {
   private:
     bool mDelete = false; // whether to delete data on destruction
-    bool mActive = false;
   protected:
     T *mData   = nullptr;
     T mDefault;
@@ -62,31 +69,18 @@ namespace astro
   public:
     typedef Setting<T> type;
     // construction
-    Setting(const std::string &name, const std::string &id, T *ptr)
-      : SettingBase(name, id), mData(ptr), mDelete(false)
-    { mDefault = *mData; }
+    Setting(const std::string &name, const std::string &id, T *ptr, const T &defaultVal=T())
+      : SettingBase(name, id), mData(ptr), mDefault(*mData) { }
+    Setting(const std::string &name, const std::string &id, const T &val, const T &defaultVal = T())
+      : Setting(name, id, new T(val), defaultVal)           { mDelete = true; }
     Setting(const std::string &name, const std::string &id)
-      : Setting(name, id, new T())
-    { mDelete = true; }
-    Setting(const std::string &name, const std::string &id, const T &val)
-      : Setting(name, id, new T(val))
-    { mDelete = true; }
-    // with default value
-    Setting(const std::string &name, const std::string &id, T *ptr, const T &defaultVal)
-      : SettingBase(name, id), mData(ptr), mDelete(false)
-    { mDefault = defaultVal; }
-    Setting(const std::string &name, const std::string &id, const T &val, const T &defaultVal)
-      : Setting(name, id, new T(val))
-    {
-      mDelete = true;
-      mDefault = defaultVal;
-    }
-
+      : Setting(name, id, T())                              { }
+    // destruction
+    virtual ~Setting() { if(mDelete && mData) { delete mData; } }
     
-    ~Setting() { if(mData && mDelete) { delete mData; } }
-    
-    virtual void getSaveParams(std::map<std::string, std::string> &params) const override;
-    virtual void setSaveParams(std::map<std::string, std::string> &params) override;
+    // JSON
+    virtual json getJson() const override;
+    virtual bool setJson(const json &js) override;
   };
 
   //// COMBOBOX SETTING ////
@@ -101,94 +95,178 @@ namespace astro
       : Setting<int>(name, id) { }
     ComboSetting(const std::string &name, const std::string &id, int *selection, const std::vector<std::string> &choices)
       : Setting<int>(name, id, selection), mChoices(choices) { }
+    ComboSetting(const std::string &name, const std::string &id, int *selection, const std::vector<std::string> &choices, int defaultVal)
+      : Setting<int>(name, id, selection, defaultVal), mChoices(choices) { }
     ~ComboSetting() { }
     
-    virtual void getSaveParams(std::map<std::string, std::string> &params) const override;
-    virtual void setSaveParams(std::map<std::string, std::string> &params) override;
+    // JSON
+    virtual json getJson() const override;
+    virtual bool setJson(const json &js) override;
   };
 
+
+  
   //// SETTING GROUP ////
   class SettingGroup : public SettingBase
   {
   protected:
-    bool mCollapse = false;
-    bool mActive   = false;
+    bool mCollapse = false; // true if group is collapsible (collapsing header vs. text title)
+    bool mDelete   = false; // true if settings should be deleted
+    bool mOpen     = false; // true if group is not collapsed
     std::vector<SettingBase*> mContents;
     virtual bool onDraw(float scale, bool busy=false) override;
     
   public:
-    SettingGroup(const std::string &name, const std::string &id)
-      : SettingBase(name, id) { }
-    SettingGroup(const std::string &name, const std::string &id, const std::vector<SettingBase*> &contents, bool collapse=false)
-      : SettingBase(name, id), mContents(contents), mCollapse(collapse) { }
-    ~SettingGroup() { }
+    SettingGroup(const std::string &name_, const std::string &id_, const std::vector<SettingBase*> &contents, bool collapse=false, bool deleteContents=true)
+      : SettingBase(name_, id_), mContents(contents), mCollapse(collapse), mDelete(deleteContents)
+    {
+      // if(mCollapse) { mContents.push_back(new Setting<bool>("Group Open", "open", &mOpen)); }
+    }
+    ~SettingGroup()
+    {
+      if(mDelete)
+        {
+          for(auto s : mContents) { delete s; }
+          mContents.clear();
+        }
+    }
+
+    void add(SettingBase *setting) { mContents.push_back(setting); }
+    const bool& open() const  { return mOpen; }
+    bool& open() { return mOpen; }
+
+    // JSON
+    virtual json getJson() const override;
+    virtual bool setJson(const json &js) override;
+    
     virtual bool isGroup() const override { return true; }
 
-    // pass to content settings
+    // pass to contents
     virtual void setLabelColWidth(float w) override { SettingBase::setLabelColWidth(w); for(auto s : mContents) { s->setLabelColWidth(w); } }
     virtual void setInputColWidth(float w) override { SettingBase::setInputColWidth(w); for(auto s : mContents) { s->setInputColWidth(w); } }
-    
-    void getSaveParams(std::map<std::string, std::string> &params) const;
-    void setSaveParams(std::map<std::string, std::string> &params);
   };
 
+  // makes a group of settings from a vector of values
+  template<typename T>
+  inline SettingGroup* makeSettingGroup(const std::string &name, const std::string &id, std::vector<T> *contentData, bool collapse=false)
+  {
+    std::vector<SettingBase*> contents;
+    for(int i; i < contentData->size(); i++)
+      {
+        std::string index = std::to_string(i);
+        T *ptr = &((*contentData)[i]);
+        contents.push_back(new Setting<T>(name+index, id+index, ptr));
+      }
+    return new SettingGroup(name, id, contents, collapse);
+  }
+
+  // makes a group of settings from an array of values  
+  template<typename T, int N>
+  inline SettingGroup* makeSettingGroup(const std::string &name, const std::string &id, std::array<T, N> *contentData, bool collapse=false)
+  {
+    std::vector<SettingBase*> contents;
+    for(int i; i < N; i++)
+      {
+        std::string index = std::to_string(i);
+        T *ptr = &((*contentData)[i]);
+        contents.push_back(new Setting<T>(name+index, id+index, ptr));
+      }
+    return new SettingGroup(name, id, contents, collapse);
+  }
+  
+  //////////////////////////////////
+  //// SAVING/LOADING FROM JSON ////
+  //////////////////////////////////
+
+  
   //// SETTING SAVE/LOAD ////
   template<typename T>
-  inline void Setting<T>::getSaveParams(std::map<std::string, std::string> &params) const
+  inline json Setting<T>::getJson() const
   {
-    params.emplace("active", (mActive ? "1" : "0"));
+    json js;
     if(mData)
       {
-        std::stringstream ss;
-        ss << (*mData);
-        params.emplace("value", ss.str());
+        std::stringstream ss; ss << (*mData);
+        js = ss.str();
       }
+    return js;
   }
   template<typename T>
-  inline void Setting<T>::setSaveParams(std::map<std::string, std::string> &params)
+  inline bool Setting<T>::setJson(const json &js)
   {
-    auto iter = params.find("active");
-    if(mData && iter != params.end())
-      { mActive = (iter->second != "0"); }
-      
-    iter = params.find("value");
-    if(mData && iter != params.end())
-      {
-        std::stringstream ss(iter->second);
-        ss >> (*mData);
-      }
+    bool success = true;
+    if(!js.is_null()) { std::stringstream(js.get<std::string>()) >> (*mData); }
+    else              { success = false; }
+    return success;
   }
 
   //// COMBO SETTING SAVE/LOAD ////
-  inline void ComboSetting::getSaveParams(std::map<std::string, std::string> &params) const
+  inline json ComboSetting::getJson() const
   {
-    Setting<int>::getSaveParams(params);
-      
-    std::string choiceStr = "";
-    for(auto &c : mChoices) { choiceStr += c + ","; }
-    params.emplace("choices", choiceStr);
+    json combo = json::object();
+    combo["selection"] = Setting<int>::getJson();
+    combo["choices"]   = mChoices;
+    return combo;
   }
-  inline void ComboSetting::setSaveParams(std::map<std::string, std::string> &params)
+  inline bool ComboSetting::setJson(const json &js)
   {
-    Setting<int>::setSaveParams(params);
-
-    mChoices.clear();
-    auto iter = params.find("choices");
-    if(iter != params.end())
+    if(js.contains("selection"))
+      { Setting<int>::setJson(js["selection"]); }
+    if(js.contains("choices"))
       {
-        std::stringstream ss(iter->second);
-        std::string c;
-        while(std::getline(ss, c, ','))
-          { mChoices.push_back(c); }
+        json choices = js["choices"];
+        mChoices.clear();
+        mChoices.reserve(choices.size());
+        for(auto c : choices) { mChoices.push_back(c); }
       }
+    return true;
   }
 
+  //// SETTING GROUP SAVE/LOAD ////
+  inline json SettingGroup::getJson() const
+  {
+    json js = json::object();
+    if(mCollapse) { js["open"] = mOpen; }
+    
+    json contents = json::array();
+    for(auto s : mContents)
+      { contents.push_back(s->getJson()); }
+    js["contents"] = contents;
+    return js;
+  }
+  inline bool SettingGroup::setJson(const json &js)
+  {
+    bool success = true;
+    if(mCollapse)
+      {
+        if(js.contains("open")) { mOpen = js["open"].get<bool>(); }
+        else                    { success = false; }
+      }
+
+    if(js.contains("contents"))
+      {
+        json contents = js["contents"];
+        if(contents.size() == mContents.size())
+          {
+            for(int i = 0; i < mContents.size(); i++)
+              { mContents[i]->setJson(contents[i]); }
+          }
+        else { success = false; }
+      }
+    else { success = false; }
+    return success;
+  }
+
+  
   //////////////////////////////////////////
   //// SETTING DRAW OVERLOADS (BY TYPE) ////
   //////////////////////////////////////////
+  
   template<> inline bool Setting<bool>::onDraw(float scale, bool busy)
   { //// BOOL (checkbox)
+    ImGui::PushStyleVar(ImGuiStyleVar_FramePadding, Vec2f(0,0));
     ImGui::Checkbox(("##"+mId).c_str(), mData);
+    ImGui::PopStyleVar();
     return busy;
   }
   template<> inline bool Setting<int>::onDraw(float scale, bool busy)
@@ -207,7 +285,7 @@ namespace astro
     std::copy(mData->begin(), mData->end(), data);
     if(ImGui::InputText(("##"+mId).c_str(), data, 1024))
       {
-        // mChanged |= (data != *mData));
+        // mChanged |= (data != *mData)); // TODO
         *mData = data;
       }
     return busy;
@@ -238,7 +316,7 @@ namespace astro
     std::string pickerName = "##" + mId + "pick";
     // choose graph background color
     ImGuiColorEditFlags cFlags = (ImGuiColorEditFlags_DisplayRGB | ImGuiColorEditFlags_NoAlpha);
-    if(ImGui::ColorButton(buttonName.c_str(), *mData, cFlags, ImVec2(20, 20)))// && !busy)
+    if(ImGui::ColorButton(buttonName.c_str(), *mData, cFlags, ImVec2(20, 20)) && !busy)
       {
         lastColor = *mData;
         ImGui::OpenPopup(popupName.c_str());
@@ -250,9 +328,11 @@ namespace astro
     if(ImGui::BeginPopup(popupName.c_str(), wFlags))
       {
         busy = true; // busy picking color;
+        bool hover = ImGui::IsWindowHovered(ImGuiHoveredFlags_RootAndChildWindows);
         ImGui::ColorPicker4(pickerName.c_str(), mData->data.data(), cFlags, lastColor.data.data());
+        hover |= ImGui::IsItemHovered();
         
-        if(ImGui::Button("Select") || ImGui::IsKeyPressed(GLFW_KEY_ENTER)) // selects color
+        if(ImGui::Button("Select") || ImGui::IsKeyPressed(GLFW_KEY_ENTER) || (!hover && ImGui::IsMouseClicked(ImGuiMouseButton_Left))) // selects color
           { ImGui::CloseCurrentPopup(); }
         ImGui::SameLine();
         if(ImGui::Button("Cancel")) // cancels current selection
@@ -292,21 +372,21 @@ namespace astro
     ImGuiTreeNodeFlags flags = (ImGuiTreeNodeFlags_FramePadding | ImGuiTreeNodeFlags_SpanAvailWidth);
     if(mCollapse)
       {
-        ImGui::SetNextTreeNodeOpen(mActive);
+        ImGui::SetNextTreeNodeOpen(mOpen);
         if(ImGui::CollapsingHeader(mName.c_str(), nullptr, flags))
           {
-            mActive = true;
+            mOpen = true;
             ImGui::Indent();
             ImGui::BeginGroup();
             for(auto s : mContents) { busy |= s->draw(scale); }
             ImGui::EndGroup();
             ImGui::Unindent();
           }
-        else { mActive = false; }
+        else { mOpen = false; }
       }
     else
       {
-        mActive = false;
+        mOpen = false;
         ImGui::TextUnformatted(mName.c_str());
         ImGui::Separator();
         ImGui::Indent();
@@ -317,49 +397,6 @@ namespace astro
       }
     return busy;
   }
-
-  //// SETTING GROUP SAVE/LOAD ////
-  inline void SettingGroup::getSaveParams(std::map<std::string, std::string> &params) const
-  {
-    params.emplace("active", mActive ? "1" : "0");
-    std::string totalVal = "";
-    for(auto s : mContents)
-      {
-        std::map<std::string, std::string> sParams;
-        s->getSaveParams(sParams);
-        std::string val = "";
-        for(auto v : sParams)
-          { val += v.first + ";" + v.second + "/"; }
-        params.emplace(s->getId(), val);
-      }
-  }
-  inline void SettingGroup::setSaveParams(std::map<std::string, std::string> &params)
-  {
-    auto iter = params.find("active");
-    if(iter != params.end()) { mActive = (iter->second != "0"); }
-      
-    for(auto s : mContents)
-      {
-        iter = params.find(s->getId());
-        if(iter != params.end())
-          {
-            std::map<std::string, std::string> sParams;
-            std::stringstream ss(iter->second);
-            std::string line;
-            while(std::getline(ss, line, '/'))
-              {
-                std::stringstream ss2(line);
-                std::string id, val;
-                if(std::getline(ss2, id, ';') && std::getline(ss2, val, '/'))
-                  { sParams.emplace(id, val); }
-                else
-                  { std::cout << "WARNING: Group failed to load setting (" << id << ") --> '" << val << "'\n"; }
-              }
-            s->setSaveParams(sParams);
-          }
-      }
-  }
-
 }
 
 #endif // SETTING_HPP

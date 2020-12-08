@@ -6,17 +6,45 @@
 #include "ephemeris.hpp"
 
 #include <vector>
+#include <string>
+#include <iostream>
 
 namespace astro
 {
-  struct ChartParams
+  struct BoolStruct
   {
-    std::array<bool,   (OBJ_COUNT+OBJ_END-ANGLE_OFFSET)> objVisible;
-    std::array<bool,   (OBJ_COUNT+OBJ_END-ANGLE_OFFSET)> objFocused;
-    std::array<double, (OBJ_COUNT+OBJ_END-ANGLE_OFFSET)> objOrbs;
-    std::array<bool,   ASPECT_COUNT>                  aspVisible;
-    std::array<bool,   ASPECT_COUNT>                  aspFocused;
-    std::array<double, ASPECT_COUNT>                  aspOrbs;
+    bool data;
+    
+    BoolStruct(bool val = false) : data(val) { }
+    //BoolStruct& operator=(bool val) { data = val; return *this; }
+    
+    //bool operator!() const { return !data; }
+    operator bool() const { return data; }
+      
+    friend std::ostream& operator<<(std::ostream &os, const BoolStruct &b);
+    friend std::istream& operator>>(std::istream &is, BoolStruct &b);
+  };
+  inline std::ostream& operator<<(std::ostream &os, const BoolStruct &b)
+  {
+    os << (b.data ? "1" : "0") << " ";
+    return os;
+  }
+  inline std::istream& operator>>(std::istream &is, BoolStruct &b)
+  {
+    std::string str;
+    is >> str;
+    b.data = (str != "0");
+    return is;
+  }
+
+  struct ChartParams
+  {    
+    std::array<BoolStruct, (OBJ_COUNT+OBJ_END-ANGLE_OFFSET)> objVisible;
+    std::array<BoolStruct, (OBJ_COUNT+OBJ_END-ANGLE_OFFSET)> objFocused;
+    std::array<double,     (OBJ_COUNT+OBJ_END-ANGLE_OFFSET)> objOrbs;
+    std::array<BoolStruct, ASPECT_COUNT>                     aspVisible;
+    std::array<BoolStruct, ASPECT_COUNT>                     aspFocused;
+    std::array<double,     ASPECT_COUNT>                     aspOrbs;
     ChartParams()
     { // initialize defaults
       for(int i = OBJ_SUN; i < OBJ_END; i++)
@@ -152,6 +180,8 @@ namespace astro
 
     const DateTime& date() const     { return mDate; }
     const Location& location() const { return mLocation; }
+    DateTime& date()     { return mDate; }
+    Location& location() { return mLocation; }
   };
   
 }

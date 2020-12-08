@@ -22,6 +22,9 @@ namespace astro
     char mName[DATE_NAME_BUFLEN] = "";
     char mSavedName[DATE_NAME_BUFLEN] = "";
     bool mDST = false; // daylight savings time
+
+    std::string mNameStr = "";
+    std::string mSavedNameStr = "";
     
   public:
     TimeWidget();
@@ -36,7 +39,8 @@ namespace astro
     const DateTime& getSaved() const    { return mSavedDate; }
     void setSaved(const DateTime &date) { mSavedDate = date; }
     
-    std::string getName() const { return mName; }
+    const std::string& getName() const { return mNameStr; }
+    std::string& getName()             { return mNameStr; }
     void setName(const std::string &n) { sprintf(mName, "%s", n.c_str()); }
     
     bool save(const std::string &name);

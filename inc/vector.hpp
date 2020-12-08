@@ -26,7 +26,7 @@ struct Vector
   
   std::string toString() const            { std::ostringstream ss;      ss << (*this); return ss.str(); }
   void fromString(const std::string &str) { std::istringstream ss(str); ss >> (*this); }
-  
+
   T& operator[](int dim)             { return data[dim]; }
   const T& operator[](int dim) const { return data[dim]; }
   
@@ -138,7 +138,7 @@ struct Vector<T, 2>
   
   std::string toString() const            { std::ostringstream ss;      ss << (*this); return ss.str(); }
   void fromString(const std::string &str) { std::istringstream ss(str); ss >> (*this); }
-
+  
   bool operator==(const Vector<T, N> &other) const
   {
     for(int i = 0; i < N; i++)
@@ -244,7 +244,7 @@ struct Vector<T, 3>
   
   std::string toString() const            { std::ostringstream ss; ss << (*this); return ss.str(); }
   void fromString(const std::string &str) { std::istringstream ss(str); ss >> (*this); }
-  
+
   bool operator==(const Vector<T, N> &other) const
   {
     for(int i = 0; i < N; i++)
@@ -288,6 +288,23 @@ struct Vector<T, 3>
     return result;
   }
   
+  Vector<T, N>& operator*=(const Vector<T, N> &other)
+  { for(int i = 0; i < N; i++) { data[i] *= other.data[i]; } return *this; }
+  Vector<T, N>& operator/=(const Vector<T, N> &other)
+  { for(int i = 0; i < N; i++) { data[i] /= other.data[i]; } return *this; }
+  Vector<T, N> operator*(const Vector<T, N> &other) const
+  {
+    Vector<T, N> result(data);
+    for(int i = 0; i < N; i++) { result.data[i] *= other.data[i]; }
+    return result;
+  }
+  Vector<T, N> operator/(const Vector<T, N> &other) const
+  {
+    Vector<T, N> result(data);
+    for(int i = 0; i < N; i++) { result.data[i] /= other.data[i]; }
+    return result;
+  }
+  
   void ceil()  { for(auto &d : data) { d = std::ceil(d); } }
   void floor() { for(auto &d : data) { d = std::floor(d); } }
   Vector<T, N> getCeil() const  { Vector<T, N> v(*this); v.ceil();  return v; }
@@ -303,7 +320,7 @@ struct Vector<T, 3>
   void normalize() const          { return (*this) /= length(); }
   Vector<T, N> normalized() const { return Vector<T, N>(*this) / length(); }
 };
-  
+
 template<typename T>
 struct Vector<T, 4>
 {
@@ -371,6 +388,23 @@ struct Vector<T, 4>
   {
     Vector<T, N> result(*this);
     for(int i = 0; i < N; i++) { result.data[i] /= scalar; }
+    return result;
+  }
+  
+  Vector<T, N>& operator*=(const Vector<T, N> &other)
+  { for(int i = 0; i < N; i++) { data[i] *= other.data[i]; } return *this; }
+  Vector<T, N>& operator/=(const Vector<T, N> &other)
+  { for(int i = 0; i < N; i++) { data[i] /= other.data[i]; } return *this; }
+  Vector<T, N> operator*(const Vector<T, N> &other) const
+  {
+    Vector<T, N> result(data);
+    for(int i = 0; i < N; i++) { result.data[i] *= other.data[i]; }
+    return result;
+  }
+  Vector<T, N> operator/(const Vector<T, N> &other) const
+  {
+    Vector<T, N> result(data);
+    for(int i = 0; i < N; i++) { result.data[i] /= other.data[i]; }
     return result;
   }
   

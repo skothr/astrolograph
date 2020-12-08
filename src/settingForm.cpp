@@ -12,39 +12,21 @@ SettingBase* SettingForm::get(const std::string &name)
   return (iter != mSettings.end() ? *iter : nullptr);
 }
 
-void SettingForm::getSaveParams(std::map<std::string, std::string> &params) const
+json SettingForm::getJson() const
 {
+  json js = json::object();
   for(auto s : mSettings)
-    {
-      std::map<std::string, std::string> sParams;
-      s->getSaveParams(sParams);
-      std::string val = "";
-      for(auto v : sParams) { val += v.first + ":" + v.second + "|"; }
-      params.emplace(s->getId(), val);
-    }
+    { js[s->getId()] = s->getJson(); }
+  return js;
 }
 
-void SettingForm::setSaveParams(std::map<std::string, std::string> &params)
+void SettingForm::setJson(const json &js)
 {
   for(auto s : mSettings)
     {
-      auto iter = params.find(s->getId());
-      if(iter != params.end())
-        {
-          std::map<std::string, std::string> sParams;
-          std::stringstream ss(iter->second);
-          std::string line;
-          while(std::getline(ss, line, '|'))
-            {
-              std::stringstream ss2(line);
-              std::string id, val;
-              if(std::getline(ss2, id, ':') && std::getline(ss2, val, '|'))
-                { sParams.emplace(id, val); }
-              else
-                { std::cout <<  "WARNING: SettingForm failed to parse setting (" << id << ") --> " << val << "\n"; }
-            }
-          s->setSaveParams(sParams);
-        }
+      auto jss = js[s->getId()];
+      if(!jss.is_null())
+        { s->setJson(jss); }
       else
         { std::cout <<  "WARNING: SettingForm couldn't find setting id (" << s->getId() << ")\n"; }
     }

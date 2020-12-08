@@ -8,18 +8,7 @@ using namespace astro;
 ChartNode::ChartNode(Chart *chart)
   : Node(CONNECTOR_INPUTS(), CONNECTOR_OUTPUTS(), "Chart Node"), mChart(chart)
 {
-  for(auto hs : HOUSE_SYSTEM_NAMES)     { mHsNames.push_back(hs.second); if(hs.first == HOUSE_PLACIDUS) { mHouseSystem = mHsNames.size()-1; } }
-  for(int i = 0; i < ZODIAC_COUNT; i++) { mZNames.push_back(getZodiacName((ZodiacType)i)); }
-  
-  mSettings = new SettingForm(150.0f, 135.0f);
-  mSettings->add(new SettingGroup("Options", "opt",
-                                  {   new ComboSetting ("House System",   "hsys",     &mHouseSystem, mHsNames),
-                                      new ComboSetting ("Zodiac",         "zodiac",   &mZodiac,      mZNames),
-                                      new Setting<bool>("True Positions", "truePos",  &mTruePos) }, true));
-  
   if(!mChart) { mChart = new Chart(DateTime::now(), Location()); }
-  outputs()[CHARTNODE_OUTPUT_CHART]->set(mChart);
-  
   for(auto &obj : mChart->objects())
     {
       if(obj->type < OBJ_COUNT) // planets/asateroids/etc
@@ -28,45 +17,36 @@ ChartNode::ChartNode(Chart *chart)
         { mChart->showObject((ObjType)obj->type, false); }
     }
   mChart->update();
+  outputs()[CHARTNODE_OUTPUT_CHART]->set(mChart);
+  
+  for(auto hs : HOUSE_SYSTEM_NAMES)     { mHsNames.push_back(hs.second); if(hs.first == HOUSE_PLACIDUS) { mHouseSystem = mHsNames.size()-1; } }
+  for(int i = 0; i < ZODIAC_COUNT; i++) { mZNames.push_back(getZodiacName((ZodiacType)i)); }
+
+  SettingGroup *group = new SettingGroup("Options", "opt", { }, true, false);
+    
+  mSettings.push_back(new Setting<DateTime>("Date/Time",      "date",     &mChart->date()));
+  mSettings.push_back(new Setting<Location>("Location",       "location", &mChart->location()));
+  mSettings.push_back(new Setting<bool>    ("Options Open",   "optOpen",  &group->open()));
+  mSettings.push_back(new ComboSetting     ("House System",   "hsys",     &mHouseSystem,      mHsNames, HOUSE_PLACIDUS));
+  mSettings.push_back(new ComboSetting     ("Zodiac",         "zodiac",   &mZodiac,           mZNames, ZODIAC_TROPICAL));
+  mSettings.push_back(new Setting<bool>    ("True Positions", "truePos",  &mTruePos,          false));
+
+  group->add(mSettings[3]);
+  group->add(mSettings[4]);
+  group->add(mSettings[5]);
+  
+  mSettingForm = new SettingForm(150.0f, 135.0f);
+  mSettingForm->add(group); //("True Positions", "truePos",  &mTruePos) }, true));
 }
 
 ChartNode::ChartNode(const DateTime &dt, const Location &loc)
-  : ChartNode(new Chart(dt, loc))
-{ }
+  : ChartNode(new Chart(dt, loc)) { }
 
 ChartNode::~ChartNode()
 {
-  delete mSettings;
+  delete mSettingForm;
   delete mChart;
 }
-
-    
-void ChartNode::getSaveParams(std::map<std::string, std::string> &params) const
-{
-  mSettings->getSaveParams(params);
-  if(!inputs()[CHARTNODE_INPUT_DATE]->get<DateTime>())
-    { params.emplace("date", mChart->date().toSaveString()); }
-  if(!inputs()[CHARTNODE_INPUT_LOCATION]->get<Location>())
-    { params.emplace("location", mChart->location().toSaveString()); }
-};
-    
-void ChartNode::setSaveParams(std::map<std::string, std::string> &params)
-{
-  mSettings->setSaveParams(params);
-  auto iter = params.find("date");   if(iter != params.end()) { mChart->setDate(DateTime(iter->second)); }
-  iter = params.find("location");    if(iter != params.end()) { mChart->setLocation(Location(iter->second)); }
-
-  HouseSystem hs = HOUSE_INVALID;
-  for(auto h : HOUSE_SYSTEM_NAMES)
-    { if(mHsNames[mHouseSystem] == h.second) { hs = h.first; } }
-  mChart->setHouseSystem(hs);
-  mChart->setZodiac((ZodiacType)mZodiac);
-  mChart->setTruePos(mTruePos);
-  mChart->update();
-};
-
-
-
 
 bool ChartNode::onConnect(ConnectorBase *con)
 {
@@ -145,11 +125,9 @@ void ChartNode::onDraw()
   ImGui::TextUnformatted(loc.toString().c_str());
   ImGui::Spacing();
 
-  // chart options
-  std::map<std::string, std::string> oldData;
-  std::map<std::string, std::string> newData;
-  mSettings->getSaveParams(oldData);
-  mSettings->draw(scale);
-  mSettings->getSaveParams(newData);
-  mChanged |= (oldData != newData);
+  // chart options (TODO: keep track of changes instead of comparing whole JSON)
+  json jsOld = mSettingForm->getJson();
+  mSettingForm->draw(scale);
+  json jsNew = mSettingForm->getJson();
+  mChanged |= (jsOld != jsNew);
 }

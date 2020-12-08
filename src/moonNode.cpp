@@ -166,6 +166,7 @@ void MoonNode::onDraw()
       ImGui::Checkbox("Fancy", &mFancyShading);
       renderTexture();
     }
-  ImGui::Image(reinterpret_cast<ImTextureID*>(mTex), MOON_DRAW_SIZE*scale, Vec2f(0,0), Vec2f(1,1), Vec4f(1,1,1,1), Vec4f(1,1,1,1));
+  Vec4f borderCol(1,1,1,1);
+  ImGui::Image(reinterpret_cast<ImTextureID*>(mTex), MOON_DRAW_SIZE*scale, Vec2f(0,0), Vec2f(1,1), mColorMask, borderCol);
 }
 

@@ -28,37 +28,15 @@ namespace astro
     { return {new Connector<Chart>("Progressed Chart")}; }
 
     Chart *mChart = nullptr;
+    SettingForm mSettingForm;
 
     virtual void onUpdate() override;
     virtual void onDraw() override;
-    
-    virtual void getSaveParams(std::map<std::string, std::string> &params) const override
-    {
-      // if(!inputs()[PROGRESSNODE_INPUT_DATE]->get<DateTime>())
-      //   { params.emplace("date",     mChart->date().toSaveString()); }
-      // if(!inputs()[PROGRESSNODE_INPUT_LOCATION]->get<DateTime>())
-      //   { params.emplace("location", mChart->location().toSaveString()); }
-    };
-    
-    virtual void setSaveParams(std::map<std::string, std::string> &params) override
-    {
-      // auto iter = params.find("date");
-      // if(iter != params.end()) { mChart->setDate(DateTime(iter->second)); }
-      // iter = params.find("location");
-      // if(iter != params.end()) { mChart->setLocation(Location(iter->second)); }
-    };
-
-    SettingForm mSettings;
     
   public:
     ProgressNode();
     ~ProgressNode();
     virtual std::string type() const { return "ProgressNode"; }
-    virtual bool copyTo(Node *other) override
-    { // (no extra data to copy -- mChart is set based on connections)
-      if(Node::copyTo(other)) { return true; }
-      else                    { return false; }
-    }
   };
 }
 

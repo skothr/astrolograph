@@ -43,8 +43,8 @@ namespace astro
     
   public:
     // Global
-    float mainTextSize     = 10.0f;
-    float titleTextSize    = 16.0f;
+    float mainTextSize     = 16.0f;
+    float titleTextSize    = 20.0f;
     ImFont *mainFont       = nullptr;
     ImFont *titleFont      = nullptr;
     

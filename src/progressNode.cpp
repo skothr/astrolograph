@@ -17,6 +17,9 @@ ProgressNode::ProgressNode()
       else                      // angles
         { mChart->showObject((ObjType)obj->type, false); }
     }
+
+  mSettings.push_back(new Setting<DateTime>("Date", "date", &mChart->date()));
+  mSettings.push_back(new Setting<Location>("Location", "location", &mChart->location()));
 }
 
 ProgressNode::~ProgressNode()
@@ -79,6 +82,6 @@ void ProgressNode::onDraw()
       //mChart->update();
     }
   // mChart->update();
-  mSettings.draw(getScale());
+  mSettingForm.draw(getScale());
 }
 

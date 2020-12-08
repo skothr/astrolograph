@@ -194,8 +194,8 @@ void DateTime::setSecond(double second)
 { mSecond = second; }
 void DateTime::setUtcOffset(double offset)
 { mUtcOffset = offset; }
-void DateTime::setDstOffset(double offset)
-{ mDstOffset = offset; }
+void DateTime::setDstOffset(bool dst)
+{ mDstOffset = dst; }
 
 bool DateTime::set(int year, int month, int day, int hour, int minute, double second)
 {

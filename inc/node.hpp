@@ -6,6 +6,7 @@
 
 #include "param.hpp"
 #include "viewSettings.hpp"
+#include "setting.hpp"
 
 #include <vector>
 #include <iomanip>
@@ -19,10 +20,12 @@ struct ImDrawList;
 namespace astro
 {
   // connector params
-#define CONNECTOR_SIZE     Vec2f(20.0f, 40.0f)
-#define CONNECTOR_PADDING  Vec2f(10.0f, 10.0f)
-#define CONNECTOR_PROTRUDE (Vec2f(CONNECTOR_SIZE.x/2,0) + Vec2f(CONNECTOR_PADDING.x,0) + Vec2f(16.0f, 0.0f)) // vector from connection center to start point
-#define CONNECTOR_ROUNDING 6.0f
+#define CONNECTOR_SIZE          Vec2f(18.0f, 36.0f)
+#define CONNECTOR_POINT_RADIUS  4.0f
+#define CONNECTOR_PADDING       Vec2f(10.0f, 10.0f)
+#define CONNECTOR_PROTRUDE      (Vec2f(CONNECTOR_SIZE.x/2,0) + Vec2f(CONNECTOR_PADDING.x,0) + Vec2f(16.0f, 0.0f)) // vector from connection center to start point
+#define CONNECTOR_ROUNDING      5.0f
+#define CONNECTOR_SEGMENT_ERROR 0.1f
   // node params
 #define NODE_PADDING Vec2f(10.0f, 10.0f)
 #define NODE_ROUNDING 6.0f
@@ -106,9 +109,9 @@ namespace astro
     void endConnecting()     { mConnecting = false; }
 
     void sendSignal(NodeSignal signal);
-
+    
     void draw(bool blocked);
-    void drawConnections(ImDrawList *nodeDrawList, ImDrawList *graphDrawList, bool ghost=false);
+    void drawConnections(ImDrawList *nodeDrawList, ImDrawList *graphDrawList);
   };
 
 
@@ -146,22 +149,25 @@ namespace astro
   class Node
   {
   protected:
-    // base class(?) for Node parameters
-    struct Params
-    {
-      int         id = -1;
-      std::string name;
-      Rect2f      rect;   // node border rect
-      float       z = -1; // for z ordering
-    };
-
+    int         mId = -1;
+    std::string mName = "";
+    Rect2f      mRect;                 // node rect (graph space)
+    Vec2f       mMinSize = Vec2f(1,1); // minimum size (to be set by child class)
+    float       mZLevel  = -1;         // for z ordering
+    Vec4f       mColorMask  = Vec4f(1.0f, 1.0f, 1.0f, 1.0f); // color mask
+    
     // size of node components
+    // TODO: improve?
     Vec2f mInputsSize;
     Vec2f mBodySize;
     Vec2f mOutputsSize;
 
+    std::vector<ConnectorBase*> mInputs;
+    std::vector<ConnectorBase*> mOutputs;
+    std::vector<SettingBase*> mSettings;
+
     NodeGraph *mGraph  = nullptr; // parent node graph
-    Params    *mParams = nullptr;
+    
     bool mFirstFrame   = true;    // true only on first frame
     bool mVisible      = true;    // whether node is drawn on screen
     bool mBodyVisible  = true;    // whether node body is drawn on screen
@@ -173,20 +179,11 @@ namespace astro
     bool mDragging     = false;   // whether mouse is dragging window
     bool mDrawing      = false;   // set to true by BeginDraw() if visible, set to false by EndDraw()
     bool mBlocked      = false;   // whether mouse is blocked by other nodes
-    
-    // Vec2f mNextPos = Vec2f(0,0);  // node window pos
-    Vec2f mMinSize = Vec2f(1,1);     // min size (to be set by child class)
-
-    
-    std::vector<ConnectorBase*> mInputs;
-    std::vector<ConnectorBase*> mOutputs;
+    bool mShowConnections = true; // set to false to hide connections when pasting
 
     // override in child classes to draw node
     virtual void onDraw()   { }
     virtual void onUpdate() { }
-
-    virtual void getSaveParams(std::map<std::string, std::string> &params) const { }
-    virtual void setSaveParams(std::map<std::string, std::string> &params)       { }
 
     float getBorderWidth() const
     {
@@ -223,10 +220,13 @@ namespace astro
       int conIn   = -1; // input connector id
     };
     
-    Node(const std::vector<ConnectorBase*> &inputs_, const std::vector<ConnectorBase*> &outputs_, const std::string &name="", Params *params=nullptr);
+    Node(const std::vector<ConnectorBase*> &inputs_, const std::vector<ConnectorBase*> &outputs_, const std::string &name="");
     Node(const Node &other);
     virtual ~Node();
     virtual std::string type() const = 0;
+
+    json toJson() const;           // convert settings to json for saving to file
+    bool fromJson(const json &js); // load settings json for reading from file
     
     virtual bool onConnect(ConnectorBase *con) { return true; } // return false if connection refused (?)
 
@@ -240,15 +240,17 @@ namespace astro
     
     // Copies child class data to other node (must be same type)
     //  --> override in child class if data needs to be copied
-    virtual bool copyTo(Node *other)
+    bool copyTo(Node *other)
     {
       if(other && (type() == other->type()))
         {
-          std::cout << "COPYING NODE --> NAME: " << name() << ", SIZE: " << size() << ", MINSIZE: " << getMinSize() << ", POS: " << pos() << "\n";
-          other->setName(name());
-          other->setSize(size());
-          other->setMinSize(getMinSize());
-          other->setPos(pos());
+          std::cout << "COPYING NODE --> " << toJson() << "\n";
+          std::cout << "          TO --> " << other->toJson() << "\n";
+          int oldId = other->id();
+          // other->setGraph(mGraph);
+          other->fromJson(toJson());
+          other->setId(oldId);
+          std::cout << "COPIED TO    --> " << other->toJson() << "\n";
           return true;
         }
       else { return false; }
@@ -257,15 +259,23 @@ namespace astro
     bool hasChanged() const       { return mChanged; }
     void setChanged(bool changed) { mChanged = changed; }
     
-    static std::map<std::string, std::string> getSaveHeader(const std::string &saveStr);    
-    std::string toSaveString() const;
-    // returns remaining string after base class parameters
-    std::string fromSaveString(const std::map<std::string, std::string> &header, const std::string &saveStr);
+    int id() const     { return mId; }
+    void setId(int id) { mId = id; }
     
-    int id() const     { return mParams->id; }
-    void setid(int id) { mParams->id = id; }
-    const std::string& name() const       { return mParams->name; }
-    void setName(const std::string &name) { mParams->name = name; }
+    const std::string& name() const       { return mName; }
+    void setName(const std::string &name) { mName = name; }
+    
+    void setMinSize(const Vec2f &s) { mMinSize = s; }
+    Vec2f getMinSize() const        { return mMinSize; }
+    void setRect(const Rect2f &r)   { mRect = r; }
+    void setPos(const Vec2f &p);
+    void setSize(const Vec2f &s)    { mRect.setSize(s); }
+    
+    const Rect2f& rect() const      { return mRect; }
+    const Vec2f& pos() const        { return mRect.p1; }
+    Vec2f size() const              { return mRect.size(); }
+    float getZ() const              { return mZLevel; }
+    void setZ(float z)              { mZLevel = z; }
     
     void setFirstFrame(bool firstFrame) { mFirstFrame = firstFrame; }
     void bringToFront();
@@ -283,28 +293,21 @@ namespace astro
     bool isConnecting() const;
     bool isSelected() const         { return mSelected; }
     void setSelected(bool selected) { mSelected = selected; }
-
     bool isActive() const           { return mActive; }
     bool isHovered() const          { return mHover; }
     bool isDragging() const         { return mDragging; }
     void setDragging(bool drag)     { mDragging = drag; }
-    
     bool isBlocked() const          { return mBlocked; }
-    
-    void setMinSize(const Vec2f &s) { mMinSize = s; }
-    Vec2f getMinSize() const        { return mMinSize; }
-    void setRect(const Rect2f &r)   { mParams->rect = r; }
-    void setPos(const Vec2f &p);
-    void setSize(const Vec2f &s)    { mParams->rect.setSize(s); }
-    
-    const Rect2f& rect() const      { return mParams->rect; }
-    const Vec2f& pos() const        { return mParams->rect.p1; }
-    Vec2f size() const              { return mParams->rect.size(); }
-    float getZ() const              { return mParams->z; }
-    void setZ(float z) const        { mParams->z = z; }
 
-    void drawConnections(ImDrawList *graphDrawList, bool ghost=false);
-    bool draw(ImDrawList *graphDrawList, bool blocked, bool ghost=false);
+    void setColorMask(const Vec4f &mask) { mColorMask = mask; }
+    Vec4f getColorMask() const { return mColorMask; }
+
+    void setShowConnections(bool show) { mShowConnections = show; }
+    bool getShowConnections() const    { return mShowConnections; }
+
+    void drawBody(bool blocked);
+    bool draw(ImDrawList *graphDrawList, bool blocked);
+    void drawConnections(ImDrawList *graphDrawList);
     void update();
   };
 }

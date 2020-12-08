@@ -9,6 +9,9 @@ PlotNode::PlotNode()
   : Node(CONNECTOR_INPUTS(), CONNECTOR_OUTPUTS(), "Plot Node")
 {
   //setMinSize(Vec2f(1024, 512));
+
+  mSettings.push_back(new Setting<int>("Day Radius", "dayRadius", &mDayRadius));
+  mSettings.push_back(new Setting<int>("Object", "object", (int*)&mObjType));
 }
 
 PlotNode::~PlotNode()

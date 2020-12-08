@@ -40,6 +40,7 @@ namespace astro
     void setSaved(const Location &loc) { mSavedLocation = loc; }
     
     std::string getName() const { return mName; }
+    char* getName() { return mName; }
     void setName(const std::string &n) { sprintf(mName, "%s", n.c_str()); }
     void setSaveName(const std::string &n) { sprintf(mSavedName, "%s", n.c_str()); }
     

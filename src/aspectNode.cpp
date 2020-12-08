@@ -14,6 +14,11 @@ AspectNode::AspectNode()
       mAspVisible.push_back(true); // start with all aspects visible
       mAspOrbs.push_back(getAspectInfo((AspectType)a)->orb); // default orbs
     }
+
+  mSettings.push_back(new Setting<bool> ("List Open",       "listOpen",   &mListOpen));
+  mSettings.push_back(new Setting<bool> ("Orbs Open",       "orbsOpen",   &mOrbsOpen));
+  mSettings.push_back(makeSettingGroup<BoolStruct> ("Visible Aspects", "aspVisible", &mAspVisible));
+  mSettings.push_back(makeSettingGroup<double>     ("Aspect Orbs",     "aspOrbs",    &mAspOrbs));
 }
 
 void AspectNode::onUpdate()
@@ -46,10 +51,12 @@ void AspectNode::onDraw()
         }
         
       ImGui::Text("Total count: %d (visible: %d)", (int)chart->aspects().size(), visibleCount);
-      ImGui::Spacing(); ImGui::Separator(); ImGui::Spacing();
-
-      ImGui::PushStyleVar(ImGuiStyleVar_ScrollbarSize,  ImGui::GetStyle().ScrollbarSize*scale);
-      ImGui::BeginChild("##listChild", Vec2f(384,512)*scale);
+      //ImGui::Spacing(); ImGui::Separator(); ImGui::Spacing();
+      ImGui::PushStyleVar(ImGuiStyleVar_ScrollbarSize, ImGui::GetStyle().ScrollbarSize*scale);
+      ImGui::PushStyleVar(ImGuiStyleVar_ScrollbarRounding, ImGui::GetStyle().ScrollbarRounding*scale);
+      ImGui::PushStyleVar(ImGuiStyleVar_FramePadding, Vec2f(ImGui::GetStyle().FramePadding)*scale);
+      ImGui::PushStyleVar(ImGuiStyleVar_GrabMinSize, ImGui::GetStyle().GrabMinSize*scale);
+      ImGui::BeginChild("##listChild", Vec2f(384,512)*scale, true, 0);
       {
         ImGui::SetWindowFontScale(scale);
         ImDrawList *draw_list = ImGui::GetWindowDrawList();
@@ -74,7 +81,7 @@ void AspectNode::onDraw()
             ImGui::Spacing();
             ImGui::Text("%s", angle_string(asp.orb, true).c_str());
             {
-              Vec2f centerOffset = Vec2f(164-14,-14)*scale;
+              Vec2f centerOffset = Vec2f(164-14, -14)*scale;
               ImGui::SameLine(); ImGui::Image(getWhiteImage(o1Name)->id(), symSize, Vec2f(0,0), Vec2f(1,1), o1Color, Vec4f(0,0,0,0));
               ImGui::SameLine(); ImGui::Image(getImage(aName)->id(),       symSize, Vec2f(0,0), Vec2f(1,1), aColor,  Vec4f(0,0,0,0));
               draw_list->AddCircle(Vec2f(ImGui::GetCursorScreenPos())+centerOffset, symSize.x*0.7f, ImColor(scaledColor), 6, 1);
@@ -85,7 +92,7 @@ void AspectNode::onDraw()
           }
       }
       ImGui::EndChild();
-      ImGui::PopStyleVar();
+      ImGui::PopStyleVar(4);
     }
   else if(chart && isBodyVisible())
     { mListOpen = false; }

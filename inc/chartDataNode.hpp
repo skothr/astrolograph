@@ -21,8 +21,8 @@ namespace astro
     static std::vector<ConnectorBase*> CONNECTOR_OUTPUTS()
     { return {}; }
     
-    bool mAngOpen = true;
-    bool mObjOpen = true;
+    bool mAngOpen = false;
+    bool mObjOpen = false;
     bool mOrbOpen = false;
 
     std::vector<bool> mShowObjects;
@@ -31,64 +31,10 @@ namespace astro
     virtual void onUpdate() override;
     virtual void onDraw() override;
     
-    virtual void getSaveParams(std::map<std::string, std::string> &params) const override
-    {
-      // save object visibility
-      std::string showObjs = "";
-      for(auto show : mShowObjects)
-        { showObjs += (show ? "1" : "0"); }
-      params.emplace("showObjs", showObjs);
-    };
-    
-    virtual void setSaveParams(std::map<std::string, std::string> &params) override
-    {
-      Chart *chart = inputs()[DATANODE_INPUT_CHART]->get<Chart>();
-      auto iter = params.find("showObjs");
-      if(iter != params.end())
-        {
-          for(int o = OBJ_SUN; o < OBJ_COUNT; o++)
-            {
-              if(iter->second.size() < o) { break; }
-              else
-                {
-                  mShowObjects[o] = (iter->second[o] == '0');
-                  if(chart) { chart->getObject((ObjType)o)->visible = mShowObjects[o]; }
-                }
-            }
-          for(int a = ANGLE_OFFSET; a < ANGLE_END; a++)
-            {
-              if(iter->second.size() < a) { break; }
-              else
-                {
-                  mShowObjects[a] = (iter->second[a] == '0');
-                  if(chart) { chart->getObject((ObjType)a)->visible = mShowObjects[a]; }
-                }
-            }
-        }
-    };
-
-    
   public:
     ChartDataNode();
     ~ChartDataNode();
-    virtual std::string type() const { return "ChartDataNode"; }
-    virtual bool copyTo(Node *other) override
-    { // copy settings
-      if(Node::copyTo(other))
-        {
-          ((ChartDataNode*)other)->mAngOpen = mAngOpen;
-          ((ChartDataNode*)other)->mObjOpen = mObjOpen;
-          ((ChartDataNode*)other)->mOrbOpen = mOrbOpen;
-          for(int o = OBJ_SUN; o < OBJ_COUNT; o++) // start with objects visible
-            { ((ChartDataNode*)other)->mShowObjects[o] = mShowObjects[o]; }
-          for(int a = ANGLE_OFFSET; a < ANGLE_END; a++) // start with angles invisible
-            { ((ChartDataNode*)other)->mShowObjects[OBJ_COUNT+a-ANGLE_OFFSET] = mShowObjects[OBJ_COUNT+a-ANGLE_OFFSET]; }
-          // (everything else set by connections)
-          return true;
-        }
-      else { return false; }
-    }
-    
+    virtual std::string type() const { return "ChartDataNode"; }    
   };
 }
 

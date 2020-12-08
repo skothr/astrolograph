@@ -22,14 +22,14 @@ namespace astro
   class DateTime
   {
   private:
-    int mYear        = 1;
-    int mMonth       = 1;
-    int mDay         = 1;
-    int mHour        = 1;
-    int mMinute      = 0;
-    double mSecond   = 0.0;
+    int mYear         = 1;
+    int mMonth        = 1;
+    int mDay          = 1;
+    int mHour         = 1;
+    int mMinute       = 0;
+    double mSecond    = 0.0;
     double mUtcOffset = 0.0;
-    bool mDstOffset  = 0.0;
+    bool mDstOffset   = false;
     
   public:
     //// STATIC ////
@@ -84,7 +84,7 @@ namespace astro
     void setMinute(double minute);
     void setSecond(double second);
     void setUtcOffset(double offset);
-    void setDstOffset(double offset);
+    void setDstOffset(bool dst);
     
     bool set(int year, int month, int day, int hour, int minute, double second);
 
@@ -95,7 +95,7 @@ namespace astro
     int minute() const       { return mMinute; }
     double second() const    { return mSecond; }
     double utcOffset() const { return mUtcOffset; }
-    double dstOffset() const { return mDstOffset; }
+    bool dstOffset() const   { return mDstOffset; }
 
     bool operator==(const DateTime &other) const
     { return (mYear == other.mYear && mMonth == other.mMonth && mDay == other.mDay &&
@@ -197,18 +197,28 @@ namespace astro
     }
 
     friend std::ostream& operator<<(std::ostream &os, const DateTime &date);
-    //friend std::istream& operator>>(std::istream &is, DateTime &date);
+    friend std::istream& operator>>(std::istream &is, DateTime &date);
   };
   
   inline std::ostream& operator<<(std::ostream &os, const DateTime &date)
   {
-    date.printDate(os);
-    os << " | ";
-    date.printTime(os);    
-    //os << "[" << date.mYear << "/" << date.mMonth << "/" << date.mDay << " | " << date.mHour << ":" << date.mMinute << ":" << date.mSecond << "]";
+    os << date.toSaveString();
+    // date.printDate(os); os << " | "; date.printTime(os);
     return os;
   }
 
+  inline std::istream& operator>>(std::istream &is, DateTime &date)
+  {
+    int year, month, day, hour, minute;
+    double second, utcOffset;
+    bool dstOffset;
+    is >> year; is >> month; is >> day; is >> hour; is >> minute; is >> second; is >> utcOffset; is >> dstOffset;
+    date.set(year, month, day, hour, minute, second);
+    date.setUtcOffset(utcOffset);
+    date.setDstOffset(dstOffset);
+    return is;
+  }
+  
   // treat each year as a day
   inline DateTime progressed(const DateTime &natal, const DateTime &transit)
   {
@@ -220,8 +230,6 @@ namespace astro
     pdt += diff/365.25;
     return pdt;
   }
-
-  
 }
 
 

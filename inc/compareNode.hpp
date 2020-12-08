@@ -30,7 +30,7 @@ namespace astro
     Location mLocInner;
     
     ChartParams mParams;
-    float mChartWidth = CHART_SIZE_DEFAULT;
+    float mChartWidth = CHART_SIZE_MIN;
 
     // date modify flags (not saved)
     bool mEditYear   = false; // toggled with 1 key
@@ -48,32 +48,12 @@ namespace astro
     
     virtual void onUpdate() override;
     virtual void onDraw() override;
-    
-    virtual void getSaveParams(std::map<std::string, std::string> &params) const override
-    {
-      params.emplace("width", std::to_string(mChartWidth));
-    };
-    virtual void setSaveParams(std::map<std::string, std::string> &params) override
-    {
-      std::stringstream ss(params["width"]);
-      ss >> mChartWidth;
-    };
-    
+
   public:
     CompareNode();
     ~CompareNode();
     virtual std::string type() const { return "ChartCompareNode"; }
-    virtual bool copyTo(Node *other) override
-    { // copy settings
-      if(Node::copyTo(other))
-        {
-          ((CompareNode*)other)->mChartWidth = mChartWidth;
-          // (everything else set by connections)
-          return true;
-        }
-      else { return false; }
-    }
-
+    
     Chart* outerChart() { return mCompare->getOuterChart(); }
     Chart* innerChart() { return mCompare->getInnerChart(); }
   };

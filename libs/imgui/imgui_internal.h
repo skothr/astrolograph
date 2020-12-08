@@ -218,8 +218,22 @@ namespace ImStb
 #define IM_TABSIZE                      (4)
 #define IM_F32_TO_INT8_UNBOUND(_VAL)    ((int)((_VAL) * 255.0f + ((_VAL)>=0 ? 0.5f : -0.5f)))   // Unsaturated, for display purpose
 #define IM_F32_TO_INT8_SAT(_VAL)        ((int)(ImSaturate(_VAL) * 255.0f + 0.5f))               // Saturated, always output 0..255
+
+#ifndef FLOOR_IMGUI_POSITIONS
+#define FLOOR_IMGUI_POSITIONS 0
+#endif
+#if FLOOR_IMGUI_POSITIONS
+//
 #define IM_FLOOR(_VAL)                  ((float)(int)(_VAL))                                    // ImFloor() is not inlined in MSVC debug builds
 #define IM_ROUND(_VAL)                  ((float)(int)((_VAL) + 0.5f))                           //
+//
+#else
+#define IM_FLOOR(_VAL)                  ((float)(_VAL))
+#define IM_ROUND(_VAL)                  ((float)(_VAL))
+#endif // FLOOR_IMGUI_POSITIONS
+//// ========================================================================== ////
+//// ==== ASTROLOGRAPH NOTE: Disabled floor/round to avoid jittery scaling ==== ////
+//// ========================================================================== ////
 
 // Enforce cdecl calling convention for functions called by the standard library, in case compilation settings changed the default to e.g. __vectorcall
 #ifdef _MSC_VER
@@ -365,8 +379,18 @@ IMGUI_API void*             ImFileLoadToMemory(const char* filename, const char*
 #define ImAcos(X)           acosf(X)
 #define ImAtan2(Y, X)       atan2f((Y), (X))
 #define ImAtof(STR)         atof(STR)
+
+#if FLOOR_IMGUI_POSITIONS
 #define ImFloorStd(X)       floorf(X)           // We already uses our own ImFloor() { return (float)(int)v } internally so the standard one wrapper is named differently (it's used by e.g. stb_truetype)
 #define ImCeil(X)           ceilf(X)
+#else
+#define ImFloorStd(X)       ((float)(X))
+#define ImCeil(X)           ((float)(X))
+#endif // FLOOR_IMGUI_POSITIONS
+//// ========================================================================== ////
+//// ==== ASTROLOGRAPH NOTE: Disabled floor/round to avoid jittery scaling ==== ////
+//// ========================================================================== ////
+
 static inline float  ImPow(float x, float y)    { return powf(x, y); }          // DragBehaviorT/SliderBehaviorT uses ImPow with either float/double and need the precision
 static inline double ImPow(double x, double y)  { return pow(x, y); }
 static inline float  ImLog(float x)             { return logf(x); }             // DragBehaviorT/SliderBehaviorT uses ImLog with either float/double and need the precision

@@ -8,9 +8,10 @@ using namespace astro;
 CompareNode::CompareNode()
   : Node(CONNECTOR_INPUTS(), CONNECTOR_OUTPUTS(), "Compare Node"), mCompare(new ChartCompare())
 {
+  mSettings.push_back(new Setting<float>("Chart Width", "width", &mChartWidth));
+  
   for(int i = 0; i < OBJ_END; i++)
     { mParams.objVisible[i] = true; }
-  // setMinSize(Vec2f(512, 512));
 }
 
 CompareNode::~CompareNode()

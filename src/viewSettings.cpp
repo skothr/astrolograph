@@ -80,16 +80,18 @@ bool ViewSettings::draw(const Vec2f &frameSize)
       ImGui::PopStyleVar();
       ImGuiIO &io = ImGui::GetIO();
       ImGuiStyle& style = ImGui::GetStyle();
-      bool hover = ImGui::IsWindowHovered();
+      //hover |= ImGui::IsWindowHovered(ImGuiHoveredFlags_RootWindow | ImGuiHoveredFlags_ChildWindows);
       
       // // center title
       ImGui::SameLine((ImGui::GetWindowContentRegionWidth() - ImGui::CalcTextSize("ViewSettings").x)/2.0f);
       ImGui::Text("View Settings");
       
+      bool hover = ImGui::IsWindowHovered();
+      
       bool busy = false; // whether view should check for close (if true, another popup is open)
       ImGui::BeginChild("", mWindowSize - mWindowPadding, true);
       {
-        hover |= ImGui::IsWindowHovered(ImGuiHoveredFlags_AnyWindow); //ImGuiHoveredFlags_RootWindow|ImGuiHoveredFlags_ChildWindows);
+        hover |= ImGui::IsWindowHovered(ImGuiHoveredFlags_ChildWindows);
         busy  |= mForm->draw(1.0f, busy);
       }
       ImGui::EndChild();
