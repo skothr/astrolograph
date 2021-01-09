@@ -6,7 +6,6 @@ using namespace astro;
 #include "tools.hpp"
 #include "chartView.hpp"
 
-
 ChartDataNode::ChartDataNode()
   : Node(CONNECTOR_INPUTS(), CONNECTOR_OUTPUTS(), "Chart Data Node"),
     mShowObjects(OBJ_COUNT + ANGLE_END-ANGLE_OFFSET, false),
@@ -27,7 +26,7 @@ void ChartDataNode::onDraw()
 {
   float scale = getScale();
   float symSize = 20*scale;
-      
+  
   bool changed = false;
   Chart *chart = inputs()[DATANODE_INPUT_CHART]->get<Chart>();
 
@@ -38,8 +37,10 @@ void ChartDataNode::onDraw()
   if(ImGui::CollapsingHeader("Angle Data", nullptr, flags) && chart)
     {
       mAngOpen = true;
-      std::string headers[] = { "", "   LONGITUDE", "   LON SPEED" };
+
+      ChartParams *params = chart->getParams();
       
+      std::string headers[] = { "", "   LONGITUDE", "   LON SPEED" };
       float maxW = 0.0f;
       for(int i = 0; i < 3; i++)
         { maxW = std::max(maxW, ImGui::CalcTextSize(headers[i].c_str()).x); }
@@ -48,10 +49,7 @@ void ChartDataNode::onDraw()
       ImGui::SetColumnWidth(0, maxW);//2.0f*symSize+30.0f*scale);
         
       // column headers
-      for(int i = 0; i < 3; i++)
-        {
-          ImGui::TextUnformatted(headers[i].c_str()); ImGui::NextColumn();
-        }
+      for(int i = 0; i < 3; i++) { ImGui::TextUnformatted(headers[i].c_str()); ImGui::NextColumn(); }
       ImGui::Separator();
         
       ImGuiIO& io = ImGui::GetIO();
@@ -59,15 +57,15 @@ void ChartDataNode::onDraw()
       
       for(int a = ANGLE_OFFSET; a < ANGLE_END; a++)
         {
-          ObjData objData = chart->getObjectData((ObjType)a);
-          double angle = objData.longitude; //chart->getObject((ObjType)a)->angle;
+          ObjData *objData = chart->getObjectData((ObjType)a);
+          double angle = objData->longitude; //chart->getObject((ObjType)a)->angle;
           std::string name = getObjName((astro::ObjType)a);
                 
           ChartImage *img = getWhiteImage(name);
           Vec4f color = getObjColor(name);
           ImVec4 tintCol = ImVec4(color.x, color.y, color.z, color.w);
 
-          mShowObjects[OBJ_COUNT+a-ANGLE_OFFSET] = chart->getObject((ObjType)a)->visible;
+          mShowObjects[OBJ_COUNT+a-ANGLE_OFFSET] = params->objVisible[a];
 
           ImGui::BeginGroup();
           {
@@ -81,14 +79,14 @@ void ChartDataNode::onDraw()
             
           // set focus
           bool focused = (hover && io.KeyShift); // focus on this object with SHIFT+hover
-          if(mFocusObjects[a] == chart->objects()[a]->focused)
+          if(mFocusObjects[a] == params->objFocused[a])
             {
               mFocusObjects[a] = focused;
-              chart->setObjFocus((ObjType)a, mFocusObjects[a]);
+              params->objFocused[a] = focused;
             }
           ImGui::NextColumn();
-          ImGui::TextUnformatted(angle_string(objData.longitude).c_str()); ImGui::NextColumn();
-          ImGui::TextUnformatted(angle_string(objData.lonSpeed).c_str()); ImGui::NextColumn();
+          ImGui::TextUnformatted(angle_string(objData->longitude).c_str()); ImGui::NextColumn();
+          ImGui::TextUnformatted(angle_string(objData->lonSpeed).c_str()); ImGui::NextColumn();
         }
       ImGui::Columns(1);
     }
@@ -100,8 +98,9 @@ void ChartDataNode::onDraw()
   if(ImGui::CollapsingHeader("Object Data", nullptr, flags) && chart)
     {
       mObjOpen = true;
-      std::string headers[] = { "", "   LATITUDE", "  LONGITUDE", " DISTANCE", "   LAT SPEED", "   LON SPEED", " DIST SPEED" };
-            
+      ChartParams *params = chart->getParams();
+      
+      std::string headers[] = { "", "   LATITUDE", "  LONGITUDE", " DISTANCE", "   LAT SPEED", "   LON SPEED", " DIST SPEED" };      
       ImGui::Columns(7, "data-table##objects", false);
       ImGui::SetColumnWidth(0, 2.0f*symSize+60.0f*scale);
 
@@ -115,7 +114,7 @@ void ChartDataNode::onDraw()
             
       for(int o = OBJ_SUN; o < OBJ_COUNT; o++)
         {
-          astro::ObjData obj = swe.getObjData((astro::ObjType)o);
+          ObjData obj = swe.getObjData((astro::ObjType)o);
           double angle = obj.longitude;//swe.getObjAngle((astro::ObjType)o);
           std::string name = getObjName((astro::ObjType)o);
           std::string nameLong = getObjNameLong((astro::ObjType)o);
@@ -124,7 +123,7 @@ void ChartDataNode::onDraw()
           Vec4f color = getObjColor(name);
           ImVec4 tintCol = ImVec4(color.x, color.y, color.z, color.w);
 
-          mShowObjects[o] = chart->getObject((ObjType)o)->visible;
+          mShowObjects[o] = params->objVisible[o];
 
           ImGui::BeginGroup();
           {
@@ -139,10 +138,10 @@ void ChartDataNode::onDraw()
             
           // set focus
           bool focused = (hover && io.KeyShift); // focus on this object with SHIFT+hover
-          if(mFocusObjects[o] == chart->objects()[o]->focused)
+          if(mFocusObjects[o] == params->objFocused[o])
             {
               mFocusObjects[o] = focused;
-              chart->setObjFocus((ObjType)o, mFocusObjects[o]);
+              params->objFocused[o] = focused;
             }
           
           ImGui::NextColumn();

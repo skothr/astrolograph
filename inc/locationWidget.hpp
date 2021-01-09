@@ -6,8 +6,12 @@
 
 namespace astro
 {
-#define LOCATION_SAVE_DIR "./saved/"
-#define LOCATION_SAVE_PATH LOCATION_SAVE_DIR "locations.txt"
+  // forward declarations
+  class NodeGraph;
+  class FileDialog;
+  
+#define LOCATION_SAVE_DIR "locations/"
+// #define LOCATION_SAVE_PATH LOCATION_SAVE_DIR "locations.txt"
 #define LOCATION_NAME_BUFLEN 128
 
   struct LocationSave
@@ -19,10 +23,12 @@ namespace astro
   class LocationWidget
   {
   private:
+    NodeGraph  *mGraph      = nullptr;
+    FileDialog *mFileDialog = nullptr;
     Location mLocation;
     Location mSavedLocation;
-    char mName[LOCATION_NAME_BUFLEN] = "";
-    char mSavedName[LOCATION_NAME_BUFLEN] = "";
+    std::string mName       = "";
+    bool mExpanded          = false; // expanded positional view (WIP)
 
     bool saveDirCheck();
     
@@ -31,23 +37,22 @@ namespace astro
     LocationWidget(const Location &location);
     LocationWidget(const LocationWidget &other);
     LocationWidget& operator=(const LocationWidget &other);
+    ~LocationWidget();
+    void setGraph(NodeGraph *graph) { mGraph = graph; }
     
     Location& get()                    { return mLocation; }
     const Location& get() const        { return mLocation; }
-    void set(const Location &loc)      { mLocation = loc; }
     Location& getSaved()               { return mSavedLocation; }
     const Location& getSaved() const   { return mSavedLocation; }
+    std::string& getName()             { return mName; }
+    const bool& getExpanded() const    { return mExpanded; }
+    bool& getExpanded()                { return mExpanded; }
+    void set(const Location &loc)      { mLocation = loc; }
     void setSaved(const Location &loc) { mSavedLocation = loc; }
-    
-    std::string getName() const { return mName; }
-    char* getName() { return mName; }
-    void setName(const std::string &n) { sprintf(mName, "%s", n.c_str()); }
-    void setSaveName(const std::string &n) { sprintf(mSavedName, "%s", n.c_str()); }
-    
-    bool save(const std::string &name);
-    bool load(const std::string &name);
-    bool remove(const std::string &name);
-    std::vector<LocationSave> loadAll();
+    void setName(const std::string &n) { mName = n; }
+    void setExpanded(bool expanded)    { mExpanded = expanded; }
+
+    bool checkFileDialog();
     
     void update();
     void draw(float scale, bool blocked);

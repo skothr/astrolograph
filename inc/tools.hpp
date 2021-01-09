@@ -3,7 +3,7 @@
 
 #include <string>
 #include <sstream>
-
+#include <iomanip>
 #include <sys/types.h>
 #include <sys/stat.h>
 
@@ -94,6 +94,19 @@ inline std::string getFileExtension(const std::string &path)
 {
   std::string::size_type idx = path.rfind('.');
   return ((idx != std::string::npos) ? path.substr(idx) : "");
+}
+
+inline std::string getBasePath(const std::string &path)
+{
+  std::string::size_type idx = path.rfind('/');
+  return ((idx != std::string::npos) ? path.substr(idx+1) : path);
+}
+
+inline std::string getBaseName(const std::string &path)
+{
+  std::string base = getBasePath(path);
+  std::string::size_type idx = base.rfind('.');
+  return ((idx != std::string::npos) ? base.substr(0, idx) : base);
 }
 
 inline bool makeDirectory(const std::string &path)

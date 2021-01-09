@@ -1,22 +1,19 @@
 #ifndef ASTRO_HPP
 #define ASTRO_HPP
 
-#include <cmath>
+// #include <cmath>
 #include <string>
 #include <vector>
 #include <unordered_map>
 #include <map>
-#include <array>
 #include <algorithm>
-#include <sstream>
-#include <iomanip>
-#include <type_traits>
+// #include <iomanip>
+// #include <type_traits>
 
 #include "vector.hpp"
 #include "tools.hpp"
 #include "dateTime.hpp"
 #include "location.hpp"
-
 
 namespace astro
 {
@@ -30,7 +27,6 @@ namespace astro
       OBJ_INVALID = -1,
       
       // cardinal
-      //OBJ_EARTH = 0, // unused (TEMP?)
       OBJ_SUN = 0, 
       OBJ_MOON,
       // planets
@@ -220,12 +216,140 @@ namespace astro
     { "asc", "mc", "dsc", "ic", "vertex" };
   static const std::vector<std::string> ANGLE_NAMES_LONG =
     { "Ascendant", "Medium Coeli", "Descendant", "Imum Coeli", "Vertex" };
-  static const std::vector<std::string> SIGN_NAMES =
-    { "aries", "taurus", "gemini", "cancer", "leo", "virgo",
-      "libra", "scorpio", "sagittarius", "capricorn", "aquarius", "pisces" };
   static const std::vector<std::string> ASPECT_NAMES =
     { "conjunction", "opposition", "square", "trine", "sextile", 
       "quincunx", "semisextile", "sesquiquadrate", "octile", "novile" };
+  static const std::vector<std::string> ASPECT_NAMES_LONG =
+    { "Conjunction", "Opposition", "Square", "Trine", "Sextile", 
+      "Quincunx", "Semisextile", "Sesquiquadrate", "Octile", "Novile" };
+  static const std::vector<std::string> SIGN_NAMES =
+    { "aries", "taurus", "gemini", "cancer", "leo", "virgo",
+      "libra", "scorpio", "sagittarius", "capricorn", "aquarius", "pisces" };
+  static const std::vector<std::string> SIGN_NAMES_LONG =
+    { "Aries", "Taurus", "Gemini", "canceC", "Leo", "Virgo",
+      "Libra", "Scorpio", "Sagittarius", "Capricorn", "Aquarius", "Pisces" };
+
+
+  // ==============================================================================================================================
+  // NAKSHATRAS --> Vedic system with ecliptic divided into 27 sections (plus one extra --> ?) --> 360/27 = 13+1/3 degrees each
+  //        - Starting from Ashvini (0 degrees sidereal aries), Nakshatras rulers repeat this pattern:
+  // ==============================================================================================================================
+  //             - Ketu (south node)
+  //             - Venus
+  //             - Sun
+  //             - Moon
+  //             - Mars
+  //             - Rahu (north node)
+  //             - Jupiter
+  //             - Saturn
+  //             - Mercury
+  //
+  // ==============================================================================================================================
+  // MAHA DASHAS --> Long-term periods of life (assumes 120 years max lifespan).
+  //        - Each starts at nakshatra location of natal moon (with length of first mahadasha shortened based on degree offset)
+  //        - Length of mahadasha period based on nakshatra ruler:
+  //             --> (ratio (years/120) --> binary / decimal / hex )  '~' indicates repeating fraction
+  // ==============================================================================================================================
+  //             - Ketu    -->  7 years (ratio  7/120 -->   0.000(01110111)~   / 0.0583       / 0.0(EEE)~F )
+  //             - Venus   --> 20 years (ratio 20/120 -->   0.00(1010)~        / 0.1(666)~7   / 0.2(AAA)~B )
+  //             - Sun     -->  6 years (ratio  6/120 -->   0.0000(11001100)~  / 0.05         / 0.0(CCC)~D )
+  //             - Moon    --> 10 years (ratio 10/120 -->   0.000(1010)~       / 0.08(333)~   / 0.1(555)~  )
+  //             - Mars    -->  7 years (ratio  7/120 -->   0.0000(11101110)~  / 0.0583       / 0.0(EEE)~F )
+  //             - Rahu    --> 18 years (ratio 18/120 -->   0.001(00110011)~   / 0.15         / 0.2(666)~7 )
+  //             - Jupiter --> 16 years (ratio 16/120 -->   0.00(10001000)~    / 0.1(333)~    / 0.2(222)~  )
+  //             - Saturn  --> 19 years (ratio 19/120 -->   0.0010(10001000)~  / 0.158(333)~  / 0.2(888)~  )
+  //             - Mercury --> 17 years (ratio 17/120 -->   0.00100(10001000)~ / 0.141(666)~7 / 0.2(444)~  )
+  //
+  // ==============================================================================================================================
+  // ANTRA DAHSAS --> Fractal dasha periods within each Mahadasha.
+  //        - Each starts at the ruler of the parent mahadasha, and goes through the whole cycle proportional to the larger system.
+  //          E.g.:
+  //             - MD Ketu (7 years)
+  //                 - AD Ketu    (7*( 7/120)) = ~0.4083 years)
+  //                 - AD Venus   (7*(20/120)) = ~1.1667 years)
+  //                 - AD Sun     (7*( 6/120)) =  0.3500 years)
+  //                 - AD Moon    (7*(10/120)) = ~0.5833 years)
+  //                 - AD Mars    (7*( 7/120)) = ~0.4083 years)
+  //                 - AD Rahu    (7*(18/120)) =  1.0500 years)
+  //                 - AD Jupiter (7*(16/120)) = ~0.9333 years)
+  //                 - AD Saturn  (7*(19/120)) = ~1.1083 years)
+  //                 - AD Mercury (7*(17/120)) = ~0.9917 years)
+  //               NOTE: Should all add up to total mahadasha period (7 years)
+  //             - Next Mahadahsa (Venus) would start with Venus, and end with Ketu, and should add up to 20 years.
+  //
+  // ==============================================================================================================================
+  // PRATYANTRA DAHSAS --> Fractal dasha periods within each Antradasha.
+  //        - Each starts at the ruler of the parent antradasha, and goes through the whole cycle proportional to the larger system.
+  //          E.g.:
+  //             - MD Ketu (7 years)
+  //                 - AD Ketu (7 years)
+  //                     - PD Ketu    (7*( 7/120)*( 7/120)) = XXX years)
+  //                     - PD Venus   (7*(20/120)*(20/120)) = XXX years)
+  //                     - PD Sun     (7*( 6/120)*( 6/120)) = XXX years)
+  //                     - PD Moon    (7*(10/120)*(10/120)) = XXX years)
+  //                     - PD Mars    (7*( 7/120)*( 7/120)) = XXX years)
+  //                     - PD Rahu    (7*(18/120)*(18/120)) = XXX years)
+  //                     - PD Jupiter (7*(16/120)*(16/120)) = XXX years)
+  //                     - PD Saturn  (7*(19/120)*(19/120)) = XXX years)
+  //                     - PD Mercury (7*(17/120)*(17/120)) = XXX years)
+  //               NOTE: Should all add up to total antradasha period (~0.4083 years)
+  //             - Next Pratyantra (Venus) would start with Venus, and end with Ketu, and should add up to ~1.1667 years.
+  // ==============================================================================================================================
+  
+#define NAKSHATRA_EXTRA_CHARS u8"Āāūī" // non-standard characters to define UTF range for text rendering
+  
+  static const std::vector<std::string> NAKSHATRA_NAMES =
+    { "ashvini", "bharani",        "krittika",        "rohini",  "mrigashirsha", "ardra",       "punarvasu",        "pushya",            "ashlesha",
+      "magha",   "purva-phalguni", "uttara-phalguni", "hasta",   "chitra",       "swati",       "vishakha",         "anuradha",          "jyeshtha",
+      "mula",    "purva-ashadha",  "uttara-ashadha",  "sravana", "dhanishta",    "shatabhisha", "purva-bhadrapada", "uttara-bhadrapada", "revati",
+      "abhijit" }; // NOTE: abhijit overlaps
+  static const std::vector<std::string> NAKSHATRA_NAMES_LONG =
+    { u8"Ashvini",u8"Bharani",       u8"Krittika",       u8"Rohini", u8"Mrigashīrsha",u8"Ardra",      u8"Punarvasu",       u8"Pushya",           u8"Āshleshā",
+      u8"Maghā",  u8"Pūrva Phalgunī",u8"Uttara Phalgunī",u8"Hasta",  u8"Chitra",      u8"Swāti",      u8"Vishakha",        u8"Anuradha",         u8"Jyeshtha",
+      u8"Mula",   u8"Purva Ashadha", u8"Uttara Ashadha", u8"Sravana",u8"Dhanishta",   u8"Shatabhisha",u8"Purva-Bhadrapada",u8"Uttara Bhādrapadā",u8"Revati",
+      u8"Abhijit" };
+  static const std::map<std::string, ObjType> NAKSHATRA_RULERS =
+    { { "ashvini",           OBJ_SOUTHNODE }, // (ketu)
+      { "bharani",           OBJ_VENUS     },
+      { "krittika",          OBJ_SUN       },
+      { "rohini",            OBJ_MOON      },
+      { "mrigashirsha",      OBJ_MARS      },
+      { "ardra",             OBJ_NORTHNODE }, // (rahu)
+      { "punarvasu",         OBJ_JUPITER   },
+      { "pushya",            OBJ_SATURN    },
+      { "ashlesha",          OBJ_MERCURY   },
+      { "magha",             OBJ_SOUTHNODE }, // (ketu)
+      { "purva-phalguni",    OBJ_VENUS     },
+      { "uttara-phalguni",   OBJ_SUN       },
+      { "hasta",             OBJ_MOON      },
+      { "chitra",            OBJ_MARS      },
+      { "swati",             OBJ_NORTHNODE }, // (rahu)
+      { "vishakha",          OBJ_JUPITER   },
+      { "anuradha",          OBJ_SATURN    },
+      { "jyeshtha",          OBJ_MERCURY   },
+      { "mula",              OBJ_SOUTHNODE }, // (ketu)
+      { "purva-ashadha",     OBJ_VENUS     },
+      { "uttara-ashadha",    OBJ_SUN       },
+      { "sravana",           OBJ_MOON      },
+      { "dhanishta",         OBJ_MARS      },
+      { "shatabhisha",       OBJ_NORTHNODE }, // (rahu)
+      { "purva-bhadrapada",  OBJ_JUPITER   },
+      { "uttara-bhadrapada", OBJ_SATURN    },
+      { "revati",            OBJ_MERCURY   },
+      { "abhijit",           OBJ_INVALID   } // (no ruler?)
+    };
+
+
+  static const std::map<ObjType, double> DASHA_YEARS = // NOTE: adds up to 120 years total
+    { { OBJ_SOUTHNODE,  7.0 },
+      { OBJ_VENUS,     20.0 },
+      { OBJ_SUN,        6.0 },
+      { OBJ_MOON,      10.0 },
+      { OBJ_MARS,       7.0 },
+      { OBJ_NORTHNODE, 18.0 },
+      { OBJ_JUPITER,   16.0 },
+      { OBJ_SATURN,    19.0 },
+      { OBJ_MERCURY,   17.0 } };
 
   static const std::vector<double> OBJECT_ORBS_DEFAULT =
     { 10.0, 10.0,
@@ -368,9 +492,42 @@ namespace astro
   }
   inline std::string getSignName(int index)
   { return SIGN_NAMES[index]; }
+  inline std::string getSignNameLong(int index)
+  { return SIGN_NAMES_LONG[index]; }
   inline ElementType getSignElement(int index) // (sign order matches element enum)
   { return (ElementType)(index % ELEMENT_COUNT); }
 
+  //// NAKSHATRAS
+  inline std::string getNakshatraName(int index)
+  { return NAKSHATRA_NAMES[index]; }
+  inline std::string getNakshatraNameLong(int index)
+  { return NAKSHATRA_NAMES_LONG[index]; }
+  inline ObjType getNakshatraRuler(int index)
+  {
+    auto iter = NAKSHATRA_RULERS.find(getNakshatraName(index));
+    return (iter != NAKSHATRA_RULERS.end() ? iter->second : OBJ_INVALID);
+  }
+  inline std::string getNakshatraRulerName(int index)
+  {
+    ObjType ruler = getNakshatraRuler(index);
+    if(ruler == OBJ_NORTHNODE)      { return "rahu"; }
+    else if(ruler == OBJ_SOUTHNODE) { return "ketu"; }
+    else { return OBJECT_NAMES[ruler]; }
+  }
+  inline std::string getNakshatraRulerNameLong(int index)
+  {
+    ObjType ruler = getNakshatraRuler(index);
+    if(ruler == OBJ_NORTHNODE)      { return "Rahu"; }
+    else if(ruler == OBJ_SOUTHNODE) { return "Ketu"; }
+    else { return OBJECT_NAMES_LONG[ruler]; }
+  }
+  inline double getDashaYears(int index) // nakshatra index
+  {
+    ObjType ruler = getNakshatraRuler(index);
+    auto iter = DASHA_YEARS.find(ruler);
+    return (iter != DASHA_YEARS.end() ? iter->second : 0);
+  }
+  
   //// ASPECTS
   inline AspectInfo* getAspectInfo(const std::string &name)
   {
@@ -391,6 +548,13 @@ namespace astro
   {
     if(type > ASPECT_INVALID && type < ASPECT_COUNT)
       { return ASPECT_NAMES[(int)type]; }
+    else
+      { return "<UNKNOWN_ASPECT>"; }
+  }
+  inline std::string getAspectNameLong(AspectType type)
+  {
+    if(type > ASPECT_INVALID && type < ASPECT_COUNT)
+      { return ASPECT_NAMES_LONG[(int)type]; }
     else
       { return "<UNKNOWN_ASPECT>"; }
   }
@@ -490,15 +654,120 @@ namespace astro
   // celestial objects (planets, asteroids, comets, etc(?).)
   struct ObjData
   {
-    double longitude = 0.0;   // theta
-    double latitude  = 0.0;   // phi
-    double distance  = 0.0;   // radius
-    double lonSpeed  = 0.0;   // dTheta
-    double latSpeed  = 0.0;   // dPhi
-    double distSpeed = 0.0;   // dRadius
-    bool   valid     = false; // valid data
+    double  longitude = 0.0;   // theta
+    double  latitude  = 0.0;   // phi
+    double  distance  = 0.0;   // radius
+    double  lonSpeed  = 0.0;   // dTheta
+    double  latSpeed  = 0.0;   // dPhi
+    double  distSpeed = 0.0;   // dRadius
+    ObjType type      = OBJ_INVALID;
+    bool    valid     = false; // valid data
+  };
+
+  struct BoolStruct
+  {
+    bool data;
+    BoolStruct(bool val = false) : data(val) { }
+    operator bool() const { return data; }
+    friend std::ostream& operator<<(std::ostream &os, const BoolStruct &b);
+    friend std::istream& operator>>(std::istream &is, BoolStruct &b);
+  };
+  inline std::ostream& operator<<(std::ostream &os, const BoolStruct &b)
+  { os << (b.data ? "1" : "0") << " "; return os; }
+  inline std::istream& operator>>(std::istream &is, BoolStruct &b)
+  {
+    std::string str;
+    is >> str; b.data = (str != "0");
+    return is;
+  }
+
+  struct ChartParams
+  {
+    float chartWidth = 512.0f; // width (graph space) to render chart
+    bool alignAsc    = false;  // align chart so ascendant points to the left
+    bool showHouses  = true;   // show houses on chart
+    std::array<BoolStruct,   (OBJ_COUNT+OBJ_END-ANGLE_OFFSET)> objVisible;
+    std::array<BoolStruct,   (OBJ_COUNT+OBJ_END-ANGLE_OFFSET)> objFocused;
+    std::array<double, (OBJ_COUNT+OBJ_END-ANGLE_OFFSET)>       objOrbs;
+    std::array<BoolStruct,   ASPECT_COUNT>                     aspVisible;
+    std::array<BoolStruct,   ASPECT_COUNT>                     aspFocused;
+    std::array<double, ASPECT_COUNT>                           aspOrbs;
+    float alpha = 1.0f;
+    ChartParams()
+    { // initialize defaults
+      for(int i = OBJ_SUN; i < OBJ_END; i++)
+        {
+          objVisible[i] = (i < OBJ_COUNT); // angles initially hidden
+          objFocused[i] = false;
+          objOrbs[i]    = (i < ANGLE_OFFSET ? OBJECT_ORBS_DEFAULT[i] : 1.0);
+        }
+      for(int i = 0; i < ASPECT_COUNT; i++)
+        {
+          aspVisible[i] = true;
+          aspFocused[i] = false;
+          aspOrbs[i]    = getAspectInfo((AspectType)i)->orb;
+        }
+    }
+    ChartParams(const ChartParams &other)
+    {
+      objVisible = other.objVisible;
+      objFocused = other.objFocused;
+      objOrbs    = other.objOrbs;
+      aspVisible = other.aspVisible;
+      aspFocused = other.aspFocused;
+      aspOrbs    = other.aspOrbs;
+    }
+    ChartParams& operator=(const ChartParams &other)
+    {
+      objVisible = other.objVisible;
+      objFocused = other.objFocused;
+      objOrbs    = other.objOrbs;
+      aspVisible = other.aspVisible;
+      aspFocused = other.aspFocused;
+      aspOrbs    = other.aspOrbs;
+      return *this;
+    }
+    
+    bool operator==(const ChartParams &other)
+    {
+      for(int i = 0; i < objVisible.size(); i++) { if(objVisible[i] != other.objVisible[i]) { return false; } }
+      for(int i = 0; i < objFocused.size(); i++) { if(objVisible[i] != other.objFocused[i]) { return false; } }
+      for(int i = 0; i < objOrbs.size();    i++) { if(objVisible[i] != other.objOrbs[i])    { return false; } }
+      for(int i = 0; i < aspVisible.size(); i++) { if(objVisible[i] != other.aspVisible[i]) { return false; } }
+      for(int i = 0; i < aspFocused.size(); i++) { if(aspFocused[i] != other.aspFocused[i]) { return false; } }
+      for(int i = 0; i < aspOrbs.size();    i++) { if(aspOrbs[i]    != other.objVisible[i]) { return false; } }
+      return true;
+    }
+    bool operator!=(const ChartParams &other) { return !(*this == other); }
   };
   
+  // represents the position of an object in the chart
+  struct ChartObject
+  {
+    ObjData *data   = nullptr;
+    ObjType type    = OBJ_INVALID;
+    double angle    = 0.0;
+    // bool visible    = true;
+    bool focused    = false;
+    bool retrograde = false; // object is in retrograde motion
+    bool valid      = false; // valid data
+  };
+  // represents an aspect between chart objects
+  struct ChartAspect
+  {
+    AspectType   type = ASPECT_INVALID;
+    ChartObject *obj1 = nullptr;
+    ChartObject *obj2 = nullptr;    
+    double orb      = 0.0; // angle difference from perfectly aligned aspect (orb)
+    double strength = 0.0; // aspect strength ([0.0, 1.0] -- currently squared)
+    bool   valid   = false;
+    bool   visible = true;
+    bool   focused = false;
+    ChartAspect() { }
+    ChartAspect(ChartObject *o1, ChartObject *o2, AspectType type_, double orb_, double strength_, bool valid_, bool visible_=true, bool focused_=false)
+      : obj1(o1), obj2(o2), type(type_), orb(orb_), strength(strength_), valid(true),
+        visible(visible_), focused(focused_) { }
+  };  
 }
 
 

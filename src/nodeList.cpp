@@ -2,9 +2,8 @@
 using namespace astro;
 
 #include "imgui.h"
-
 #include "nodeGraph.hpp"
-
+#include "viewSettings.hpp"
 
 NodeList::NodeList(NodeGraph *graph)
   : mGraph(graph)
@@ -20,6 +19,7 @@ NodeList::~NodeList()
 #define LIST_PADDING Vec2f(10,10)
 void NodeList::draw()
 {
+  if(!mGraph) { return; }
   const std::unordered_map<int, Node*> &nodes = mGraph->getNodes();
   ViewSettings *viewSettings = mGraph->getViewSettings();
   

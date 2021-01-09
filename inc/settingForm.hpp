@@ -1,15 +1,17 @@
 #ifndef SETTINGS_FORM_HPP
 #define SETTINGS_FORM_HPP
 
-#include <map>
 #include <vector>
-#include <sstream>
-
+#include <string>
+#include "nlohmann/json_fwd.hpp" // json forward declarations
+using json = nlohmann::json;
 #include "astro.hpp"
-#include "setting.hpp"
 
 namespace astro
-{  
+{
+  // forward declarations
+  class SettingBase;
+
   class SettingForm
   {
   protected:
@@ -20,24 +22,17 @@ namespace astro
   public:
     SettingForm()  { }
     SettingForm(float labelColW, float inputColW) { setLabelColWidth(labelColW); setInputColWidth(inputColW); }
-    ~SettingForm() { for(auto s : mSettings) { delete s; } }
+    ~SettingForm();
+
+    json toJSON() const;
+    bool fromJSON(const json &js);
     
-    void add(SettingBase *setting)
-    {
-      if(setting)
-        {
-          setting->setLabelColWidth(mLabelColW); setting->setInputColWidth(mInputColW);
-          mSettings.push_back(setting);
-        }
-    }
+    void add(SettingBase *setting);
     SettingBase* get(const std::string &name);
     bool draw(float scale, bool busy=false);
-        
-    json getJson() const;
-    void setJson(const json &js);
     
-    void setLabelColWidth(float w) { mLabelColW = w; for(auto s : mSettings) { s->setLabelColWidth(w); } }
-    void setInputColWidth(float w) { mInputColW = w; for(auto s : mSettings) { s->setInputColWidth(w); } }
+    void setLabelColWidth(float w);
+    void setInputColWidth(float w);
     float labelColWidth() const { return mLabelColW; }
     float inputColWidth() const { return mInputColW; }
   };

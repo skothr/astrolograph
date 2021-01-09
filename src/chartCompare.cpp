@@ -4,12 +4,12 @@ using namespace astro;
 
 ChartCompare::ChartCompare()
 {
-  for(int asp = 0; asp < ASPECT_COUNT; asp++)
-    {
-      mAspectOrbs[(int)asp]    = getAspectInfo((astro::AspectType)asp)->orb;
-      mAspectVisible[(int)asp] = true;
-      mAspectFocus[(int)asp]   = false;
-    }
+  // for(int asp = 0; asp < ASPECT_COUNT; asp++)
+  //   {
+  //     mAspectOrbs[(int)asp]    = getAspectInfo((astro::AspectType)asp)->orb;
+  //     mAspectVisible[(int)asp] = true;
+  //     mAspectFocus[(int)asp]   = false;
+  //   }
 }
 
 ChartCompare::~ChartCompare()
@@ -52,32 +52,70 @@ std::vector<ChartAspect> ChartCompare::calcAspects(const ChartParams &params)
                     {
                       if(strength < mAspects[i].strength)
                         {
-                          mAspects.insert(mAspects.begin()+i, ChartAspect(mChartOuter->objects()[i1], mChartInner->objects()[i2], iter.second.type, aDiff, strength));
+                          mAspects.insert(mAspects.begin()+i,
+                                          ChartAspect(mChartOuter->objects()[i1], mChartInner->objects()[i2], iter.second.type, aDiff, strength,
+                                                      true, params.aspVisible[iter.second.type], params.aspFocused[iter.second.type])); // valid, visible, focused
                           added = true; break;
                         }
                     }
                   if(!added)
-                    { mAspects.emplace_back(mChartOuter->objects()[i1], mChartInner->objects()[i2], iter.second.type, aDiff, strength); }
+                    {
+                      mAspects.emplace_back(mChartOuter->objects()[i1], mChartInner->objects()[i2], iter.second.type, aDiff, strength,
+                                            true, params.aspVisible[iter.second.type], params.aspFocused[iter.second.type]); // valid, visible, focused
+                    }
                 }
             }
         }
     }
 
-      // sort aspects by orb (reverse?)
-      std::sort(mAspects.begin(), mAspects.end(),
-                [](const ChartAspect &a, const ChartAspect &b) -> bool
-                { return a.orb < b.orb; } ); // sort by orb (ascending)
-      return mAspects;
-    }
+  // sort aspects by orb (reverse?)
+  std::sort(mAspects.begin(), mAspects.end(),
+            [](const ChartAspect &a, const ChartAspect &b) -> bool
+            { return a.orb < b.orb; } ); // sort by orb (ascending)
+  return mAspects;
+}
 
 
-  void ChartCompare::update()
+void ChartCompare::update()
+{
+  // if(mNeedUpdate)
   {
-    // if(mNeedUpdate)
-    {
-      // if(mChartOuter && mChartInner)
-      //   { calcAspects(); }
-      mNeedUpdate = false;
-    }
+    // if(mChartOuter && mChartInner)
+    //   { calcAspects(); }
+    mNeedUpdate = false;
   }
+}
 
+
+// void ChartCompare::setParams(const ChartParams &params)
+// {
+//   if(mChartInner)
+//     {
+//       for(int i = 0; i < OBJ_END; i++)
+//         {
+//           //setObjOrb((ObjType)i,     params.objOrbs[i]); // (handled in ChartView?)
+//           mChartInner->showObject((ObjType)i,    params.objVisible[i]);
+//           mChartInner->setObjFocus((ObjType)i,   params.objFocused[i]);
+//         }
+//       for(int i = 0; i < ASPECT_COUNT; i++)
+//         {
+//           mChartInner->setAspectOrb((AspectType)i,     params.aspOrbs[i]);
+//           mChartInner->setAspectFocus((AspectType)i,   params.aspFocused[i]);
+//           mChartInner->setAspectVisible((AspectType)i, params.aspVisible[i]);
+//         }
+//     }
+//   if(mChartOuter)
+//     {
+//       for(int i = 0; i < OBJ_END; i++)
+//         {
+//           mChartOuter->showObject((ObjType)i,    params.objVisible[i]);
+//           mChartOuter->setObjFocus((ObjType)i,   params.objFocused[i]);
+//         }
+//       for(int i = 0; i < ASPECT_COUNT; i++)
+//         {  
+//           mChartOuter->setAspectOrb((AspectType)i,     params.aspOrbs[i]);
+//           mChartOuter->setAspectFocus((AspectType)i,   params.aspFocused[i]);
+//           mChartOuter->setAspectVisible((AspectType)i, params.aspVisible[i]);
+//         }
+//     }
+// }

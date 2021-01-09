@@ -2,14 +2,14 @@
 #define TIME_NODE_HPP
 
 #include <chrono>
-
 #include "astro.hpp"
-#include "timeWidget.hpp"
 #include "node.hpp"
-
 
 namespace astro
 {
+  // forward declarations
+  class TimeWidget;
+
   //// node connector indices ////
   // inputs
 #define TIMENODE_INPUT_LOCATION   0
@@ -25,8 +25,8 @@ namespace astro
     static std::vector<ConnectorBase*> CONNECTOR_OUTPUTS()
     { return {new Connector<DateTime>("Time Output")}; }
     
-    TimeWidget mWidget;
-    bool mLiveMode = false;
+    TimeWidget *mWidget = nullptr;
+    bool mLiveMode      = false;
     
     virtual void onUpdate() override;
     virtual void onDraw() override;
@@ -34,6 +34,7 @@ namespace astro
   public:
     TimeNode();
     TimeNode(const DateTime &dt);
+    ~TimeNode();
     virtual std::string type() const { return "TimeNode"; }    
   };
 
@@ -58,8 +59,8 @@ namespace astro
     static const std::vector<std::string> SPEED_UNITS;
     static const std::vector<double>      SPEED_MULTS;
 
-    TimeWidget mStartWidget;
-    TimeWidget mEndWidget;
+    TimeWidget *mStartWidget = nullptr;
+    TimeWidget *mEndWidget   = nullptr;
     DateTime   mDate; // current date (between start/end)
 
     TICK_CLOCK::time_point mTLast; // time of last frame
@@ -73,6 +74,7 @@ namespace astro
   public:
     TimeSpanNode();
     TimeSpanNode(const DateTime &dtStart, const DateTime &dtEnd);
+    ~TimeSpanNode();
     virtual std::string type() const { return "TimeSpanNode"; }
   };
 

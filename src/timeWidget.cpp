@@ -2,40 +2,40 @@
 using namespace astro;
 
 #include <fstream>
+#include <nfd.h>
 #include "imgui.h"
-
 #include "tools.hpp"
+#include "astroWindow.hpp"
+#include "nodeGraph.hpp"
+#include "fileDialog.hpp"
 
 TimeWidget::TimeWidget()
-  : mDate(DateTime::now())
+  : mDate(DateTime::now()), mFileDialog(new FileDialog())
+{ }
+TimeWidget::TimeWidget(const DateTime &date)
+  : mDate(date), mFileDialog(new FileDialog())
 { }
 
-TimeWidget::TimeWidget(const DateTime &date)
-  : mDate(date)
-{ mDate.fix(); }
-
 TimeWidget::TimeWidget(const TimeWidget &other)
-  : mDate(other.mDate), mSavedDate(other.mSavedDate), mDST(other.mDST)
-{
-  sprintf(mName, "%s", other.mName);
-  mNameStr = mName;
-  sprintf(mSavedName, "%s", other.mSavedName);
-  mSavedNameStr = mSavedName;
-}
-
+  : mFileDialog(new FileDialog()), mDate(other.mDate),
+    mGraph(other.mGraph), mSavedDate(other.mSavedDate), mName(other.mName), mDST(other.mDST)
+{ }
 TimeWidget& TimeWidget::operator=(const TimeWidget &other)
 {
+  mGraph = other.mGraph;
   mDate = other.mDate;
   mSavedDate = other.mSavedDate;
-  sprintf(mName, "%s", other.mName);
-  mNameStr = mName;
-  sprintf(mSavedName, "%s", other.mSavedName);
-  mSavedNameStr = mSavedName;
+  mName = other.mName;
   mDST = other.mDST;
   return *this;
 }
 
-bool TimeWidget::save(const std::string &name)
+TimeWidget::~TimeWidget()
+{
+  if(mFileDialog) { delete mFileDialog; }
+}
+
+bool TimeWidget::saveDirCheck()
 {
   if(!directoryExists(DATE_SAVE_DIR))
     { // make sure save directory exists
@@ -43,136 +43,79 @@ bool TimeWidget::save(const std::string &name)
       if(!makeDirectory(DATE_SAVE_DIR))
         { std::cout << "ERROR: Could not create date save directory.\n"; return false; }
     }
-  if(name.empty())
-    { std::cout << "TimeWidget::save() --> Please enter a name!\n"; return false; }
-
-  // read saved dates
-  std::vector<DateSave> data;
-  bool update = false; // if true, updating saved date
-  if(fileExists(DATE_SAVE_PATH))
-    {
-      std::ifstream dateFile(DATE_SAVE_PATH, std::ifstream::in);
-      std::string line  = "";
-      while(std::getline(dateFile, line))
-        {
-          DateTime dt;
-          std::string n = popName(line);
-          dt.fromSaveString(line);
-          if(n == name)
-            { data.push_back({n, mDate}); update = true; }
-          else
-            { data.push_back({n, dt}); }
-        }
-    }
-
-  if(!update) // append new date
-    { data.push_back({name, mDate}); }
-  
-  // write date to file
-  std::ofstream dateFile(DATE_SAVE_PATH, std::ios::out);
-  for(auto &d : data)
-    { dateFile << std::quoted(d.name) << " " << d.date.toSaveString() << "\n"; }
-
-  mSavedDate = mDate;
   return true;
 }
 
-bool TimeWidget::load(const std::string &name)
+bool TimeWidget::checkFileDialog()
 {
-  if(!directoryExists(DATE_SAVE_DIR)) { return false; }
-  
-  // read saved dates
-  if(fileExists(DATE_SAVE_PATH))
+  if(!saveDirCheck()) { return false; }
+  if(!mGraph) { std::cout << "TimeWidget->mNodeGraph is null!\n"; return false; }
+  bool success = false;
+  //std::cout << "TimeWidget checking FileDialog...\n";
+  if(mFileDialog->check())
     {
-      std::ifstream dateFile(DATE_SAVE_PATH, std::ifstream::in);
-      std::string line  = "";
-      while(std::getline(dateFile, line))
+      std::string path = mFileDialog->getPath();
+      if(!path.empty())
         {
-          std::string n = popName(line);
-          DateTime dt(line);
-          if(n == name)
+          // LOADING
+          if(mFileDialog->getType() == DIALOG_LOAD)
             {
-              mSavedDate = dt;
-              mSavedDate.fix();
-              mDate = mSavedDate;
-              sprintf(mName, "%s", name.c_str());
-              mNameStr = mName;
-              sprintf(mSavedName, "%s", name.c_str());
-              mSavedNameStr = mSavedName;
-              return true;
+              std::cout << "Loading date file --> " << path << "\n";
+              if(fileExists(path))
+                {
+                  std::ifstream dateFile(path, std::ifstream::in);
+                  std::string line  = "";
+                  while(std::getline(dateFile, line))
+                    {
+                      std::string n = popName(line);
+                      DateTime dt(line);
+                      if(!n.empty())
+                        {
+                          mDate      = dt;
+                          mSavedDate = dt;
+                          mName      = n;
+                          std::cout << "Date loading complete." << "\n";
+                          success = true;
+                          break; // only read first date in file
+                        }
+                    }
+                  if(!success) { std::cout << "Could not find valid date in file!\n"; }
+                }
+              else { std::cout << "File does not exist!\n"; }
+            }
+          // SAVING
+          else if(mFileDialog->getType() == DIALOG_SAVE)
+            {
+              std::cout << "Saving date file --> " << path << "\n";
+              mName = getBaseName(path);
+              mSavedDate = mDate;
+              std::ofstream dateFile(path, std::ios::out);
+              dateFile << std::quoted(mName) << " " << mDate.toSaveString() << "\n";
+              std::cout << std::quoted(mName) << " " << mDate.toSaveString() << "\n";
+              std::cout << "Date saving complete." << "\n";
+              success = true;
             }
         }
+      else { std::cout << "Empty path string!\n"; }
     }
-  return false;
+  return success;
 }
 
-bool TimeWidget::remove(const std::string &name)
-{
-  if(!directoryExists(DATE_SAVE_DIR))
-    { // make sure save directory exists
-      std::cout << "Creating save directory (" << DATE_SAVE_DIR << ")...\n";
-      if(!makeDirectory(DATE_SAVE_DIR))
-        { std::cout << "ERROR: Could not create date save directory.\n"; return false; }
-    }
-  if(name.empty()) { std::cout << "TimeWidget::remove() --> Empty name!\n"; return false; }
 
-  // read saved dates
-  std::vector<DateSave> data;
-  bool found = false; // if true, updating saved date
-  if(fileExists(DATE_SAVE_PATH))
-    {
-      std::ifstream dateFile(DATE_SAVE_PATH, std::ifstream::in);
-      std::string line  = "";
-      while(std::getline(dateFile, line))
-        {
-          DateTime dt;
-          std::string n = popName(line);
-          dt.fromSaveString(line);
-          if(n == name) { found = true; }  // remove by skipping
-          else { data.push_back({n, dt}); }
-        }
-    }
-  // write date to file
-  std::ofstream dateFile(DATE_SAVE_PATH, std::ios::out);
-  for(auto d : data) { dateFile << std::quoted(d.name) << " " << d.date.toSaveString() << "\n"; }
-  return true;
-}
 
-std::vector<DateSave> TimeWidget::loadAll()
+bool TimeWidget::draw(const std::string &id, float scale, bool blocked)
 {
-  if(!directoryExists(DATE_SAVE_DIR)) { return {}; }
-  
-  // read all saved dates
-  std::vector<DateSave> data;
-  if(fileExists(DATE_SAVE_PATH))
-    {
-      std::ifstream dateFile(DATE_SAVE_PATH, std::ifstream::in);
-      std::string line = "";
-      while(std::getline(dateFile, line))
-        {
-          if(!line.empty() && line != "\n")
-            {
-              DateTime dt;
-              std::string n = popName(line);
-              dt.fromSaveString(line);
-              data.push_back({n, dt});
-            }
-        }
-    }
-  return data;
-}
-
-void TimeWidget::draw(const std::string &id, float scale, bool blocked)
-{
+  mFileDialog->setGraph(mGraph);
+  bool popupActive = false;
   ImGui::BeginGroup();
   {
     // textbox widths
-    const float yearWidth   = 100*scale;
-    const float monthWidth  = 100*scale;
-    const float dayWidth    = 100*scale;
-    const float hourWidth   = 100*scale;
-    const float minuteWidth = 100*scale;
-    const float secondWidth = 100*scale;
+    const float yearWidth   = 90*scale;
+    const float monthWidth  = 90*scale;
+    const float dayWidth    = 90*scale;
+    const float hourWidth   = 90*scale;
+    const float minuteWidth = 90*scale;
+    const float secondWidth = 90*scale;
     const float tzWidth     = 55*scale;
     // steps
     const short  yearStep   = 1;
@@ -197,175 +140,176 @@ void TimeWidget::draw(const std::string &id, float scale, bool blocked)
     char   hourVal   = mDate.hour();
     char   minuteVal = mDate.minute();
     double secondVal = mDate.second();
+    double tzVal     = mDate.utcOffset()+mDate.dstOffset();
+    // whether changed from loaded date
+    bool compare    = (!mName.empty());
+    bool yearDiff   = compare && (yearVal   != mSavedDate.year());
+    bool monthDiff  = compare && (monthVal  != mSavedDate.month());
+    bool dayDiff    = compare && (dayVal    != mSavedDate.day());
+    bool hourDiff   = compare && (hourVal   != mSavedDate.hour());
+    bool minuteDiff = compare && (minuteVal != mSavedDate.minute());
+    bool secondDiff = compare && (secondVal != mSavedDate.second());
+    bool utcDiff    = compare && (mDate.utcOffset() != mSavedDate.utcOffset());
+    bool dstDiff    = compare && (mDate.dstOffset() != mSavedDate.dstOffset());
+    bool anyDiff    = compare && (mDate != mSavedDate);
 
-    //ImGui::Spacing();
+    Vec2f fPad = ImGui::GetStyle().FramePadding;
+    ImGui::PushStyleVar(ImGuiStyleVar_FramePadding, Vec2f(1,1));
+    
+    Vec2f tl, br;
+    Vec4f changedColor = Vec4f(1.0f, 0.3f, 0.3f, 1.0f);
+    float changedW = 1.0f*scale;
+    ImGui::SetCursorPos(Vec2f(ImGui::GetCursorPos())+fPad+Vec2f(changedW/2.0f, 0.0f));
     ImGui::BeginGroup();
     {
-      ImGui::Text("Year");
+      if(yearDiff)
+        {
+          tl = Vec2f(ImGui::GetCursorScreenPos()) - fPad;
+          br = tl + ImGui::CalcTextSize("Year") + 2.0f*fPad;
+          ImGui::GetWindowDrawList()->AddRect(tl, br, ImColor(changedColor), 0.0f, ImDrawCornerFlags_All, changedW);
+        }
+      ImGui::AlignTextToFramePadding(); ImGui::Text("Year");
       ImGui::PushItemWidth(yearWidth);
-      ImGui::SameLine(55*scale); if(ImGui::InputScalar(("##year"+id).c_str(),   ImGuiDataType_S16,    &yearVal,   &yearStep,   &yearFastStep, "%d"))
-                                   { mDate.setYear(yearVal); }
+      ImGui::SameLine((55+changedW)*scale);
+      if(ImGui::InputScalar(("##year"+id).c_str(),   ImGuiDataType_S16,    &yearVal,   &yearStep,   &yearFastStep, "%d")) { mDate.setYear(yearVal); }
       ImGui::PopItemWidth();
-      ImGui::Text("Month");
+      
+      if(monthDiff)
+        {
+          tl = Vec2f(ImGui::GetCursorScreenPos()) - fPad;
+          br = tl + ImGui::CalcTextSize("Month") + 2.0f*fPad;
+          ImGui::GetWindowDrawList()->AddRect(tl, br, ImColor(changedColor), 0.0f, ImDrawCornerFlags_All, changedW);
+        }
+      ImGui::AlignTextToFramePadding(); ImGui::Text("Month");
       ImGui::PushItemWidth(monthWidth);
-      ImGui::SameLine(55*scale); if(ImGui::InputScalar(("##month"+id).c_str(),  ImGuiDataType_S8,     &monthVal,  &monthStep,  &monthFastStep, "%d"))
-                                   { mDate.setMonth(monthVal); }
+      ImGui::SameLine((55+changedW)*scale);
+      if(ImGui::InputScalar(("##month"+id).c_str(),  ImGuiDataType_S8,     &monthVal,  &monthStep,  &monthFastStep, "%d")) { mDate.setMonth(monthVal); }
       ImGui::PopItemWidth();
-      ImGui::Text("Day");
+
+      if(dayDiff)
+        {
+          tl = Vec2f(ImGui::GetCursorScreenPos()) - fPad;
+          br = tl + ImGui::CalcTextSize("Day") + 2.0f*fPad;
+          ImGui::GetWindowDrawList()->AddRect(tl, br, ImColor(changedColor), 0.0f, ImDrawCornerFlags_All, changedW);
+        }
+      ImGui::AlignTextToFramePadding(); ImGui::Text("Day");
       ImGui::PushItemWidth(dayWidth);
-      ImGui::SameLine(55*scale); if(ImGui::InputScalar(("##day"+id).c_str(), ImGuiDataType_S8,     &dayVal,    &dayStep,    &dayFastStep, "%d"))
-                                   { mDate.setDay(dayVal); }
+      ImGui::SameLine((55+changedW)*scale);
+      if(ImGui::InputScalar(("##day"+id).c_str(), ImGuiDataType_S8,     &dayVal,    &dayStep,    &dayFastStep, "%d")) { mDate.setDay(dayVal); }
       ImGui::PopItemWidth();
     }
     ImGui::EndGroup();
     ImGui::SameLine();
     ImGui::BeginGroup();
     {
-      ImGui::Text("Hour");
+      if(hourDiff)
+        {
+          tl = Vec2f(ImGui::GetCursorScreenPos()) - fPad;
+          br = tl + ImGui::CalcTextSize("Hour") + 2.0f*fPad;
+          ImGui::GetWindowDrawList()->AddRect(tl, br, ImColor(changedColor), 0.0f, ImDrawCornerFlags_All, changedW);
+        }
+      ImGui::AlignTextToFramePadding(); ImGui::Text("Hour");
       ImGui::PushItemWidth(hourWidth);
-      ImGui::SameLine(55*scale); if(ImGui::InputScalar(("##hour"+id).c_str(),   ImGuiDataType_S8,     &hourVal,   &hourStep,   &hourFastStep, "%d"))
-                                   { mDate.setHour(hourVal); }
+      ImGui::SameLine(55*scale);
+      if(ImGui::InputScalar(("##hour"+id).c_str(),   ImGuiDataType_S8,     &hourVal,   &hourStep,   &hourFastStep, "%d")) { mDate.setHour(hourVal); }
       ImGui::PopItemWidth();
-      ImGui::Text("Minute");
+
+      ImGui::AlignTextToFramePadding();
+      if(minuteDiff)
+        {
+          tl = Vec2f(ImGui::GetCursorScreenPos()) - fPad;
+          br = tl + ImGui::CalcTextSize("Minute") + 2.0f*fPad;
+          ImGui::GetWindowDrawList()->AddRect(tl, br, ImColor(changedColor), 0.0f, ImDrawCornerFlags_All, changedW);
+        }
+      ImGui::AlignTextToFramePadding(); ImGui::Text("Minute");
       ImGui::PushItemWidth(minuteWidth);
-      ImGui::SameLine(55*scale); if(ImGui::InputScalar(("##minute"+id).c_str(), ImGuiDataType_S8,     &minuteVal, &minuteStep, &minuteFastStep, "%d"))
-                                   { mDate.setMinute(minuteVal); }
+      ImGui::SameLine(55*scale);
+      if(ImGui::InputScalar(("##minute"+id).c_str(), ImGuiDataType_S8,     &minuteVal, &minuteStep, &minuteFastStep, "%d")) { mDate.setMinute(minuteVal); }
       ImGui::PopItemWidth();
-      ImGui::Text("Second");
+
+      if(secondDiff)
+        {
+          tl = Vec2f(ImGui::GetCursorScreenPos()) - fPad;
+          br = tl + ImGui::CalcTextSize("Second") + 2.0f*fPad;
+          ImGui::GetWindowDrawList()->AddRect(tl, br, ImColor(changedColor), 0.0f, ImDrawCornerFlags_All, changedW);
+        }
+      ImGui::AlignTextToFramePadding(); ImGui::Text("Second");
       ImGui::PushItemWidth(secondWidth);
-      ImGui::SameLine(55*scale); if(ImGui::InputScalar(("##second"+id).c_str(), ImGuiDataType_Double, &secondVal, &secondStep, &secondFastStep, "%2.2f"))
-                                   { mDate.setSecond(secondVal); }
+      ImGui::SameLine(55*scale);
+      if(ImGui::InputScalar(("##second"+id).c_str(), ImGuiDataType_Double, &secondVal, &secondStep, &secondFastStep, "%2.2f")) { mDate.setSecond(secondVal); }
       ImGui::PopItemWidth();
     }
     ImGui::EndGroup();
     
     // display loaded name
     ImGui::Spacing();
-    if(mNameStr.empty())
+    if(mName.empty())
       {
         ImGui::TextColored(ImColor(1.0f, 1.0f, 1.0f, 0.25f), "[]");
       }
     else
       {
-        std::string sName = mNameStr;
-        if(mDate != mSavedDate) { sName = std::string("[") + mNameStr + "]"; }
+        std::string sName = mName;
+        if(mDate != mSavedDate) { sName = std::string("[") + mName + "]"; }
         ImGui::TextColored(ImColor(1.0f, 1.0f, 1.0f, 0.5f), "%s", sName.c_str());
       }
 
     // display UTC offset
-    double tzVal = mDate.utcOffset()+mDate.dstOffset();
     ImGui::SameLine(165*scale);
-    ImGui::TextUnformatted("UTC");
+    if(utcDiff)
+      {
+        tl = Vec2f(ImGui::GetCursorScreenPos()) - fPad;
+        br = tl + ImGui::CalcTextSize("UTC") + 2.0f*fPad;
+        ImGui::GetWindowDrawList()->AddRect(tl, br, ImColor(changedColor), 0.0f, ImDrawCornerFlags_All, changedW);
+      }
+    ImGui::AlignTextToFramePadding(); ImGui::TextUnformatted("UTC");
     ImGui::PushItemWidth(tzWidth);
     ImGui::SameLine();
     ImGui::InputDouble(("##tzOffset"+id).c_str(), &tzVal, 0.0, 0.0, "%+2.2f");
-    mDate.setUtcOffset(tzVal-mDate.dstOffset());
     ImGui::PopItemWidth();
+    mDate.setUtcOffset(tzVal-mDate.dstOffset());
 
     bool dst = (mDate.dstOffset() != 0.0);
     ImGui::SameLine();
-    ImGui::TextUnformatted("DST");
+    if(dstDiff)
+      {
+        tl = Vec2f(ImGui::GetCursorScreenPos()) - fPad;
+        br = tl + ImGui::CalcTextSize("DST") + 2.0f*fPad;
+        ImGui::GetWindowDrawList()->AddRect(tl, br, ImColor(changedColor), 0.0f, ImDrawCornerFlags_All, changedW);
+      }
+    ImGui::AlignTextToFramePadding(); ImGui::TextUnformatted("DST");
     ImGui::SameLine(); ImGui::Checkbox("##DST", &dst);
+    
     if(dst && mDate.dstOffset() == 0.0) { mDate.setDstOffset(1.0); }
     else if(!dst)                       { mDate.setDstOffset(0.0); }
 
+    ImGui::PopStyleVar(); // FramePadding
     
     // load button
-    ImGui::Button(("Load##date"+id).c_str());
-    if(!blocked && ImGui::BeginPopupContextItem(("loadPopup##"+id).c_str(), ImGuiMouseButton_Left))
-      {
-        std::vector<DateSave> loaded = loadAll();
-        for(auto &dt : loaded)
-          {
-            if(ImGui::MenuItem((dt.name+"##"+id).c_str()))
-              {
-                sprintf(mName, "%s", dt.name.c_str());
-                mNameStr = mName;
-                mDate = dt.date;
-                mSavedDate = dt.date;
-                std::cout << "Date '" << dt.name << "' loaded!\n";
-              }
-          }
-        ImGui::EndPopup();
-      }
-    
+    if(ImGui::Button(("Load##date"+id).c_str()))
+      { mFileDialog->open("Load Date File", DIALOG_LOAD, DATE_SAVE_DIR, {".date"}); }
     // save button
     ImGui::SameLine();
-    ImGui::Button(("Save##date"+id).c_str());
-
-    // save menu
-    if(!blocked && ImGui::BeginPopupContextItem(("savePopup##"+id).c_str(), ImGuiMouseButton_Left))
-      {
-        // text input for new save
-        ImGui::Text("New");
-        ImGui::SameLine();
-        if(ImGui::InputText(("##saveInput"+id).c_str(), mSavedName, DATE_NAME_BUFLEN))
-          { mSavedNameStr = mSavedName; }
-        
-        ImGuiIO& io = ImGui::GetIO();
-            
-        bool enter = ImGui::IsKeyPressed(io.KeyMap[ImGuiKey_Enter]);
-        ImGui::SameLine();
-        enter |= ImGui::Button(("Save##date2"+id).c_str());
-        if(enter)
-          {
-            if(!save(mSavedNameStr))
-              { std::cout << "Failed to save date as '" << mSavedNameStr << "'!\n"; }
-            else
-              {
-                std::cout << "Date saved as '" << mSavedName << "'!\n";
-                sprintf(mName, "%s", mSavedName);
-                mNameStr = mName;
-              }
-            ImGui::CloseCurrentPopup();
-          }
-        
-        ImGui::Spacing();
-        ImGui::Separator();
-        
-        // display existing dates
-        std::vector<DateSave> loaded = loadAll();
-        for(auto &dt : loaded)
-          {
-            // delete button (X)
-            ImGui::PushStyleColor(ImGuiCol_Button, ImVec4(0,0,0,0));
-            if(ImGui::Button(("X##"+dt.name+id).c_str()))
-              {
-                std::cout << "Removing date '" << dt.name << "'!\n";
-                remove(dt.name);
-                if(mName == dt.name) { mName[0] = '\0'; mNameStr = ""; } // (mName == "")
-                if(mSavedName == dt.name) { mSavedName[0] = '\0'; mSavedNameStr = ""; } // (mSavedName == "")
-              }
-            ImGui::PopStyleColor();
-            
-            // overwrite
-            ImGui::SameLine();
-            if(ImGui::MenuItem((dt.name+"##"+id).c_str()))
-              {
-                if(!save(dt.name))
-                  { std::cout << "Failed to save date '" << dt.name << "'!\n"; }
-                else
-                  {
-                    sprintf(mName, "%s", dt.name.c_str());
-                    mNameStr = mName;
-                    std::cout << "Date saved as '" << mName << "'!\n";
-                  }
-              }
-          }
-        ImGui::EndPopup();
-      }
-    else // fill buffer with current name
-      { sprintf(mSavedName, "%s", mName); mSavedNameStr = mSavedName; }
-
-    if(!mNameStr.empty())
+    if(ImGui::Button(("Save##date"+id).c_str()))
+      { mFileDialog->open("Save Date File", DIALOG_SAVE, DATE_SAVE_DIR, {".date"}); }
+    
+    if(checkFileDialog())
+      { std::cout << "File dialog success!\n"; } // update dialog, and apply save/load if it succeeds
+    
+    if(!mName.empty())
       {
         ImGui::SameLine();
         if(ImGui::Button(("Reload##date"+id).c_str()))
           {
-            mDate = mSavedDate;
+            if(mDate != mSavedDate)
+              {
+                mDate = mSavedDate;
+                std::cout << "Re-loaded date '" << mName << "'!\n";
+              }
           }
       }
   }
   ImGui::EndGroup();
   mDate.fix();
+  return popupActive;
 }

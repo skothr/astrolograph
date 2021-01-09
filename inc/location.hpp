@@ -11,7 +11,7 @@
 #include "astro.hpp"
 
 ///////////////////////////////////////////////////////////////////////////
-// TODO: TIMEZONES:
+// TIMEZONES:
 //    e.g. -->   http://api.geonames.org/timezoneJSON?lat=38.652100839431&lng=-90.502670955469&date=1993-12-27&username=skothr
 //       (can return string id, e.g. "America/New York") --> plug into date/tz
 //
@@ -20,7 +20,6 @@
 #define GEONAMES_URL             "http://api.geonames.org/"
 #define GEONAMES_TIMEZONE_PREFIX "timezoneJSON?"
 ///////////////////////////////////////////////////////////////////////////
-
 
 // location of New York Stock Exchange (used as default coordinates)
 #define NYSE_LAT      40.706833333333    // degrees NORTH
@@ -93,7 +92,7 @@ namespace astro
     { return !(*this == other); }
     
     friend std::ostream& operator<<(std::ostream &os, const Location &loc);
-    friend std::istream& operator>>(std::istream &is, Location loc);
+    friend std::istream& operator>>(std::istream &is, Location &loc);
       
     //friend std::basic_ostream<wchar_t>& operator<<(std::basic_ostream<wchar_t> &os, const Location &loc);
   };
@@ -104,14 +103,13 @@ namespace astro
     // os << "[" << loc.latitude << ", " << loc.longitude << ", " << loc.altitude << "]";
     return os;
   }
-  inline std::istream& operator>>(std::istream &is, Location loc)
+  inline std::istream& operator>>(std::istream &is, Location &loc)
   {
     is >> loc.latitude; is >> loc.longitude; is >> loc.altitude; is >> std::quoted(loc.timezoneId); is >> loc.utcOffset;
     loc.updateUtcOffset();
     // os << "[" << loc.latitude << ", " << loc.longitude << ", " << loc.altitude << "]";
     return is;
   }
-  
   
   // inline std::basic_ostream<wchar_t>& operator<<(std::basic_ostream<wchar_t> &os, const Location &loc)
   // {

@@ -16,14 +16,11 @@ namespace astro
   class ChartDataNode : public Node
   {
   private:
-    static std::vector<ConnectorBase*> CONNECTOR_INPUTS()
-    { return {new Connector<Chart>("Chart")}; }
-    static std::vector<ConnectorBase*> CONNECTOR_OUTPUTS()
-    { return {}; }
+    static std::vector<ConnectorBase*> CONNECTOR_INPUTS()  { return {new Connector<Chart>("Chart")}; }
+    static std::vector<ConnectorBase*> CONNECTOR_OUTPUTS() { return {}; }
     
     bool mAngOpen = false;
     bool mObjOpen = false;
-    bool mOrbOpen = false;
 
     std::vector<bool> mShowObjects;
     std::vector<bool> mFocusObjects;

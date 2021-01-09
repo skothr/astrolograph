@@ -4,27 +4,26 @@ using namespace astro;
 #include "glfwKeys.hpp"
 #include "imgui.h"
 #include "tools.hpp"
+#include "setting.hpp"
+#include "settingForm.hpp"
 
 
 ProgressNode::ProgressNode()
   : Node(CONNECTOR_INPUTS(), CONNECTOR_OUTPUTS(), "Progress Node"), mChart(new Chart(DateTime(), Location()))
 {
   outputs()[PROGRESSNODE_OUTPUT_CHART]->set(mChart);
-  for(auto &obj : mChart->objects())
-    {
-      if(obj->type < OBJ_COUNT) // planets/asateroids/etc
-        { mChart->showObject((ObjType)obj->type, true); }
-      else                      // angles
-        { mChart->showObject((ObjType)obj->type, false); }
-    }
 
   mSettings.push_back(new Setting<DateTime>("Date", "date", &mChart->date()));
   mSettings.push_back(new Setting<Location>("Location", "location", &mChart->location()));
+
+  mSettingForm = new SettingForm();
+  
 }
 
 ProgressNode::~ProgressNode()
 {
-  delete mChart;
+  if(mChart)       { delete mChart; }
+  if(mSettingForm) { delete mSettingForm; }
 }
 
 void ProgressNode::onUpdate()
@@ -82,6 +81,6 @@ void ProgressNode::onDraw()
       //mChart->update();
     }
   // mChart->update();
-  mSettingForm.draw(getScale());
+  mSettingForm->draw(getScale());
 }
 

@@ -16,7 +16,10 @@ bool DateTime::isValid(int year, int month, int day, int hour, int minute, doubl
 {
   if(year < MIN_YEAR || year > MAX_YEAR)      { return false; }
   else if(month < 1 || month > 12)            { return false; }
-  else if(day < 1 || day > monthDays(month))  { return false; }
+  else if(day < 1 ||
+          (day > monthDays(month)
+           && !(month == 2 && (year % 4) == 0))) // dont skip feb 29th in leap years
+    { return false; }
   else if(hour < 0 || hour >= 24)             { return false; }
   else if(minute < 0 || minute >= 60)         { return false; }
   else if(second < 0 || second >= 60)         { return false; }

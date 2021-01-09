@@ -1107,7 +1107,7 @@ enum ImGuiTableFlags_
     ImGuiTableFlags_BordersV                        = ImGuiTableFlags_BordersInnerV | ImGuiTableFlags_BordersOuterV, // Draw vertical borders.
     ImGuiTableFlags_BordersInner                    = ImGuiTableFlags_BordersInnerV | ImGuiTableFlags_BordersInnerH, // Draw inner borders.
     ImGuiTableFlags_BordersOuter                    = ImGuiTableFlags_BordersOuterV | ImGuiTableFlags_BordersOuterH, // Draw outer borders.
-    ImGuiTableFlags_Borders                         = ImGuiTableFlags_BordersInner | ImGuiTableFlags_BordersOuter,   // Draw all borders.
+    ImGuiTableFlags_Borders                         = ImGuiTableFlags_BordersInner  | ImGuiTableFlags_BordersOuter,   // Draw all borders.
     ImGuiTableFlags_NoBordersInBody                 = 1 << 12,  // Disable vertical borders in columns Body (borders will always appears in Headers).
     ImGuiTableFlags_NoBordersInBodyUntilResize      = 1 << 13,  // Disable vertical borders in columns Body until hovered for resize (borders will always appears in Headers).
     // Sizing
@@ -1754,6 +1754,9 @@ struct ImGuiStyle
 
     IMGUI_API ImGuiStyle();
     IMGUI_API void ScaleAllSizes(float scale_factor);
+
+  //// CUSTOM (for scrollbar scaling) ////
+  float ScrollbarScaling = 1.0f;
 };
 
 //-----------------------------------------------------------------------------

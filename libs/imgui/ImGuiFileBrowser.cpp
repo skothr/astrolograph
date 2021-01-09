@@ -108,7 +108,7 @@ namespace imgui_addons
         ImGui::CloseCurrentPopup();
     }
 
-    bool ImGuiFileBrowser::showFileDialog(const std::string& label, const DialogMode mode, const ImVec2& sz_xy, const std::string& valid_types)
+  bool ImGuiFileBrowser::showFileDialog(const std::string& label, const DialogMode mode, const ImVec2& sz_xy, const std::string& valid_types)
     {
         isClosed = false;
         

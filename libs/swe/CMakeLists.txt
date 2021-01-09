@@ -1,4 +1,5 @@
 cmake_minimum_required(VERSION 3.6)
+
 include_directories(.)
 add_library(
   swe STATIC
@@ -25,5 +26,6 @@ add_library(
   src/swepdate.c
   src/sweph.c
   src/swephlib.c
-  src/swetest.c
   )
+set_target_properties(swe PROPERTIES C_STANDARD 99)
+target_compile_options(swe PRIVATE -Wno-deprecated) # -static) # -fPIC

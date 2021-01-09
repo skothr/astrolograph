@@ -12,11 +12,9 @@
 
 namespace astro
 {
-  static const std::vector<std::string> MONTH_NAMES =
-    { "January", "February", "March",     "April",   "May",      "June",
-      "July",    "August",   "September", "October", "November", "December"};
-  static const std::vector<std::string> WEEK_NAMES =
-    { "Sunday", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"};
+  static const std::vector<std::string> MONTH_NAMES = { "January", "February", "March",     "April",   "May",      "June",
+                                                        "July",    "August",   "September", "October", "November", "December" };
+  static const std::vector<std::string> WEEK_NAMES = { "Sunday", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday" };
 
   // DateTime -- defines a point in time (date and time of day) //
   class DateTime
@@ -203,7 +201,6 @@ namespace astro
   inline std::ostream& operator<<(std::ostream &os, const DateTime &date)
   {
     os << date.toSaveString();
-    // date.printDate(os); os << " | "; date.printTime(os);
     return os;
   }
 

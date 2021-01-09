@@ -3,6 +3,7 @@ using namespace astro;
 
 #include "imgui.h"
 #include "tools.hpp"
+#include "setting.hpp"
 
 
 PlotNode::PlotNode()

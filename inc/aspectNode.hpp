@@ -23,8 +23,12 @@ namespace astro
 
     bool mListOpen = false;
     bool mOrbsOpen = false;
-    std::vector<BoolStruct> mAspVisible;
-    std::vector<double> mAspOrbs;
+    float mLastScale = 1.0f;
+    float mListScroll = 0.0f; // normalized scroll position --> [0.0f, 1.0f]
+    ChartParams             *mParams = nullptr;
+    std::vector<ChartAspect> mAspects;
+    std::vector<BoolStruct>  mAspVisible;
+    std::vector<double>      mAspOrbs;
     
     virtual void onUpdate() override;
     virtual void onDraw() override;

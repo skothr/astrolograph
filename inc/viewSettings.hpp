@@ -1,12 +1,21 @@
 #ifndef VIEW_SETTINGS_HPP
 #define VIEW_SETTINGS_HPP
 
+#include "nlohmann/json_fwd.hpp" // json forward declarations
+using json = nlohmann::json;
+
 #include "vector.hpp"
 
-#define FONT_PATH   "./res/fonts/UbuntuMono-R.ttf"
-#define MAIN_FONT_HEIGHT 16.0f
+#define MAIN_FONT_HEIGHT  16.0f
 #define TITLE_FONT_HEIGHT 20.0f
+#define FONT_OVERSAMPLE   4
 
+#define FONT_PATH "./res/fonts/"
+#define FONT_NAME "UbuntuMono"
+#define FONT_PATH_REGULAR     (FONT_PATH FONT_NAME "-R.ttf" )
+#define FONT_PATH_ITALIC      (FONT_PATH FONT_NAME "-RI.ttf")
+#define FONT_PATH_BOLD        (FONT_PATH FONT_NAME "-B.ttf" )
+#define FONT_PATH_BOLD_ITALIC (FONT_PATH FONT_NAME "-BI.ttf")
 
 // graph setting defaults
 #define DEFAULT_GRAPH_BG_COLOR     Vec4f(0.05f, 0.05f, 0.05f,  1.0f)
@@ -21,6 +30,12 @@
 #define DEFAULT_NODE_BG_COLOR      Vec4f(0.20f, 0.20f, 0.20f,  1.0f)
 
 
+// TODO: Charts
+// --> aspect colors
+// --> extended object list
+
+
+// forward declarations
 struct ImFont;
 
 namespace astro
@@ -32,21 +47,22 @@ namespace astro
   class ViewSettings
   {
   private:
-    bool  mState          = false; // whether window is open
-    SettingForm *mForm    = nullptr;
-    float mLabelColWidth  = 256.0f;
-    Vec2f mWindowSize     = Vec2f(512, 512);
-    Vec2f mWindowPadding  = Vec2f(10.0f, 10.0f);
-    bool  mEscapeDebounce = false;
-
-    bool checkExitPopup(bool busy, bool hover); // checks for view settings popup exit conditions
+    bool mInitialized    = false;
+    SettingForm *mForm   = nullptr;
+    float mLabelColWidth = 256.0f;
     
   public:
     // Global
-    float mainTextSize     = 16.0f;
-    float titleTextSize    = 20.0f;
-    ImFont *mainFont       = nullptr;
-    ImFont *titleFont      = nullptr;
+    float mainTextSize  = 16.0f;
+    float titleTextSize = 20.0f;
+    ImFont *mainFont    = nullptr; // NOTE: Fonts deleted by ImGui
+    ImFont *mainFontB   = nullptr;
+    ImFont *mainFontI   = nullptr;
+    ImFont *mainFontBI  = nullptr;
+    ImFont *titleFont   = nullptr;
+    ImFont *titleFontB  = nullptr;
+    ImFont *titleFontI  = nullptr;
+    ImFont *titleFontBI = nullptr;
     
     // Node Graph
     Vec4f graphBgColor     = DEFAULT_GRAPH_BG_COLOR;
@@ -59,20 +75,14 @@ namespace astro
     float graphLineWidth   = DEFAULT_GRAPH_LINE_WIDTH;
     // Nodes
     Vec4f nodeBgColor      = DEFAULT_NODE_BG_COLOR;
-
-    // TODO: Charts
-    // --> aspect colors
-    // --> extended object list
     
-    ViewSettings();
-    ~ViewSettings();
-
+    json toJSON();
+    bool fromJSON(json js);
+    
+    void init();
     void reset();
+    SettingForm* form() { return mForm; }
     
-    void openWindow()   { mState = true; }
-    void closeWindow()  { mState = false; }
-    void toggleWindow();
-    bool draw(const Vec2f &frameSize);
   };
 }
 

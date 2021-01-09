@@ -22,10 +22,9 @@ namespace astro
   {
   private:
     // node connectors
-    static std::vector<ConnectorBase*> CONNECTOR_INPUTS()
-    { return {new Connector<DateTime>("Date"), new Connector<Location>("Location")}; }
-    static std::vector<ConnectorBase*> CONNECTOR_OUTPUTS()
-    { return {new Connector<Chart>("Chart")}; }
+    static std::vector<ConnectorBase*> CONNECTOR_INPUTS()  { return {new Connector<DateTime>("Date"),
+                                                                     new Connector<Location>("Location")}; }
+    static std::vector<ConnectorBase*> CONNECTOR_OUTPUTS() { return {new Connector<Chart>("Chart")}; }
     
     Chart       *mChart       = nullptr;
     SettingForm *mSettingForm = nullptr;
@@ -34,8 +33,10 @@ namespace astro
     bool mTruePos = false; // 
     std::vector<std::string> mZNames;
     std::vector<std::string> mHsNames;
+    std::vector<std::string> mAyaNames;
     int mHouseSystem = 0;  // combo index
     int mZodiac      = ZODIAC_TROPICAL; // combo index
+    int mAyanamsa    = 0;
 
     virtual void onUpdate() override;
     virtual void onDraw() override;

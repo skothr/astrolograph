@@ -2,52 +2,66 @@
 using namespace astro;
 
 #include <iostream>
+#include <fstream>
 
+#include "nlohmann/json.hpp"
 #include "imgui.h"
 #include "glfwKeys.hpp"
+#include "astro.hpp"
+#include "setting.hpp"
 #include "settingForm.hpp"
 
-ViewSettings::ViewSettings()
+json ViewSettings::toJSON()          { return (mForm ? mForm->toJSON()     : json::object()); }
+bool ViewSettings::fromJSON(json js) { return (mForm ? mForm->fromJSON(js) : false);          }
+
+void ViewSettings::init()
 {
-  ImFontConfig config;
-  config.OversampleH = 4;
-  config.OversampleV = 4;
-  mainFont = ImGui::GetIO().Fonts->AddFontFromFileTTF(FONT_PATH, MAIN_FONT_HEIGHT, &config);
-  titleFont = ImGui::GetIO().Fonts->AddFontFromFileTTF(FONT_PATH, TITLE_FONT_HEIGHT, &config);
+  if(!mInitialized)
+    {
+      ImGuiIO &io = ImGui::GetIO();
+      ImFontConfig config;
+      config.OversampleH = FONT_OVERSAMPLE;
+      config.OversampleV = FONT_OVERSAMPLE;
+      ImVector<ImWchar> ranges;
+      ImFontGlyphRangesBuilder builder;
+      builder.AddText(NAKSHATRA_EXTRA_CHARS);
+      builder.AddRanges(io.Fonts->GetGlyphRangesDefault());
+      builder.BuildRanges(&ranges);
+      config.GlyphRanges = ranges.Data;
+  
+      config.SizePixels  = MAIN_FONT_HEIGHT+1.0f; // NOTE: font rendering sometimes clips glyphs (?) TODO: FIX
+      config.GlyphOffset = Vec2f(0, -1.5f);       
+      mainFont    = io.Fonts->AddFontFromFileTTF(FONT_PATH_REGULAR,     MAIN_FONT_HEIGHT,  &config);
+      mainFontB   = io.Fonts->AddFontFromFileTTF(FONT_PATH_BOLD,        MAIN_FONT_HEIGHT,  &config);
+      mainFontI   = io.Fonts->AddFontFromFileTTF(FONT_PATH_ITALIC,      MAIN_FONT_HEIGHT,  &config);
+      mainFontBI  = io.Fonts->AddFontFromFileTTF(FONT_PATH_BOLD_ITALIC, MAIN_FONT_HEIGHT,  &config);
+      config.SizePixels  = TITLE_FONT_HEIGHT+1.0f;
+      titleFont   = io.Fonts->AddFontFromFileTTF(FONT_PATH_REGULAR,     TITLE_FONT_HEIGHT, &config);
+      titleFontB  = io.Fonts->AddFontFromFileTTF(FONT_PATH_BOLD,        TITLE_FONT_HEIGHT, &config);
+      titleFontI  = io.Fonts->AddFontFromFileTTF(FONT_PATH_ITALIC,      TITLE_FONT_HEIGHT, &config);
+      titleFontBI = io.Fonts->AddFontFromFileTTF(FONT_PATH_BOLD_ITALIC, TITLE_FONT_HEIGHT, &config);
+      io.Fonts->Build();
 
-  // set modal dim overlay color
-  ImGuiStyle& style = ImGui::GetStyle();
-  style.Colors[ImGuiCol_ModalWindowDimBg] = Vec4f(0.0f, 0.0f, 0.0f, 0.6f);
+      // set modal dim overlay color
+      ImGuiStyle& style = ImGui::GetStyle();
+      style.Colors[ImGuiCol_ModalWindowDimBg] = Vec4f(0.0f, 0.0f, 0.0f, 0.6f);
 
-  mForm = new SettingForm();
-  mForm->add(new SettingGroup("Graph", "graph",
-                              { new Setting<Vec4f>("Background Color", "gBgCol",   &graphBgColor,     DEFAULT_GRAPH_BG_COLOR),
-                                new Setting<Vec4f>("Line Color",       "gLnCol",   &graphLineColor,   DEFAULT_GRAPH_LINE_COLOR),
-                                new Setting<Vec4f>("Axes Color",       "gAxCol",   &graphAxesColor,   DEFAULT_GRAPH_AXES_COLOR),
-                                new Setting<bool> ("Draw Lines",       "gDrawLn",  &drawGraphLines,   DEFAULT_GRAPH_DRAW_LINES),
-                                new Setting<bool> ("Draw Axes",        "gDrawAx",  &drawGraphAxes,    DEFAULT_GRAPH_DRAW_AXES),
-                                new Setting<Vec2f>("Line Spacing",     "gLnSpace", &graphLineSpacing, DEFAULT_GRAPH_LINE_SPACING),
-                                new Setting<float>("Line Width",       "gLnWidth", &graphLineWidth,   DEFAULT_GRAPH_LINE_WIDTH) },
-                              true));
-  mForm->add(new SettingGroup("Nodes", "node",
-                              { new Setting<Vec4f>("Background Color", "nBgCol",   &nodeBgColor, DEFAULT_NODE_BG_COLOR) },
-                              true));
+      mForm = new SettingForm();
+      mForm->add(new SettingGroup("Graph", "graph",
+                                  { new Setting<Vec4f>("Background Color", "gBgCol",   &graphBgColor,     DEFAULT_GRAPH_BG_COLOR),
+                                    new Setting<Vec4f>("Line Color",       "gLnCol",   &graphLineColor,   DEFAULT_GRAPH_LINE_COLOR),
+                                    new Setting<Vec4f>("Axes Color",       "gAxCol",   &graphAxesColor,   DEFAULT_GRAPH_AXES_COLOR),
+                                    new Setting<bool> ("Draw Lines",       "gDrawLn",  &drawGraphLines,   DEFAULT_GRAPH_DRAW_LINES),
+                                    new Setting<bool> ("Draw Axes",        "gDrawAx",  &drawGraphAxes,    DEFAULT_GRAPH_DRAW_AXES),
+                                    new Setting<Vec2f>("Line Spacing",     "gLnSpace", &graphLineSpacing, DEFAULT_GRAPH_LINE_SPACING),
+                                    new Setting<float>("Line Width",       "gLnWidth", &graphLineWidth,   DEFAULT_GRAPH_LINE_WIDTH) },
+                                  true));
+      mForm->add(new SettingGroup("Nodes", "node",
+                                  { new Setting<Vec4f>("Background Color", "nBgCol",   &nodeBgColor, DEFAULT_NODE_BG_COLOR) },
+                                  true));
+      mInitialized = true;
+    }
 }
-ViewSettings::~ViewSettings()
-{ }
-
-void ViewSettings::toggleWindow()
-{
-  std::cout << "TOGGLING VIEW SETTINGS!\n";
-  mState = !mState;
-}
-
-bool ViewSettings::checkExitPopup(bool busy, bool hover)
-{
-  //return (!busy && (ImGui::IsKeyPressed(GLFW_KEY_ESCAPE) || (!hover && ImGui::IsMouseClicked(ImGuiMouseButton_Left))));
-  return ((!busy && ImGui::IsKeyPressed(GLFW_KEY_ESCAPE)) || (!hover && ImGui::IsMouseClicked(ImGuiMouseButton_Left)));
-}
-
 
 void ViewSettings::reset()
 {
@@ -62,65 +76,4 @@ void ViewSettings::reset()
   graphLineWidth   = DEFAULT_GRAPH_LINE_WIDTH;    
   // Nodes
   nodeBgColor      = DEFAULT_NODE_BG_COLOR;
-}
-
-bool ViewSettings::draw(const Vec2f &frameSize)
-{
-  ImGuiWindowFlags wFlags = (ImGuiWindowFlags_NoMove           |
-                             ImGuiWindowFlags_NoTitleBar       |
-                             ImGuiWindowFlags_NoResize );
-  
-  if(mState) { ImGui::OpenPopup("viewSettings"); }
-  
-  ImGui::PushStyleVar(ImGuiStyleVar_WindowRounding, 0);
-  ImGui::PushStyleVar(ImGuiStyleVar_WindowMinSize, mWindowSize);
-  ImGui::SetNextWindowPos((frameSize - mWindowSize)/2.0f);
-  if(ImGui::BeginPopupModal("viewSettings", &mState, wFlags))
-    {
-      ImGui::PopStyleVar();
-      ImGuiIO &io = ImGui::GetIO();
-      ImGuiStyle& style = ImGui::GetStyle();
-      //hover |= ImGui::IsWindowHovered(ImGuiHoveredFlags_RootWindow | ImGuiHoveredFlags_ChildWindows);
-      
-      // // center title
-      ImGui::SameLine((ImGui::GetWindowContentRegionWidth() - ImGui::CalcTextSize("ViewSettings").x)/2.0f);
-      ImGui::Text("View Settings");
-      
-      bool hover = ImGui::IsWindowHovered();
-      
-      bool busy = false; // whether view should check for close (if true, another popup is open)
-      ImGui::BeginChild("", mWindowSize - mWindowPadding, true);
-      {
-        hover |= ImGui::IsWindowHovered(ImGuiHoveredFlags_ChildWindows);
-        busy  |= mForm->draw(1.0f, busy);
-      }
-      ImGui::EndChild();
-
-      if(busy) { mEscapeDebounce = true; }
-      
-      ImGui::Spacing();
-      ImGui::Separator();
-      ImGui::Spacing();
-      if(ImGui::Button("Close")) { mState = false; }
-      ImGui::SameLine();
-      if(ImGui::Button("Reset")) { reset(); }
-
-      if(!busy) // darken background
-        { style.Colors[ImGuiCol_ModalWindowDimBg] = Vec4f(0,0,0, 0.4f); }
-      else // un-darken screen to see results
-        { style.Colors[ImGuiCol_ModalWindowDimBg] = Vec4f(0,0,0, 0.0f); }
-      
-      if(checkExitPopup(busy, hover)) // close view settings when escape pressed
-        {
-          if(mEscapeDebounce)      // color picker just closed -- debounce escape press
-            { mEscapeDebounce = false; }
-          else { mState = false; } // close view settings
-        }
-      ImGui::EndPopup();
-    }
-  else
-    { ImGui::PopStyleVar(); } // ImGuiStyleVar_WindowMinSize
-  ImGui::PopStyleVar();       // ImGuiStyleVar_WindowRounding
-  
-  return mState;
 }

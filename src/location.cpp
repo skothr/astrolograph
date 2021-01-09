@@ -1,13 +1,11 @@
 #include "location.hpp"
 using namespace astro;
 
-#include "date/tz.h"
 #include <curl/curl.h>
 #include "nlohmann/json.hpp"
 using json = nlohmann::json;
-
+#include "date/tz.h"
 #include "dateTime.hpp"
-
 
 //// LOCATION ////
 Location::Location(double lat, double lon, double alt)
@@ -31,6 +29,7 @@ Location& Location::operator=(const Location &other)
   altitude   = other.altitude;
   timezoneId = other.timezoneId;
   utcOffset  = other.utcOffset;
+  dstOffset  = other.dstOffset;
   return *this;
 }
 

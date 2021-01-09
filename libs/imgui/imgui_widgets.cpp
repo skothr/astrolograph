@@ -913,7 +913,14 @@ bool ImGui::ScrollbarEx(const ImRect& bb_frame, ImGuiID id, ImGuiAxis axis, floa
     const bool allow_interaction = (alpha >= 1.0f);
 
     ImRect bb = bb_frame;
-    bb.Expand(ImVec2(-ImClamp(IM_FLOOR((bb_frame_width - 2.0f) * 0.5f), 0.0f, 3.0f), -ImClamp(IM_FLOOR((bb_frame_height - 2.0f) * 0.5f), 0.0f, 3.0f)));
+
+    //bb.Expand(ImVec2(-ImClamp(IM_FLOOR((bb_frame_width - 2.0f) * 0.5f), 0.0f, 3.0f), -ImClamp(IM_FLOOR((bb_frame_height - 2.0f) * 0.5f), 0.0f, 3.0f)));
+    //// CUSTOM (for scrollbar scaling) ////
+    bb.Expand(ImVec2(-ImClamp(IM_FLOOR((bb_frame_width  - 2.0f) * 0.5f), 0.0f, 3.0f)*style.ScrollbarScaling,
+                     -ImClamp(IM_FLOOR((bb_frame_height - 2.0f) * 0.5f), 0.0f, 3.0f)*style.ScrollbarScaling));
+    if(axis == ImGuiAxis_X) { bb.Max.y -= window->WindowBorderSize*0.5f+1.0f; bb.Min.x += window->WindowBorderSize*0.5f; bb.Max.x -= window->WindowBorderSize; }
+    else                    { bb.Max.x -= window->WindowBorderSize*0.5f+1.0f; bb.Min.y += window->WindowBorderSize*0.5f; bb.Max.y -= window->WindowBorderSize; }
+    ////////////
 
     // V denote the main, longer axis of the scrollbar (= height for a vertical scrollbar)
     const float scrollbar_size_v = (axis == ImGuiAxis_X) ? bb.GetWidth() : bb.GetHeight();
@@ -922,7 +929,7 @@ bool ImGui::ScrollbarEx(const ImRect& bb_frame, ImGuiID id, ImGuiAxis axis, floa
     // But we maintain a minimum size in pixel to allow for the user to still aim inside.
     IM_ASSERT(ImMax(size_contents_v, size_avail_v) > 0.0f); // Adding this assert to check if the ImMax(XXX,1.0f) is still needed. PLEASE CONTACT ME if this triggers.
     const float win_size_v = ImMax(ImMax(size_contents_v, size_avail_v), 1.0f);
-    const float grab_h_pixels = ImClamp(scrollbar_size_v * (size_avail_v / win_size_v), style.GrabMinSize, scrollbar_size_v);
+    const float grab_h_pixels = ImClamp(scrollbar_size_v * (size_avail_v / win_size_v), style.GrabMinSize*style.ScrollbarScaling, scrollbar_size_v);
     const float grab_h_norm = grab_h_pixels / scrollbar_size_v;
 
     // Handle input right away. None of the code of Begin() is relying on scrolling position before calling Scrollbar().

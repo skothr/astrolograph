@@ -17,11 +17,12 @@ namespace astro
     Vec2f mViewSize;
     
   public:
-    NodeList(NodeGraph *graph);
+    NodeList(NodeGraph *graph=nullptr);
     ~NodeList();
 
-    void setPos(const Vec2f &p) { mViewPos = p; }
-    void setSize(const Vec2f &s) { mViewSize = s; }
+    void setGraph(NodeGraph *graph) { mGraph = graph; }
+    void setPos(const Vec2f &p)     { mViewPos = p; }
+    void setSize(const Vec2f &s)    { mViewSize = s; }
 
     void draw();
   };

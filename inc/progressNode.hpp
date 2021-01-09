@@ -4,11 +4,12 @@
 #include "astro.hpp"
 #include "chart.hpp"
 #include "node.hpp"
-#include "settingForm.hpp"
-
 
 namespace astro
 {
+  // foirward declarations
+  class SettingForm;
+
   //// node connector indices ////
   // inputs
 #define PROGRESSNODE_INPUT_CHART       0
@@ -28,7 +29,7 @@ namespace astro
     { return {new Connector<Chart>("Progressed Chart")}; }
 
     Chart *mChart = nullptr;
-    SettingForm mSettingForm;
+    SettingForm *mSettingForm = nullptr;
 
     virtual void onUpdate() override;
     virtual void onDraw() override;

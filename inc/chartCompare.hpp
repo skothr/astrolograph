@@ -1,12 +1,12 @@
 #ifndef CHART_COMPARE_HPP
 #define CHART_COMPARE_HPP
 
+#include <vector>
+
 #include "astro.hpp"
+#include "chart.hpp"
 #include "vector.hpp"
 #include "ephemeris.hpp"
-
-#include <vector>
-#include "chart.hpp"
 
 namespace astro
 {
@@ -15,10 +15,6 @@ namespace astro
   private:
     Chart *mChartOuter = nullptr;
     Chart *mChartInner = nullptr;
-
-    std::array<double, astro::ASPECT_COUNT> mAspectOrbs;
-    std::array<bool,   astro::ASPECT_COUNT> mAspectFocus;
-    std::array<bool,   astro::ASPECT_COUNT> mAspectVisible;
     
     // Ephemeris swe;
     std::vector<ChartAspect> mAspects; // obj1 --> outer chart, obj2 --> inner chart
@@ -28,19 +24,8 @@ namespace astro
     ChartCompare();
     ~ChartCompare();
 
-    void setAspectOrb(astro::AspectType asp, double orb)
-    { if(asp > ASPECT_INVALID && asp < ASPECT_COUNT) { mAspectOrbs[(int)asp] = orb; } }
-    double getAspectOrb(astro::AspectType asp)
-    { if(asp > ASPECT_INVALID && asp < ASPECT_COUNT) { return mAspectOrbs[(int)asp]; } }
-    void setAspectFocus(astro::AspectType asp, bool focus)
-    { if(asp > ASPECT_INVALID && asp < ASPECT_COUNT) { mAspectFocus[(int)asp] = focus; } }
-    void setAspectVisible(astro::AspectType asp, bool visible)
-    { if(asp > ASPECT_INVALID && asp < ASPECT_COUNT) { mAspectVisible[(int)asp] = visible; } }
-    bool getAspectFocus(astro::AspectType asp)   { return (asp > ASPECT_INVALID && asp < ASPECT_COUNT) ? mAspectFocus[(int)asp]   : false; }
-    bool getAspectVisible(astro::AspectType asp) { return (asp > ASPECT_INVALID && asp < ASPECT_COUNT) ? mAspectVisible[(int)asp] : false; }
-
-    std::vector<ChartAspect>& getAspects()             { return mAspects; }
-    const std::vector<ChartAspect>& getAspects() const { return mAspects; }
+    // std::vector<ChartAspect>& getAspects()             { return mAspects; }
+    // const std::vector<ChartAspect>& getAspects() const { return mAspects; }
 
     int aspectCount(AspectType a)
     {
@@ -51,6 +36,7 @@ namespace astro
     }
     
     void update();
+    
     std::vector<ChartAspect> calcAspects(const ChartParams &params);
 
     Chart* getOuterChart() { return mChartOuter; }

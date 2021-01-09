@@ -112,15 +112,15 @@ void MoonNode::renderTexture()
 
   double phi   = 0.0; // (looking straight at moon)
   double theta = 0.0;
-  double r     = mMoonData.distance;
+  double r     = mMoonData->distance;
   Vec3d  vMoon = Vec3f(r*sin(theta)*cos(phi), r*sin(theta)*sin(phi), -r*cos(theta));
 
-  double lonDiff       = angleDiffDegrees(mSunData.longitude, mMoonData.longitude);
-  double latDiff       = angleDiffDegrees(mSunData.latitude,  mMoonData.latitude);
-  double lonDiffZero   = angleDiffDegrees(fmod(mSunData.longitude+0.0001, 360.0),  mMoonData.longitude);
+  double lonDiff       = angleDiffDegrees(mSunData->longitude, mMoonData->longitude);
+  double latDiff       = angleDiffDegrees(mSunData->latitude,  mMoonData->latitude);
+  double lonDiffZero   = angleDiffDegrees(fmod(mSunData->longitude+0.0001, 360.0),  mMoonData->longitude);
   phi        = M_PI/180.0*(90.0 + lonDiff*((lonDiff > lonDiffZero) ? -1.0 : 1.0));
   theta      = M_PI/180.0*(90.0 - latDiff);
-  r          = mSunData.distance;
+  r          = mSunData->distance;
   Vec3d vSun = Vec3f(r*sin(theta)*cos(phi), r*sin(theta)*sin(phi), -r*cos(theta));
   
   // set uniforms
@@ -147,8 +147,8 @@ void MoonNode::onUpdate()
     }
   else
     {
-      mMoonData.valid = false;
-      mSunData.valid  = false;
+      mMoonData = nullptr;
+      mSunData = nullptr;
     }
 }
 
@@ -158,10 +158,10 @@ void MoonNode::onDraw()
   Vec2f symSize = Vec2f(20, 20)*scale;
   bool changed = false;
 
-  if(mMoonData.valid && mSunData.valid)
+  if(mMoonData && mSunData && mMoonData->valid && mSunData->valid)
     {
-      ImGui::Text("MOON: %f", mMoonData.longitude);
-      ImGui::Text("SUN: %f",  mSunData.longitude);
+      ImGui::Text("MOON: %f", mMoonData->longitude);
+      ImGui::Text("SUN: %f",  mSunData->longitude);
 
       ImGui::Checkbox("Fancy", &mFancyShading);
       renderTexture();

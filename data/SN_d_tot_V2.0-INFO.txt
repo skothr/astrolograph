@@ -1,0 +1,78 @@
+Daily total sunspot number
+
+Time range: 1/1/1818 - last elapsed month (provisional values)
+
+Data description:
+Daily total sunspot number derived by the formula: R= Ns + 10 * Ng, with Ns the number of spots and Ng the number of groups counted over the entire solar disk.
+
+No daily data are provided before 1818 because daily observations become too sparse in earlier years. Therefore, R. Wolf only compiled monthly means and yearly means for all years before 1818.
+
+In the TXT and CSV files, the missing values are marked by -1 (valid Sunspot Number are always positive).
+
+New scale:
+The conventional 0.6 Zürich scale factor is not used anymore and A. Wolfer (Wolf's successor) is now defining the scale of the entire series. This puts the Sunspot Number at the scale of raw modern counts, instead of reducing it to the level of early counts by R. Wolf.
+
+Error values:
+Those values correspond to the standard deviation of raw numbers provided by all stations. Before 1981, the errors are estimated with the help of an auto-regressive model based on the Poissonian distribution of actual Sunspot Numbers. From 1981 onwards, the error value is the actual standard deviation of the sample of raw observations used to compute the daily value.
+The standard error of the daily Sunspot Number can be computed by:
+sigma/sqrt(N) where sigma is the listed standard deviation and N the number of observations for the day.
+Before 1981, the number of observations is set to 1, as the Sunspot Number was then essentially the raw Wolf number from the Zürich Observatory.
+
+-------------------------------------------------------------------------------
+TXT
+-------------------------------------------------------------------------------
+Filename: SN_d_tot_V2.0.txt
+Format: plain ASCII text
+
+Contents:
+Column 1-3: Gregorian calendar date
+- Year
+- Month
+- Day
+Column 4: Date in fraction of year
+Column 5: Daily total sunspot number. A value of -1 indicates that no number is available for that day (missing value).
+Column 6: Daily standard deviation of the input sunspot numbers from individual stations.
+Column 7: Number of observations used to compute the daily value.
+Column 8: Definitive/provisional indicator. A blank indicates that the value is definitive. A '*' symbol indicates that the value is still provisional and is subject to a possible revision (Usually the last 3 to 6 months)
+
+Line format [character position]:
+- [1-4] Year
+- [6-7] Month
+- [9-10] Day
+- [12-19] Decimal date
+- [22-24] Daily sunspot number
+- [26-30] Standard deviation
+- [33-35] Number of observations
+- [37] Definitive/provisional indicator
+
+-------------------------------------------------------------------------------
+CSV
+-------------------------------------------------------------------------------
+Filename: SN_d_tot_V2.0.csv
+Format: Comma Separated values (adapted for import in spreadsheets)
+The separator is the semicolon ';'.
+
+Contents:
+Column 1-3: Gregorian calendar date
+- Year
+- Month
+- Day
+Column 4: Date in fraction of year.
+Column 5: Daily total sunspot number. A value of -1 indicates that no number is available for that day (missing value).
+Column 6: Daily standard deviation of the input sunspot numbers from individual stations.
+Column 7: Number of observations used to compute the daily value.
+Column 8: Definitive/provisional indicator. '1' indicates that the value is definitive. '0' indicates that the value is still provisional.
+
+-------------------------------------------------------------------------------
+LICENSE
+-------------------------------------------------------------------------------
+SILSO data is under CC BY-NC4.0 license (https://goo.gl/PXrLYd) which means you can :
+
+Share — copy and redistribute the material in any medium or format
+Adapt — remix, transform, and build upon the material
+
+As long as you follow the license terms:
+
+Attribution — You must give appropriate credit, provide a link to the license, and indicate if changes were made. You may do so in any reasonable manner, but not in any way that suggests the licensor endorses you or your use.
+NonCommercial — You may not use the material for commercial purposes.
+No additional restrictions — You may not apply legal terms or technological measures that legally restrict others from doing anything the license permits.

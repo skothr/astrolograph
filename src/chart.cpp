@@ -1,75 +1,25 @@
 #include "chart.hpp"
 using namespace astro;
 
-#include <fstream>
 #include <array>
 #include <string>
 #include <cctype>
 
-
-//// INSIDE DEGREE TEXT ////
-std::array<std::array<std::string, 30>, 12> Chart::insideDegreesShort; // ACCESS: arr[SIGN_INDEX][floor(DEGREE)]
-std::array<std::array<std::string, 30>, 12> Chart::insideDegreesLong;  // ACCESS: arr[SIGN_INDEX][floor(DEGREE)]
-bool Chart::mInsideDegreesLoaded = false;
-bool Chart::loadInsideDegrees()
-{
-  if(!mInsideDegreesLoaded)
-    {
-      std::ifstream file(INSIDE_DEGREES_PATH, std::ios::in);
-
-      std::string line;
-      while(std::getline(file, line))
-        {
-          if(line.empty() || line == "\n" || line[0] == '#') { continue; } // skip blank and commented lines
-      
-          std::stringstream ss(line);
-          std::string sign;
-          int degree;
-          ss >> sign;
-          ss >> degree;
-
-          // lowercase sign
-          std::transform(sign.begin(), sign.end(), sign.begin(), [](unsigned char c){ return std::tolower(c); });
-
-          int signIdx = getSignIndex(sign);
-          if(std::getline(file, line))
-            { insideDegreesShort[signIdx][degree-1] = line; }
-          while(std::getline(file, line) && !line.empty() && line != "\n")
-            { insideDegreesLong[signIdx][degree-1] += line; }
-        }
-      mInsideDegreesLoaded = true;
-    }
-  return true;
-}
-
-std::string Chart::getInsideDegreeTextShort(int sign, int degree)
-{
-  if(sign < 0 || sign >= 12 || degree < 0 || degree >= 30) { return ""; }
-  else                                                     { return insideDegreesShort[sign][degree]; }
-}
-
-std::string Chart::getInsideDegreeTextLong(int sign, int degree)
-{
-  if(sign < 0 || sign >= 12 || degree < 0 || degree >= 30) { return ""; }
-  else                                                     { return insideDegreesLong[sign][degree]; }
-}
-
-
-
 //// CHART ////
 Chart::Chart(const DateTime &dt, const Location &loc)
-  : mDate(dt), mLocation(loc)
+  : mDate(dt), mLocation(loc), mParams(new ChartParams())
 {
   for(int o = 0; o < OBJ_END; o++)
-    { mObjects.push_back(new ChartObject{(ObjType)o, 0.0, true, false, false, false}); }
+    { mObjectData.push_back(new ObjData{0.0, 0.0, 0.0, 0.0, 0.0, 0.0, (ObjType)o, false}); }
+  for(int o = 0; o < OBJ_END; o++)
+    { mObjects.push_back(new ChartObject{mObjectData[o], (ObjType)o, 0.0, false, false, false}); }
 
-  for(int asp = 0; asp < ASPECT_COUNT; asp++)
-    {
-      mAspectOrbs[asp]    = getAspectInfo((AspectType)asp)->orb;
-      mAspectVisible[asp] = true;
-      mAspectFocus[asp]   = false;
-    }
-  loadInsideDegrees();
+  // for(int asp = 0; asp < ASPECT_COUNT; asp++)
+  //   {
+  //     mAspectOrbs[asp]    = getAspectInfo((AspectType)asp)->orb;
+  //     mAspectVisible[asp] = true;
+  //     mAspectFocus[asp]   = false;
+  //   }
 }
 Chart::Chart()
   : Chart(DateTime(), Location())
@@ -77,8 +27,11 @@ Chart::Chart()
 
 Chart::~Chart()
 {
-  for(auto obj : mObjects) { delete obj; }
+  if(mParams) { delete mParams; }
+  for(auto obj : mObjects)    { delete obj; }
+  for(auto obj : mObjectData) { delete obj; }
   mObjects.clear();
+  mObjectData.clear();
 }
 
 void Chart::setDate(const DateTime &dt)
@@ -103,51 +56,95 @@ void Chart::setLocation(const Location &loc)
     }
 }
 
-int Chart::aspectCount(AspectType a)
+std::vector<ChartAspect> Chart::calcAspects(const ChartParams &params, bool all)
 {
-  int count = 0;
-  for(auto asp : mAspects)
-    { count += (asp.type == a ? 1 : 0); }
-  return count;
-}
-
-std::vector<ChartAspect> Chart::calcAspects(const ChartParams &params)
-{
-  mAspects.clear();
+  std::vector<ChartAspect> aspects;
   for(int o1 = 0; o1 < OBJ_END; o1++)
     {
-      if(!params.objVisible[o1]) { continue; } // skip if switched off
+      if(!all && !params.objVisible[o1]) { continue; } // skip if switched off
       double angle1 = mObjects[o1]->angle;
       std::string name1 = getObjName((ObjType)o1);
 
       for(int o2 = o1+1; o2 < OBJ_END; o2++)
         {
-          if(!params.objVisible[o2]) { continue; } // skip if switched off
+          if(!all && !params.objVisible[o2]) { continue; } // skip if switched off
           double angle2 = mObjects[o2]->angle;
           std::string name2 = getObjName((ObjType)o2);
           double diff = angleDiffDegrees(angle1, angle2);
           for(auto &iter : ASPECTS)
             {
-              if(!params.aspVisible[iter.second.type]) { continue; } // skip if switched off
+              if(!all && !params.aspVisible[iter.second.type]) { continue; } // skip if switched off
               double aDiff = angleDiffDegrees(diff, iter.second.angle);
               double orb = std::min(params.aspOrbs[(int)iter.second.type], std::min(params.objOrbs[o1], params.objOrbs[o2]));
               if(std::abs(aDiff) <= orb)
                 {
-                  // sort aspects from strongest to weakest
                   double strength = 1.0 - (std::abs(aDiff) / orb);
-                  mAspects.emplace_back(mObjects[o1], mObjects[o2], iter.second.type, aDiff, strength);
+                  aspects.emplace_back(mObjects[o1], mObjects[o2], iter.second.type, aDiff, strength,
+                                       true, params.aspVisible[iter.second.type], params.aspFocused[iter.second.type]); // valid, visible, focused
+                }
+            }
+        }
+    }
+  // sort aspects by orb (reverse?)
+  std::sort(aspects.begin(), aspects.end(),
+            [](const ChartAspect &a, const ChartAspect &b) -> bool
+            {
+              if(std::abs(a.orb - b.orb) < 0.001)
+                { // differentiate by aspect type, then object types
+                  if(a.type < b.type)      { return true; }
+                  else if(a.obj1 < b.obj1) { return true; }
+                  else if(a.obj2 < b.obj2) { return true; }
+                  else { return false; }
+                }
+              else // return smaller orb
+                { return (a.orb < b.orb); }
+            } ); // sort by orb (ascending)  
+  return aspects;
+}
+
+std::vector<ChartAspect> Chart::calcAspects(Chart *other, const ChartParams &params, bool all)
+{
+  if(!other) { return { }; }
+
+  std::vector<ChartAspect> aspects;  
+  for(int o1 = 0; o1 < OBJ_END; o1++)
+    {
+      if(!all && !params.objVisible[o1]) { continue; } // skip if switched off
+      int i1 = o1;
+      double angle1 = other->objects()[o1]->angle;
+      std::string name1 = getObjName((ObjType)o1);
+
+      // object aspects
+      for(int o2 = o1+1; o2 < OBJ_END; o2++)
+        {
+          if(!all && !params.objVisible[o2]) { continue; } // skip if switched off
+          int i2 = o2;
+          double angle2 = objects()[o2]->angle;
+          std::string name2 = getObjName((ObjType)o2);
+          double diff = astro::angleDiffDegrees(angle1, angle2);
+          
+          for(auto &iter : astro::ASPECTS)
+            {
+              if(!all && !params.aspVisible[iter.second.type]) { continue; } // skip if switched off
+              double aDiff = astro::angleDiffDegrees(diff, iter.second.angle);
+              double orb = std::min(params.aspOrbs[(int)iter.second.type], std::min(params.objOrbs[o1], params.objOrbs[o2]));
+              if(std::abs(aDiff) <= orb)
+                {
+                  double strength = 1.0 - (std::abs(aDiff) / orb);
+                  aspects.emplace_back(other->objects()[o1], mObjects[o2], iter.second.type, aDiff, strength,
+                                       true, params.aspVisible[iter.second.type], params.aspFocused[iter.second.type]); // valid, visible, focused
                 }
             }
         }
     }
 
   // sort aspects by orb (reverse?)
-  std::sort(mAspects.begin(), mAspects.end(),
+  std::sort(aspects.begin(), aspects.end(),
             [](const ChartAspect &a, const ChartAspect &b) -> bool
             {
               if(std::abs(a.orb - b.orb) < 0.001)
                 { // differentiate by aspect type, then object types
-                  if(a.type < b.type) { return true; }
+                  if(a.type < b.type)      { return true; }
                   else if(a.obj1 < b.obj1) { return true; }
                   else if(a.obj2 < b.obj2) { return true; }
                   else { return false; }
@@ -155,14 +152,24 @@ std::vector<ChartAspect> Chart::calcAspects(const ChartParams &params)
               else // return smaller orb
                 { return (a.orb < b.orb); }
             } ); // sort by orb (ascending)
-  
-  return mAspects;
+  return aspects;
 }
+
+
+
+
+
+
+
+
+
 
 void Chart::update()
 {
   if(mNeedUpdate)
     {
+      //std::cout << "UPDATING CHART!!\n";
+      
       // update chart info (via Swiss Ephemeris wrapper)
       mLocation.fix();
       mDate.fix();
@@ -173,22 +180,23 @@ void Chart::update()
       mSwe.setLocation(mLocation);
       mSwe.setDate(mDate);
       mSwe.setSidereal(mZodiac == ZODIAC_SIDEREAL);
+      if(mZodiac == ZODIAC_SIDEREAL) { mSwe.setAyanamsa(mAyanamsa); } // TEMP
       mSwe.setTruePos(mTruePos);
       mSwe.calcHouses(mHouseSystem);
+      mSiderealTime = mSwe.getSiderealTime(mDate, mLocation);
 
       for(int hi = 0; hi < 12; hi++) // get house cusps
         { mHouseCusps[hi] = mSwe.getHouseCusp(hi+1); }
       
-      mObjectData.clear();
       for(int i = 0; i < mObjects.size(); i++)
         { // calc objects
           ObjType o = (ObjType)i;//(ObjType)(OBJ_SUN + i);
           //if(o >= OBJ_COUNT) { o = (ObjType)(o-OBJ_COUNT+ANGLE_OFFSET); } // correct for angles
           ChartObject *obj = mObjects[i];
-          mObjectData.push_back(mSwe.getObjData((ObjType)o));
-          obj->valid = mObjectData.back().valid;
-          obj->angle = mObjectData.back().longitude;
-          obj->retrograde = (mObjectData.back().lonSpeed < 0.0);
+          *obj->data = mSwe.getObjData((ObjType)o);
+          obj->valid = obj->data->valid;
+          obj->angle = obj->data->longitude;
+          obj->retrograde = (obj->data->lonSpeed < 0.0);
         }
 
       if(mZodiac == ZODIAC_DRACONIC)
@@ -229,7 +237,7 @@ double Chart::getSingleAngle(ObjType obj)
     }
 }
 
-ChartAspect Chart::getAspect(ObjType obj1, ObjType obj2)
+ChartAspect Chart::getAspect(ObjType obj1, ObjType obj2, const ChartParams &params)
 {
   // TODO: check if need update?
   int i1 = obj1;//-OBJ_SUN;
@@ -241,12 +249,13 @@ ChartAspect Chart::getAspect(ObjType obj1, ObjType obj2)
   for(auto &iter : ASPECTS)
     {
       double aDiff = angleDiffDegrees(diff, iter.second.angle);
-      double orb = mAspectOrbs[(int)iter.second.type];
+      double orb = params.aspOrbs[(int)iter.second.type];
       if(std::abs(aDiff) <= orb)
         {
           // aspects sorted from strongest to weakest
           double strength = 1.0 - (std::abs(aDiff) / orb);
-          return ChartAspect(mObjects[i1], mObjects[i2], iter.second.type, aDiff, strength);
+          return ChartAspect(mObjects[i1], mObjects[i2], iter.second.type, aDiff, strength,
+                             true, params.aspVisible[iter.second.type], params.aspFocused[iter.second.type]); // valid, visible, focused
         }
     }
   return ChartAspect(); // (valid = false)
@@ -274,34 +283,3 @@ int Chart::getHouse(double longitude) const
     }
   return -1;
 }
-
-void Chart::setAspectOrb(AspectType asp, double orb)
-{
-  if(asp > ASPECT_INVALID && asp < ASPECT_COUNT)
-    {
-      mNeedUpdate |= (mAspectOrbs[(int)asp] != orb);
-      mAspectOrbs[(int)asp] = orb;
-    }
-}
-void Chart::setAspectFocus(AspectType asp, bool focus)
-{
-  if(asp > ASPECT_INVALID && asp < ASPECT_COUNT)
-    {
-      mNeedUpdate = (mAspectFocus[(int)asp] != focus);
-      mAspectFocus[(int)asp] = focus;
-    }
-}
-void Chart::setAspectVisible(AspectType asp, bool visible)
-{
-  if(asp > ASPECT_INVALID && asp < ASPECT_COUNT)
-    {
-      mNeedUpdate = (mAspectVisible[(int)asp] != visible);
-      mAspectVisible[(int)asp] = visible;
-    }
-}
-double Chart::getAspectOrb(AspectType asp)
-{ return ((asp > ASPECT_INVALID && asp < ASPECT_COUNT) ? mAspectOrbs[(int)asp]   : -1.0); }
-bool Chart::getAspectFocus(AspectType asp)
-{ return (asp > ASPECT_INVALID && asp < ASPECT_COUNT) ? mAspectFocus[(int)asp]   : false; }
-bool Chart::getAspectVisible(AspectType asp)
-{ return (asp > ASPECT_INVALID && asp < ASPECT_COUNT) ? mAspectVisible[(int)asp] : false; }

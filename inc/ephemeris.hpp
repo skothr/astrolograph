@@ -11,19 +11,27 @@
 // path to ephemeris data
 #define EPHEM_PATH "./libs/swe/ephe"
 
+#define AYANAMSA_COUNT 46
+#define DAYS_PER_JULIAN_YEAR 365.25
+
 namespace astro
 {
   class Ephemeris
   {
   private:
+    ///////// INSIDE DEGREES TEST //////////
+#define INSIDE_DEGREES_PATH "./res/inside-degrees.txt"
+    static std::array<std::array<std::string, 30>, 12> insideDegreesShort; // ACCESS: arr[SIGN_INDEX][floor(DEGREE)]
+    static std::array<std::array<std::string, 30>, 12> insideDegreesLong;  // ACCESS: arr[SIGN_INDEX][floor(DEGREE)]
+    static bool mInsideDegreesLoaded;
+    static bool loadInsideDegrees();
+
     DateTime mDateTime;
     Location mLocation;
-    
-    double mJulDay_ut = 2269000.0; // TODO: Proper defaults?
+    double mJulDay_ut = 2269000.0; // TODO: Proper defaults
     double mJulDay_et = 2269000.0;
-
-    // HouseSystem mHouseSystem = HOUSE_PLACIDUS;//HOUSE_WHOLESIGN;
-    
+    ///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+    //////// SWE ASCMC ARRAY ////////    
     ///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
     //       In the array ascmc, the function returns the following values:
     //       ascmc[0] = Ascendant
@@ -46,13 +54,11 @@ namespace astro
     // #define SE_NASCMC         8
     //       ascmc must be an array of 10 doubles. ascmc[8... 9] are 0 and may be used for additional points in future releases.
     ///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
-    double mAscmc[10];
-    double mAscmcSpeed[10];
-    double mCusps[13];
-    double mCuspSpeed[13];
-    
+    double mAscmc[10]; double mAscmcSpeed[10];
+    double mCusps[13]; double mCuspSpeed[13];
     ///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
     //////// SWE FLAGS ////////
+    ///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
     // #define SEFLG_JPLEPH       1L               // use JPL ephemeris
     // #define SEFLG_SWIEPH       2L               // use SWISSEPH ephemeris, default
     // #define SEFLG_MOSEPH       4L               // use Moshier ephemeris
@@ -78,18 +84,121 @@ namespace astro
     // #define SEFLG_JPLHOR_APPROX (512*1024)      /* approximate JPL Horizons 1962 - today */
     ///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
     long mSweFlags = SEFLG_SWIEPH | SEFLG_SPEED | SEFLG_TOPOCTR;
+
+    // #define SE_SIDM_FAGAN_BRADLEY              0
+    // #define SE_SIDM_LAHIRI                     1
+    // #define SE_SIDM_DELUCE                     2
+    // #define SE_SIDM_RAMAN                      3
+    // #define SE_SIDM_USHASHASHI                 4
+    // #define SE_SIDM_KRISHNAMURTI               5
+    // #define SE_SIDM_DJWHAL_KHUL                6
+    // #define SE_SIDM_YUKTESHWAR                 7
+    // #define SE_SIDM_JN_BHASIN                  8
+    // #define SE_SIDM_BABYL_KUGLER1              9
+    // #define SE_SIDM_BABYL_KUGLER2              10
+    // #define SE_SIDM_BABYL_KUGLER3              11
+    // #define SE_SIDM_BABYL_HUBER                12
+    // #define SE_SIDM_BABYL_ETPSC                13
+    // #define SE_SIDM_ALDEBARAN_15TAU            14
+    // #define SE_SIDM_HIPPARCHOS                 15
+    // #define SE_SIDM_SASSANIAN                  16
+    // #define SE_SIDM_GALCENT_0SAG               17
+    // #define SE_SIDM_J2000                      18
+    // #define SE_SIDM_J1900                      19
+    // #define SE_SIDM_B1950                      20
+    // #define SE_SIDM_SURYASIDDHANTA             21
+    // #define SE_SIDM_SURYASIDDHANTA_MSUN        22
+    // #define SE_SIDM_ARYABHATA                  23
+    // #define SE_SIDM_ARYABHATA_MSUN             24
+    // #define SE_SIDM_SS_REVATI                  25
+    // #define SE_SIDM_SS_CITRA                   26
+    // #define SE_SIDM_TRUE_CITRA                 27
+    // #define SE_SIDM_TRUE_REVATI                28
+    // #define SE_SIDM_TRUE_PUSHYA                29
+    // #define SE_SIDM_GALCENT_RGBRAND            30
+    // #define SE_SIDM_GALEQU_IAU1958             31
+    // #define SE_SIDM_GALEQU_TRUE                32
+    // #define SE_SIDM_GALEQU_MULA                33
+    // #define SE_SIDM_GALALIGN_MARDYKS           34
+    // #define SE_SIDM_TRUE_MULA                  35
+    // #define SE_SIDM_GALCENT_MULA_WILHELM       36
+    // #define SE_SIDM_ARYABHATA_522              37
+    // #define SE_SIDM_BABYL_BRITTON              38
+    // #define SE_SIDM_TRUE_SHEORAN               39
+    // #define SE_SIDM_GALCENT_COCHRANE           40
+    // #define SE_SIDM_GALEQU_FIORENZA            41
+    // #define SE_SIDM_VALENS_MOON                42
+    // #define SE_SIDM_LAHIRI_1940                43
+    // #define SE_SIDM_LAHIRI_VP285               44
+    // #define SE_SIDM_KRISHNAMURTI_VP291         45
+    // #define SE_SIDM_LAHIRI_ICRC                46
+    // #define SE_SIDM_USER                       255
+    
+    // The function swe_get_ayanamsa_name() returns the name of the ayanamsha.
+    // const char *swe_get_ayanamsa_name(int32 isidmode)
+    // namely:
+    
+    // "Fagan/Bradley”,                          0  SE_SIDM_FAGAN_BRADLEY
+    // "Lahiri”,                                 1  SE_SIDM_LAHIRI
+    // "De Luce”,                                2  SE_SIDM_DELUCE
+    // "Raman”,                                  3  SE_SIDM_RAMAN
+    // "Usha/Shashi”,                            4  SE_SIDM_USHASHASHI
+    // "Krishnamurti”,                           5  SE_SIDM_KRISHNAMURTI
+    // "Djwhal Khul”,                            6  SE_SIDM_DJWHAL_KHUL
+    // "Yukteshwar”,                             7  SE_SIDM_YUKTESHWAR
+    // "J.N. Bhasin”,                            8  SE_SIDM_JN_BHASIN
+    // "Babylonian/Kugler 1”,                    9  SE_SIDM_BABYL_KUGLER1
+    // "Babylonian/Kugler 2”,                    10 SE_SIDM_BABYL_KUGLER2
+    // "Babylonian/Kugler 3”,                    11 SE_SIDM_BABYL_KUGLER3
+    // "Babylonian/Huber”,                       12 SE_SIDM_BABYL_HUBER
+    // "Babylonian/Eta Piscium”,                 13 SE_SIDM_BABYL_ETPSC
+    // "Babylonian/Aldebaran = 15 Tau”,          14 SE_SIDM_ALDEBARAN_15TAU
+    // "Hipparchos”,                             15 SE_SIDM_HIPPARCHOS
+    // "Sassanian”,                              16 SE_SIDM_SASSANIAN
+    // "Galact. Center = 0 Sag”,                 17 SE_SIDM_GALCENT_0SAG
+    // "J2000”,                                  18 SE_SIDM_J2000
+    // "J1900”,                                  19 SE_SIDM_J1900
+    // "B1950”,                                  20 SE_SIDM_B1950
+    // "Suryasiddhanta”,                         21 SE_SIDM_SURYASIDDHANTA
+    // "Suryasiddhanta, mean Sun”,               22 SE_SIDM_SURYASIDDHANTA_MSUN
+    // "Aryabhata”,                              23 SE_SIDM_ARYABHATA
+    // "Aryabhata, mean Sun”,                    24 SE_SIDM_ARYABHATA_MSUN
+    // "SS Revati”,                              25 SE_SIDM_SS_REVATI
+    // "SS Citra”,                               26 SE_SIDM_SS_CITRA
+    // "True Citra”,                             27 SE_SIDM_TRUE_CITRA
+    // "True Revati”,                            28 SE_SIDM_TRUE_REVATI
+    // "True Pushya (PVRN Rao) ”,                29 SE_SIDM_TRUE_PUSHYA
+    // "Galactic Center (Gil Brand) ”,           30 SE_SIDM_GALCENT_RGBRAND
+    // "Galactic Equator (IAU1958) ”,            31 SE_SIDM_GALEQU_IAU1958
+    // "Galactic Equator”,                       32 SE_SIDM_GALEQU_TRUE
+    // "Galactic Equator mid-Mula”,              33 SE_SIDM_GALEQU_MULA
+    // "Skydram (Mardyks) ”,                     34 SE_SIDM_GALALIGN_MARDYKS
+    // "True Mula (Chandra Hari) ”,              35 SE_SIDM_TRUE_MULA
+    // "Dhruva/Gal.Center/Mula (Wilhelm) ”,      36 SE_SIDM_GALCENT_MULA_WILHELM
+    // "Aryabhata 522”,                          37 SE_SIDM_ARYABHATA_522
+    // "Babylonian/Britton”,                     38 SE_SIDM_BABYL_BRITTON
+    // "\"Vedic\"/Sheoran                        39 SE_SIDM_TRUE_SHEORAN
+    // "Cochrane (Gal.Center = 0 Cap)"           40 SE_SIDM_GALCENT_COCHRANE
+    // "Galactic Equator (Fiorenza)",            41 SE_SIDM_GALEQU_FIORENZA
+    // "Vettius Valens",                         42 SE_SIDM_VALENS_MOON
+    // "Lahiri 1940",                            43 SE_SIDM_LAHIRI_1940
+    // "Lahiri VP285",                           44 SE_SIDM_LAHIRI_VP285
+    // "Krishnamurti-Senthilathiban",            45 SE_SIDM_KRISHNAMURTI_VP291
+    // "Lahiri ICRC",                            46 SE_SIDM_LAHIRI_ICRC 
+    int mAyanamsaIndex = SE_SIDM_FAGAN_BRADLEY; // (swe default)
+    // TODO: custom ayanamsas
+    
     
   public:
     static const std::vector<int> SWE_IDS;
+    static std::string getInsideDegreeTextShort(int sign, int degree);
+    static std::string getInsideDegreeTextLong(int sign, int degree);
     
     Ephemeris();
-    
     static int getSweIndex(ObjType obj)
     {
-      if(obj < OBJ_COUNT)
-        { return SWE_IDS[obj]; }
-      else
-        { return -1; }
+      if(obj < OBJ_COUNT) { return SWE_IDS[obj]; }
+      else                { return -1; }
     }
     static ObjType getObjType(int sweIndex)
     {
@@ -103,6 +212,9 @@ namespace astro
       if(state) { mSweFlags |= SEFLG_SIDEREAL; }
       else      { mSweFlags &= ~SEFLG_SIDEREAL; }
     }
+    void setAyanamsa(int index);
+    std::string getAyanamsaName(int index);
+    double getSiderealTime(const DateTime &dt, const Location &loc);
     bool getSidereal() const { return (mSweFlags & SEFLG_SIDEREAL); }
     void setTruePos(bool state)
     {
@@ -113,8 +225,10 @@ namespace astro
 
     double getJulianDay() const { return mJulDay_ut; }
     double getJulianDayUT(const DateTime &dt, const Location &loc);
+    DateTime getDateFromJUT(double jd_UT);
+    DateTime getDateFromJET(double jd_ET);
     double getJulianDayET(const DateTime &dt, const Location &loc);
-    // treat each year as a day
+    // treat each year as a day (365.25 julian days)
     DateTime getProgressed(const DateTime &ndt, const Location &nloc, const DateTime &tdt, const Location &tloc);
     DateTime getUnprogressed(const DateTime &ndt, const Location &nloc, const DateTime &pdt, const Location &ploc);
     

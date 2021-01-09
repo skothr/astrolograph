@@ -3,40 +3,40 @@ using namespace astro;
 
 #include "imgui.h"
 #include "tools.hpp"
+#include "setting.hpp"
 #include "settingForm.hpp"
 
 ChartNode::ChartNode(Chart *chart)
   : Node(CONNECTOR_INPUTS(), CONNECTOR_OUTPUTS(), "Chart Node"), mChart(chart)
 {
   if(!mChart) { mChart = new Chart(DateTime::now(), Location()); }
-  for(auto &obj : mChart->objects())
-    {
-      if(obj->type < OBJ_COUNT) // planets/asateroids/etc
-        { mChart->showObject((ObjType)obj->type, true); }
-      else                      // angles
-        { mChart->showObject((ObjType)obj->type, false); }
-    }
   mChart->update();
   outputs()[CHARTNODE_OUTPUT_CHART]->set(mChart);
   
-  for(auto hs : HOUSE_SYSTEM_NAMES)     { mHsNames.push_back(hs.second); if(hs.first == HOUSE_PLACIDUS) { mHouseSystem = mHsNames.size()-1; } }
-  for(int i = 0; i < ZODIAC_COUNT; i++) { mZNames.push_back(getZodiacName((ZodiacType)i)); }
+  for(auto hs : HOUSE_SYSTEM_NAMES)       { mHsNames.push_back(hs.second); if(hs.first == HOUSE_PLACIDUS) { mHouseSystem = mHsNames.size()-1; } }
+  for(int i = 0; i < ZODIAC_COUNT; i++)   { mZNames.push_back(getZodiacName((ZodiacType)i)); }
+  for(int i = 0; i < AYANAMSA_COUNT; i++) { mAyaNames.push_back(mChart->swe().getAyanamsaName(i)); }
+  float maxW = 0.0f;
+  for(int i = 0; i < AYANAMSA_COUNT; i++) { maxW = std::max(maxW, ImGui::CalcTextSize(mAyaNames[i].c_str()).x); }
 
   SettingGroup *group = new SettingGroup("Options", "opt", { }, true, false);
     
   mSettings.push_back(new Setting<DateTime>("Date/Time",      "date",     &mChart->date()));
   mSettings.push_back(new Setting<Location>("Location",       "location", &mChart->location()));
   mSettings.push_back(new Setting<bool>    ("Options Open",   "optOpen",  &group->open()));
-  mSettings.push_back(new ComboSetting     ("House System",   "hsys",     &mHouseSystem,      mHsNames, HOUSE_PLACIDUS));
-  mSettings.push_back(new ComboSetting     ("Zodiac",         "zodiac",   &mZodiac,           mZNames, ZODIAC_TROPICAL));
-  mSettings.push_back(new Setting<bool>    ("True Positions", "truePos",  &mTruePos,          false));
-
-  group->add(mSettings[3]);
-  group->add(mSettings[4]);
-  group->add(mSettings[5]);
   
-  mSettingForm = new SettingForm(150.0f, 135.0f);
-  mSettingForm->add(group); //("True Positions", "truePos",  &mTruePos) }, true));
+  SettingBase *hSetting = new ComboSetting ("House System",   "hsys",     &mHouseSystem, mHsNames,  HOUSE_PLACIDUS);
+  SettingBase *zSetting = new ComboSetting ("Zodiac",         "zodiac",   &mZodiac,      mZNames,   ZODIAC_TROPICAL);
+  SettingBase *aSetting = new ComboSetting ("Ayanamsa",       "ayanamsa", &mAyanamsa,    mAyaNames, SE_SIDM_GALCENT_0SAG);
+  SettingBase *tSetting = new Setting<bool>("True Positions", "truePos",  &mTruePos,     false);
+
+  mSettings.push_back(hSetting);  group->add(hSetting);
+  mSettings.push_back(zSetting);  group->add(zSetting);
+  mSettings.push_back(aSetting);  group->add(aSetting);
+  mSettings.push_back(tSetting);  group->add(tSetting);
+  
+  mSettingForm = new SettingForm(150.0f, maxW);
+  mSettingForm->add(group);
 }
 
 ChartNode::ChartNode(const DateTime &dt, const Location &loc)
@@ -44,8 +44,8 @@ ChartNode::ChartNode(const DateTime &dt, const Location &loc)
 
 ChartNode::~ChartNode()
 {
-  delete mSettingForm;
-  delete mChart;
+  if(mSettingForm) { delete mSettingForm; }
+  if(mChart)       { delete mChart; }
 }
 
 bool ChartNode::onConnect(ConnectorBase *con)
@@ -58,15 +58,13 @@ bool ChartNode::onConnect(ConnectorBase *con)
       if(index == CHARTNODE_INPUT_DATE)
         {
           DateTime *dt = con->get<DateTime>();
-          std::cout << "Date input connected!\n"
-                    << mChart->date() << " --> " << (dt ? dt->toString() : "") << "\n";
+          std::cout << "Date input connected     ==> " << mChart->date() << " --> " << (dt ? dt->toString() : "") << "\n";
           if(dt) { mChart->setDate(*dt); success = true; }
         }
       else if(index == CHARTNODE_INPUT_LOCATION)
         {
           Location *loc = con->get<Location>();
-          std::cout << "Location input connected!\n"
-                    << mChart->location() << " --> " << (loc ? loc->toString() : "") << "\n";
+          std::cout << "Location input connected ==>" << mChart->location() << " --> " << (loc ? loc->toString() : "") << "\n";
           if(loc) { mChart->setLocation(*loc); success = true; }
         }
     }
@@ -78,7 +76,6 @@ bool ChartNode::onConnect(ConnectorBase *con)
           success = true;
         }
     }
-  
   mChart->update();
   return success;
 }
@@ -103,17 +100,18 @@ void ChartNode::onUpdate()
     { if(mHsNames[mHouseSystem] == h.second) { hs = h.first; } }
   mChart->setHouseSystem(hs);
   mChart->setZodiac((ZodiacType)mZodiac);
+  mChart->setAyanamsa(mAyanamsa);
   mChart->setTruePos(mTruePos);
 
   mChanged |= mChart->hasChanged();
-  mChart->update();
+  if(mChart->hasChanged()) { mChart->update(); }
 }
 
 void ChartNode::onDraw()
 {
   float scale = getScale();
   
-  DateTime *dtIn = inputs()[CHARTNODE_INPUT_DATE]->get<DateTime>();
+  DateTime *dtIn  = inputs()[CHARTNODE_INPUT_DATE]->get<DateTime>();
   Location *locIn = inputs()[CHARTNODE_INPUT_LOCATION]->get<Location>();
   
   DateTime dt   = mChart->date();
@@ -121,13 +119,13 @@ void ChartNode::onDraw()
   double julDay = mChart->swe().getJulianDayET(dt, loc);
 
   ImGui::TextUnformatted(dt.toString().c_str());
-  ImGui::Text("(jd_ET = %.6f)", julDay);
+  // ImGui::Text("(jd_ET = %.6f)", julDay);
   ImGui::TextUnformatted(loc.toString().c_str());
   ImGui::Spacing();
 
   // chart options (TODO: keep track of changes instead of comparing whole JSON)
-  json jsOld = mSettingForm->getJson();
-  mSettingForm->draw(scale);
-  json jsNew = mSettingForm->getJson();
+  json jsOld = mSettingForm->toJSON();
+  mSettingForm->draw(scale, mPlacing);
+  json jsNew = mSettingForm->toJSON();
   mChanged |= (jsOld != jsNew);
 }

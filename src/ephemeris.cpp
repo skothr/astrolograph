@@ -4,19 +4,70 @@ using namespace astro;
 #include <cmath>
 #include <iostream>
 #include <iomanip>
+#include <fstream>
 
 
 const std::vector<int> Ephemeris::SWE_IDS = { SE_SUN, SE_MOON,
-                                              SE_MERCURY, SE_VENUS, SE_MARS, SE_JUPITER, SE_SATURN, SE_URANUS, SE_NEPTUNE, SE_PLUTO, 60000,//SE_QUAOAR,
+                                              SE_MERCURY, SE_VENUS, SE_MARS, SE_JUPITER, SE_SATURN, SE_URANUS, SE_NEPTUNE, SE_PLUTO,
+                                              (SE_AST_OFFSET+50000),  // (Quaoar)
                                               SE_CHIRON, SE_CERES, SE_JUNO, SE_PALLAS, SE_VESTA,
-                                              SE_MEAN_APOG,           // (Dark Moon Lilith)
+                                              SE_MEAN_APOG,           // (Lilith)
                                               (SE_AST_OFFSET + 19),   // (Fortuna)
                                               SE_TRUE_NODE, SE_TRUE_NODE }; // (south node calculated from north node)
+
+
+//// INSIDE DEGREE TEXT ////
+std::array<std::array<std::string, 30>, 12> Ephemeris::insideDegreesShort; // ACCESS: arr[SIGN_INDEX][floor(DEGREE)]
+std::array<std::array<std::string, 30>, 12> Ephemeris::insideDegreesLong;  // ACCESS: arr[SIGN_INDEX][floor(DEGREE)]
+bool Ephemeris::mInsideDegreesLoaded = false;
+bool Ephemeris::loadInsideDegrees()
+{
+  if(!mInsideDegreesLoaded)
+    {
+      std::ifstream file(INSIDE_DEGREES_PATH, std::ios::in);
+
+      std::string line;
+      while(std::getline(file, line))
+        {
+          if(line.empty() || line == "\n" || line[0] == '#') { continue; } // skip blank and commented lines
+      
+          std::stringstream ss(line);
+          std::string sign;
+          int degree;
+          ss >> sign;
+          ss >> degree;
+
+          std::transform(sign.begin(), sign.end(), sign.begin(), [](unsigned char c){ return std::tolower(c); }); // lowercase sign
+          int signIdx = getSignIndex(sign);
+          if(std::getline(file, line))
+            { insideDegreesShort[signIdx][degree-1] = line; }
+          while(std::getline(file, line) && !line.empty() && line != "\n")
+            { insideDegreesLong[signIdx][degree-1] += line; }
+        }
+      mInsideDegreesLoaded = true;
+    }
+  return true;
+}
+
+std::string Ephemeris::getInsideDegreeTextShort(int sign, int degree)
+{
+  if(sign < 0 || sign >= 12 || degree < 0 || degree >= 30) { return ""; }
+  else                                                     { return insideDegreesShort[sign][degree]; }
+}
+
+std::string Ephemeris::getInsideDegreeTextLong(int sign, int degree)
+{
+  if(sign < 0 || sign >= 12 || degree < 0 || degree >= 30) { return ""; }
+  else                                                     { return insideDegreesLong[sign][degree]; }
+}
+
+
 
 Ephemeris::Ephemeris()
 {
   char ephemPath[512] = EPHEM_PATH;
   swe_set_ephe_path(ephemPath);
+  loadInsideDegrees();
 }
 
 void Ephemeris::setDate(const DateTime &dt)
@@ -29,6 +80,39 @@ void Ephemeris::setLocation(const Location &loc)
 {
   mLocation = loc;
 }
+
+
+void Ephemeris::setAyanamsa(int index)
+{
+  mAyanamsaIndex = index;
+  swe_set_sid_mode(mAyanamsaIndex, 0.0, 0.0);
+}
+
+std::string Ephemeris::getAyanamsaName(int index)
+{
+  return std::string(swe_get_ayanamsa_name(index));
+}
+
+double Ephemeris::getSiderealTime(const DateTime &dt, const Location &loc)
+{
+  return swe_sidtime(getJulianDayUT(dt, loc));
+}
+
+
+DateTime Ephemeris::getDateFromJUT(double jd_UT)
+{
+  int y, mo, d, h, mi; double s;
+  swe_jdut1_to_utc(jd_UT, SE_GREG_CAL, &y, &mo, &d, &h, &mi, &s);
+  return DateTime(y, mo, d, h, mi, s, 0.0);
+}
+
+DateTime Ephemeris::getDateFromJET(double jd_ET)
+{
+  int y, mo, d, h, mi; double s;
+  swe_jdet_to_utc(jd_ET, SE_GREG_CAL, &y, &mo, &d, &h, &mi, &s);
+  return DateTime(y, mo, d, h, mi, s, 0.0);
+}
+
 
 double Ephemeris::getJulianDayUT(const DateTime &dt, const Location &loc)
 {
@@ -75,7 +159,7 @@ DateTime Ephemeris::getProgressed(const DateTime &ndt, const Location &nloc, con
     { return ndt; }
   else
     {
-      double jdProg = jdNatal + dayDiff/365.25;
+      double jdProg = jdNatal + dayDiff/DAYS_PER_JULIAN_YEAR;
       int y, mo, d, h, mi; double s;
       swe_jdut1_to_utc(jdProg, SE_GREG_CAL, &y, &mo, &d, &h, &mi, &s);
       return DateTime(y, mo, d, h, mi, s, 0.0);
@@ -93,7 +177,7 @@ DateTime Ephemeris::getUnprogressed(const DateTime &ndt, const Location &nloc, c
     { return ndt; }
   else
     {
-      double jdTransit = jdNatal + dayDiff*365.25;
+      double jdTransit = jdNatal + dayDiff*DAYS_PER_JULIAN_YEAR;
       int y, mo, d, h, mi; double s;
       swe_jdut1_to_utc(jdTransit, SE_GREG_CAL, &y, &mo, &d, &h, &mi, &s);
       return DateTime(y, mo, d, h, mi, s, 0.0);
@@ -104,6 +188,7 @@ DateTime Ephemeris::getUnprogressed(const DateTime &ndt, const Location &nloc, c
 ObjData Ephemeris::getObjData(ObjType o) const
 {
   ObjData objData;
+  objData.type = o;
   if(o >= ANGLE_OFFSET)
     {
       objData.valid = true;
@@ -129,8 +214,6 @@ ObjData Ephemeris::getObjData(ObjType o) const
           objData.longitude = mAscmc[SE_VERTEX];
           objData.lonSpeed = mAscmcSpeed[SE_VERTEX];
           break;
-        default:
-          objData.valid = false;
         }
     }
   else
@@ -147,7 +230,7 @@ ObjData Ephemeris::getObjData(ObjType o) const
       long iflgret = swe_calc(mJulDay_et, p, mSweFlags, data, serr);
       if(iflgret < 0)
         {
-          std::cout << "SWE ERROR: " << serr << "\n";
+          std::cout << "SWE ERROR(" << getObjNameLong(o) << "): " << serr << "\n";
           objData.valid = false;
         }
       else { objData.valid = true; }
@@ -230,9 +313,9 @@ void Ephemeris::printObjects(const astro::DateTime &dt, const astro::Location &l
       double angle = obj.longitude;
       std::string name = getObjName((ObjType)o);
       std::cout << std::fixed << std::setprecision(6)
-                << "|" << std::setw(12) << name << " | " << std::setw(12) << angle << " | "
-                << std::setw(12) << obj.latitude << " | " << std::setw(12) << obj.longitude << " | " << std::setw(12) << obj.distance << " | "
-                << std::setw(12) << obj.latSpeed << " | " << std::setw(12) << obj.lonSpeed << " | " << std::setw(12) << obj.distSpeed << " |\n";
+                << "|" << std::setw(12) << name  << " | " << std::setw(12) << angle << " | "
+                << std::setw(12) << obj.latitude << " | " << std::setw(12) << obj.longitude << " | " << std::setw(12) << obj.distance  << " | "
+                << std::setw(12) << obj.latSpeed << " | " << std::setw(12) << obj.lonSpeed  << " | " << std::setw(12) << obj.distSpeed << " |\n";
     }
   std::cout << "------------------------------------------------------------------------------------------------------------------------\n";
 }

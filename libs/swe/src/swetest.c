@@ -1409,7 +1409,7 @@ int main(int argc, char *argv[])
         else
           printf(" jul.");
 	jd_to_time_string(jut, stimeout);
-	printf(stimeout);
+	printf("%s", stimeout);
         if (universal_time) {
 	  if (time_flag & BIT_TIME_LMT)
 	    printf(" LMT");
@@ -1873,7 +1873,7 @@ int main(int argc, char *argv[])
   /* close open files and free allocated space */
   end_main:
   if (do_set_astro_models) {
-    printf(smod);
+    printf("%s", smod);
   }
   swe_close();
   return  OK;
@@ -1942,7 +1942,7 @@ static int print_line(int mode, AS_BOOL is_first, int sid_mode)
   double ar, sinp;
   double dret[20];
   char slon[20];
-  char pnam[30];
+  char pnam[AS_MAXCH];
   AS_BOOL is_house = ((mode & MODE_HOUSE) != 0);
   AS_BOOL is_label = ((mode & MODE_LABEL) != 0);
   AS_BOOL is_ayana = ((mode & MODE_AYANAMSA) != 0);
@@ -2059,7 +2059,7 @@ static int print_line(int mode, AS_BOOL is_first, int sid_mode)
 	printf("%02d%02d%02d", jyear % 100, jmon, jday);
 	break;
     case 'L':
-        if (is_label) { printf(slon); break; }
+      if (is_label) { printf("%s", slon); break; }
 	if (psp != NULL && (*psp == 'q' || *psp == 'y')) { /* delta t or time equation */
 	  printf("%# 11.7f", x[0]);
 	  printf("s");
@@ -2068,7 +2068,7 @@ static int print_line(int mode, AS_BOOL is_first, int sid_mode)
 	fputs(dms(x[0], round_flag),stdout);
 	break;
     case 'l':
-        if (is_label) { printf(slon); break; }
+      if (is_label) { printf("%s", slon); break; }
 	if (output_extra_prec)
 	  printf("%# 11.11f", x[0]);
 	else
@@ -2087,7 +2087,7 @@ static int print_line(int mode, AS_BOOL is_first, int sid_mode)
 	printf("%# 11.7f", hposj);
 	break;
     case 'Z':
-        if (is_label) { printf(slon); break; }
+      if (is_label) { printf("%s", slon); break; }
 	fputs(dms(x[0], round_flag|BIT_ZODIAC),stdout);
 	break;
     case 'S':
@@ -3719,7 +3719,7 @@ static char *hms_from_tjd(double tjd)
   /* tjd may be negative, 0h corresponds to day number 9999999.5 */ 
   x = fmod(tjd, 1);  /* may be negative ! */
   x = fmod(x + 1.5, 1); /* is positive day fraction */
-  sprintf(s, "%s ", hms(x * 24, BIT_LZEROES));
+  sprintf(s, "%s", hms(x * 24, BIT_LZEROES));
   return s;
 }
 

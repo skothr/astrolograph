@@ -41,8 +41,8 @@ namespace astro
     ShapeBuffer mMoonBuffer;
     GLuint mFbo = 0;
     GLuint mTex = 0;
-    ObjData mMoonData;
-    ObjData mSunData;
+    ObjData *mMoonData = nullptr;
+    ObjData *mSunData = nullptr;
     Location mLocation;
 
     void renderTexture();
