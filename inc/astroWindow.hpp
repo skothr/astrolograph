@@ -23,6 +23,10 @@ using json = nlohmann::json;
 
 #define NEW_PROJECT_NAME "New Project"
 
+#define GRAPH_PADDING  Vec2f( 5.0f,  5.0f)
+#define TABBAR_PADDING Vec2f(10.0f, 10.0f)
+#define POPUP_PADDING  Vec2f(10.0f, 10.0f)
+
 // forward declarations
 class GLFWwindow;
 class SettingsForm;
@@ -30,6 +34,7 @@ class SettingsForm;
 namespace astro
 {
   // forward declarations
+  class Node;
   class NodeGraph;
   class NodeList;
   class FileDialog;
@@ -76,7 +81,7 @@ namespace astro
     
     bool mShowFps        = true;  // if true, FPS drawn in lower-left corner
     bool mShowDemo       = false; // true if imgui demo window showing (also shows node IDs)
-    bool mEscapeDebounce = false; // when program is closing, then false once escape key is released
+    bool mCancelDebounce = false; // when program is closing, then false once escape key is released
     bool mClosing        = false; // set to true when program is being closed
     bool mNoSave         = false; // set to true if unsaved changes should be discarded
 
@@ -87,17 +92,12 @@ namespace astro
     NodeList     *mNodeList        = nullptr;
 
     std::vector<AstroProject> mProjects;
-    // AstroProject *mActiveProject   = nullptr;    // currently active project
-    // AstroProject *mSelectedProject = nullptr;    // set if user selects a project tab
-    // AstroProject *mClosingProject  = nullptr;    // set if user is closing a project without saving
-
-    int mActiveProj   = 0;
-    int mSelectedProj = -1;
-    int mClosingProj  = -1;
-
-    AstroProject* activeProject() { return ((mActiveProj >= 0) ? &mProjects[mActiveProj] : nullptr); }
-    AstroProject* closingProject() { return ((mClosingProj >= 0) ? &mProjects[mClosingProj] : nullptr); }
-    AstroProject* selectedProject() { return ((mSelectedProj >= 0) ? &mProjects[mSelectedProj] : nullptr); }
+    int mActiveProject   =  0; // index of currently active project (selected in tab bar)
+    int mSelectedProject = -1; // >= 0 if user selected a different project in the tab bar
+    int mClosingProject  = -1; // >= 0 if user is closing project tab
+    AstroProject* activeProject()   { return (mProjects.size() > 0 ? ((mActiveProject   >= 0) ? &mProjects[mActiveProject] : &mProjects.back()) : nullptr); }
+    AstroProject* closingProject()  { return ((mClosingProject  >= 0) ? &mProjects[mClosingProject]  : nullptr); }
+    AstroProject* selectedProject() { return ((mSelectedProject >= 0) ? &mProjects[mSelectedProject] : nullptr); }
     
     std::thread mUpdateThread;
     std::mutex  mUpdateMutex;
@@ -105,7 +105,6 @@ namespace astro
     std::mutex  mKeyMutex;
 
     Vec2f mFrameSize;
-    Vec2f mMenuBarSize;
     
     std::string mProjectDir = DEFAULT_PROJECT_DIR;
 
@@ -117,6 +116,21 @@ namespace astro
     KeyBinding  mOldBinding;
     int mCancelKey = GLFW_KEY_ESCAPE; // needs debouncing -- TODO: centralize imgui key checks (?)
 
+    // node placing
+    bool        mPlacing   = false;
+    std::string mPlaceType = "";
+    Node       *mPlaceNode = nullptr;
+    void startPlacing(const std::string &type);
+    void stopPlacing(bool deleteNode=true);
+    void handlePlacing();
+    
+    // copy/paste
+    std::vector<Node*> mClipboard; // node clipboard (for copy/pasting between projects)
+    bool mPasting = false; // true if pasting clipboard nodes
+    void startPasting();
+    void stopPasting();
+    void handlePasting();
+    
     bool checkProjectDir();
     std::vector<AstroProject*> getUnsavedProjects();
 
@@ -126,6 +140,8 @@ namespace astro
     void projectSave();
     void projectSaveAs();
     AstroProject* newProject();
+    void prevProject();
+    void nextProject();
     void quit();
     void saveConfig();
     void loadConfig();
@@ -152,8 +168,12 @@ namespace astro
     ~AstroWindow();
 
     void init();
-
     void keyPress(int mods, int key, bool press);
+
+    void cut();
+    void copy();
+    bool isPasting() const { return mPasting; }
+    bool isPlacing() const { return mPlacing; }
     
     NodeGraph* graph()           { return (activeProject() ? activeProject()->graph : nullptr); }
     ViewSettings* viewSettings() { return mViewSettings; }

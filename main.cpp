@@ -132,7 +132,7 @@ int main(int argc, char* argv[])
   io.ConfigDockingWithShift = true;                      // docking when shift is held
 #endif // ENABLE_IMGUI_DOCKING
   
-  io.ConfigFlags |= ImGuiConfigFlags_NavEnableKeyboard; // Enable Keyboard Controls (NOTE: enables escape to close popups)
+  //io.ConfigFlags |= ImGuiConfigFlags_NavEnableKeyboard; // Enable Keyboard Controls (NOTE: enables escape to close popups)
   
   // start imgui context
   ImGui_ImplGlfw_InitForOpenGL(window, true);

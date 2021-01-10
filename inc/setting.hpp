@@ -203,7 +203,7 @@ namespace astro
         if(ImGui::Button("Select") || ImGui::IsKeyPressed(GLFW_KEY_ENTER) || (!hover && ImGui::IsMouseClicked(ImGuiMouseButton_Left))) // selects color
           { ImGui::CloseCurrentPopup(); }
         ImGui::SameLine();
-        if(ImGui::Button("Cancel")) // cancels current selection
+        if(ImGui::Button("Cancel") || ImGui::IsKeyPressed(GLFW_KEY_ESCAPE)) // cancels current selection
           {
             *mData = lastColor;
             ImGui::CloseCurrentPopup();

@@ -49,64 +49,49 @@ namespace astro
   class NodeGraph
   {
   private:
-    AstroWindow *mWindow = nullptr;
-
-    // TEST
-    QuadTree<Node> *mQuad = nullptr; // node quadtree test
-    
-    UndoStack mUndoStack;    // action stack for undoing (Ctrl-Z)
-    UndoStack mRedoStack;    // action stack for redoing (Ctrl-Shift-Z)
-    Vec2f     mNodeMoveDPos; // accumulates a full node move while dragging
-
-    Node *mHoveredNode = nullptr;
-    json *mAddNodeJSON = nullptr;
-
+    // key bindings
     std::vector<KeyBinding> mKeyBindings;
     std::vector<KeyBinding> mDefaultKeyBindings;
     
-    double mDt = 0.0;
-    ViewSettings *mViewSettings = nullptr;
-    std::unordered_map<int, Node*> mNodes; // maps ID to pointer
-    int NEXT_ID = 0;
-    std::vector<Node*> mSelectedNodes; // set of nodes that are selected
-    Vec2f  mGraphCenter = Vec2f(0,0);  // graph-space point to be centered in view
-    float  mGraphScale  = 1.0f;        // graph view scaling
-    Vec2f  mViewPos;                   // screen-space position of nodeGraph view
-    Vec2f  mViewSize;                  // screen-space size of nodeGraph view
+    ////////////
+    // (TEST) //
+    QuadTree<Node> *mQuad = nullptr; // node quadtree test
+    ////////////
 
-    bool   mSelected = false; // true when graph was the last thing clicked
-    bool   mLocked   = false;  // if true, nodes can't be selected or moved around
-    bool   mDrawing  = false;  // set to true if between BeginDraw() and EndDraw()
-    bool   mShowIds  = false;  // display id above each node
+    AstroWindow  *mWindow       = nullptr; // parent window
+    ViewSettings *mViewSettings = nullptr; // view settings
+    ImDrawList   *mWinDrawList  = nullptr; // draw list for graph window
+    
+    Vec2f  mGraphCenter = Vec2f(0,0);      // graph-space point to be centered in view
+    float  mGraphScale  = 1.0f;            // graph view scaling
+    Vec2f  mViewPos;                       // screen-space position of nodeGraph view
+    Vec2f  mViewSize;                      // screen-space size of nodeGraph view
+    std::unordered_map<int, Node*> mNodes; // maps node ID to pointer
+    std::vector<Node*> mSelectedNodes;     // nodes that are selected
+    Node  *mHoveredNode = nullptr;         // top node being hovered by the mouse
+    int NEXT_ID = 0;  // id to give next created node (used for connection consistency)
 
-    bool   mScaling = false;
-    std::chrono::high_resolution_clock::time_point mLastT;
+    // undo/redo
+    UndoStack mUndoStack;    // action stack for undoing (Ctrl-Z)
+    UndoStack mRedoStack;    // action stack for redoing (Ctrl-Shift-Z)
+    Vec2f     mNodeMoveDPos; // accumulates a full node move while dragging
+    json *mAddNodeJSON = nullptr;
     
-    bool   mSelecting = false;
-    Vec2f  mSelectAnchor;
-    Rect2f mSelectRect;
-    
-    bool   mPanning   = false;
-    Vec2f  mPanClick;
-    
-    bool   mPasting   = false;   // true when pasting clipboard
-    bool   mPlacing   = false;   // true when placing a new node
-    std::string mPlaceType = "";
-    Node* mPlaceNode  = nullptr;
+    bool mDrawing        = false; // set to true if between BeginDraw() and EndDraw() to avoid accidental recursion
+    bool mLocked         = false; // if true, nodes can't be selected or moved around
+    bool mSelected       = false; // true when graph was the last thing clicked
+    bool mScaling        = false; // true when scaling graph (ctrl+scroll)
+    bool mPanning        = false; // true when panning graph center (middleclick / shift+leftclick)
+    bool mSelecting      = false; // true when selecting nodes with select rect (click+drag on background)
+    bool mCopying        = false; // true when directly copying selection (ctrl+click+drag selected) 
+    bool mClickCopied    = false; // true if nodes were directly copied (ctrl+click+drag, while still dragging)
+    bool mShowIds        = false; // display id above each node (debug/info)
+    bool mUnsavedChanges = false; // true if anything has changed that needs to be saved
 
-    std::vector<Node*> mClipboard;
-    bool mCopying     = false;
-    bool mClickCopied = false; // set to true when selected nodes are copied (CTRL+click+drag). Reset when mouse released.
-
-    bool mChangedSinceSave  = false;
-    // bool mOpenSave          = false;
-    // bool mOpenLoad          = false;    
-    // bool mSaveDialogOpen    = false;
-    // bool mLoadDialogOpen    = false;
-    // std::string mSaveFile = ""; // last saved/loaded file name
+    Vec2f  mSelectAnchor;         // point where mouse first pressed when selecting
+    Rect2f mSelectRect;           // when selecting -- rect within which nodes will be selected/toggled
+    Vec2f  mPanClick;             // point where mouse first pressed when panning
     
-    void BeginDraw();
-    void EndDraw();
     void drawLines(ImDrawList *drawList);
     
   public:
@@ -117,71 +102,27 @@ namespace astro
     NodeGraph(AstroWindow *window, ViewSettings *viewSettings);
     ~NodeGraph();
 
+    // begin/end imgui window
+    void BeginDraw();
+    void EndDraw();
+
     // save/load graph
     json toJSON() const;
     bool fromJSON(json js);
+
+    int& nextId() { return NEXT_ID; }
     
     AstroWindow* getWindow()                         { return mWindow; }
     ViewSettings* getViewSettings()                  { return mViewSettings; }
     std::vector<KeyBinding>& getKeyBindings()        { return mKeyBindings; }
     std::vector<KeyBinding>& getDefaultKeyBindings() { return mDefaultKeyBindings; }
-    
-    const std::unordered_map<int, Node*>& getNodes() const { return mNodes; }
-    std::unordered_map<int, Node*>& getNodes()             { return mNodes; }
 
-    void addNode(Node *n, bool select=true);   // adds node to mNodes (sets id)
-    void doneAdding();
+    ImDrawList* getWinDrawList() { return mWinDrawList; }
     
-    void placeNode(const std::string &type);   // starts placing a node type.
-    void stopPlacing(); // stops placing node
-    void stopPasting(); // stops pasting node(s)
-    void clear();
-    
-    void cut();
-    void copy();
-    void paste();
-    bool undo();
-    bool redo();
-    
-    // selection
-    void selectNode(Node *n);
-    void select(const std::vector<Node*> &nodes);
-    void selectAll();
-    void moveSelected(const Vec2f &dpos);
-    void doneMoving();
-    void fixPositions();
-    
-    std::vector<Node*> getSelected();
-    std::vector<Node*> makeCopies(const std::vector<Node*> &group, bool externalConnections=true); // returns new nodes
-    void disconnectExternal(const std::vector<Node*> &group, bool disconnectInputs=true, bool disconnectOutputs=true);
-    void deselectAll();
-    void deselect(const std::vector<Node*> &nodes);
-
-    void copySelected();
-    
-    Node* groupNodes(const std::vector<Node*> &nodes);
-    Node* groupSelected();
-    std::vector<Node*> ungroupNodes(const std::vector<Node*> &nodes);
-    std::vector<Node*> ungroupSelected();
-
-    Node* getHovered()
-    { return mHoveredNode; }
-    
-    bool isHovered() const;
-    bool isSelected() const { return mSelected; }
-    bool isSelectedHovered();  // returns true if any selected nodes are hovered
-    bool isSelectedActive();   // returns true if any selected nodes are active
-    bool isSelectedDragged();  // returns true if any selected nodes are dragged
-
     void setLocked(bool lock)
     {
       mLocked = lock;
-      if(mLocked)
-        {
-          mSelecting = false;
-          mPanning = false;
-          mClickCopied = false;
-        }
+      if(mLocked) { mSelecting = false; mPanning = false; mClickCopied = false; }
     }
     bool isLocked() const     { return mLocked; }
 
@@ -194,12 +135,53 @@ namespace astro
     void setPos(const Vec2f &p);
     void setSize(const Vec2f &s);
 
+    // coordinate conversion
     Vec2f graphToScreenVec(const Vec2f &v) const { return v*mGraphScale; }
     Vec2f screenToGraphVec(const Vec2f &v) const { return v/mGraphScale; }
     Vec2f graphToScreen(const Vec2f &p) const    { return (p + mGraphCenter)*mGraphScale + mViewSize/2.0f + mViewPos; }
     Vec2f screenToGraph(const Vec2f &p) const    { return (p - mViewSize/2.0f - mViewPos)/mGraphScale - mGraphCenter; }
     Rect2f screenToGraph(const Rect2f &r) const  { return Rect2f(screenToGraph(r.p1), screenToGraph(r.p2)); }
     Rect2f graphToScreen(const Rect2f &r) const  { return Rect2f(graphToScreen(r.p1), graphToScreen(r.p2)); }
+
+    const std::unordered_map<int, Node*>& getNodes() const { return mNodes; }
+    std::unordered_map<int, Node*>& getNodes()             { return mNodes; }
+    void addNode(Node *n, bool select=true);   // adds node to mNodes (sets id)
+    void addNodes(std::vector<Node*> &nodes, bool select=true);   // adds node to mNodes (sets id)
+    void doneAdding();
+    
+    void removeNodes(std::vector<Node*> &nodes, bool deleteNodes=true);   // removes nodes from mNodes
+    void clear();
+
+    bool undo();
+    bool redo();
+    
+    // selection
+    void selectNode(Node *n);
+    void select(const std::vector<Node*> &nodes);
+    void selectAll();
+    void moveSelected(const Vec2f &dpos);
+    void doneMoving();
+    void fixPositions();
+    
+    std::vector<Node*> getSelected() { return mSelectedNodes; }
+    std::vector<Node*> makeCopies(const std::vector<Node*> &group, bool externalConnections=true); // returns new nodes
+    void disconnectExternal(const std::vector<Node*> &group, bool disconnectInputs=true, bool disconnectOutputs=true);
+    void deselectAll();
+    void deselect(const std::vector<Node*> &nodes);
+
+    void copySelected();
+    Node* getHovered() { return mHoveredNode; }
+    
+    bool isHovered() const;
+    bool isSelected() const { return mSelected; }
+    bool isSelectedHovered();  // returns true if any selected nodes are hovered
+    bool isSelectedActive();   // returns true if any selected nodes are active
+    bool isSelectedDragged();  // returns true if any selected nodes are dragged
+    
+    Node* groupNodes(const std::vector<Node*> &nodes);
+    Node* groupSelected();
+    std::vector<Node*> ungroupNodes(const std::vector<Node*> &nodes);
+    std::vector<Node*> ungroupSelected();
     
     // finds a path from start to end point that doesn't intersect any node rects.
     std::vector<Vec2f> findOrthogonalPath(const Vec2f &start, const Rect2f &startRect, const Vec2f &end, const Rect2f &endRect, Direction direction);
@@ -212,8 +194,8 @@ namespace astro
     bool isConnecting();
     ConnectorBase* getConnectingTo();
     bool isSelecting() const        { return mSelecting; }
-    bool unsavedChanges() const     { return mChangedSinceSave; }
-    void setUnsaved(bool unsaved)   { mChangedSinceSave = unsaved; }
+    bool unsavedChanges() const     { return mUnsavedChanges; }
+    void setUnsaved(bool unsaved)   { mUnsavedChanges = unsaved; }
   };
 };
 

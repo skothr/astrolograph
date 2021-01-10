@@ -5,8 +5,8 @@ using namespace astro;
 #include "nodeGraph.hpp"
 #include "viewSettings.hpp"
 
-NodeList::NodeList(NodeGraph *graph)
-  : mGraph(graph)
+NodeList::NodeList(NodeGraph *graph, ViewSettings *viewSettings)
+  : mGraph(graph), mViewSettings(viewSettings)
 {
 
 }
@@ -19,9 +19,9 @@ NodeList::~NodeList()
 #define LIST_PADDING Vec2f(10,10)
 void NodeList::draw()
 {
-  if(!mGraph) { return; }
-  const std::unordered_map<int, Node*> &nodes = mGraph->getNodes();
-  ViewSettings *viewSettings = mGraph->getViewSettings();
+  // if(!mGraph) { return; }
+  std::unordered_map<int, Node*> nodes;
+  if(mGraph) { nodes = mGraph->getNodes(); }
   
   std::unordered_map<std::string, int> typeCount;
   for(auto t : NodeGraph::NODE_TYPES) { typeCount.emplace(t.first, 0); }
@@ -41,7 +41,7 @@ void NodeList::draw()
   ImGui::PushStyleColor(ImGuiCol_ChildBg,  Vec4f(0.1f, 0.1f, 0.1f, 1.0f));
   ImGui::BeginChild("nodeListMain", mViewSize, true, ImGuiWindowFlags_NoDecoration | ImGuiWindowFlags_NoScrollWithMouse);
   {
-    ImGui::PushFont(viewSettings->titleFont);
+    ImGui::PushFont(mViewSettings->titleFont);
     float titleOffset = (ImGui::GetContentRegionMax().x - ImGui::CalcTextSize("Nodes").x)/2.0f;
     ImGui::SetCursorPos(Vec2f(ImGui::GetCursorPos()) + Vec2f(titleOffset, 0.0f));
     ImGui::TextUnformatted("Nodes");

@@ -10,6 +10,7 @@ using json = nlohmann::json;
 #include <fstream>
 #include "tools.hpp"
 
+#include "astroWindow.hpp"
 #include "geometry.hpp"
 #include "viewSettings.hpp"
 #include "timeNode.hpp"
@@ -62,27 +63,28 @@ NodeGraph::NodeGraph(AstroWindow *window, ViewSettings *viewSettings)
   
   mDefaultKeyBindings =
     { //// mGraph Control
-     KeyBinding("Cut",                 [&](){ cut(); },                        "Ctrl+X"       ), // cut                    (default Ctrl+X)
-     KeyBinding("Copy",                [&](){ copy(); },                       "Ctrl+C"       ), // copy                   (default Ctrl+C)
-     KeyBinding("Paste",               [&](){ if(isHovered()) { paste(); } },  "Ctrl+V"       ), // paste                  (default Ctrl+V)
-     KeyBinding("Undo Action",         std::bind(&NodeGraph::undo, this),      "Ctrl+Z"       ), // undo
-     KeyBinding("Redo Action",         std::bind(&NodeGraph::redo, this),      "Ctrl+Shift+Z" ), // redo
-     KeyBinding("Select All",          [&](){ selectAll(); },                  "Ctrl+A"       ), // select all             (default Ctrl+A)
-     KeyBinding("Group Nodes",         [&](){ groupSelected(); },              "Ctrl+G"       ), // group selected nodes   (default Ctrl+G)
-     KeyBinding("Ungroup Nodes",       [&](){ ungroupSelected(); },            "Ctrl+Shift+G" ), // ungroup selected nodes (default Ctrl+Shift+G)
-     KeyBinding("Quit Placing",        [&](){ stopPlacing(); stopPasting(); }, "Q"            ), // stop placing/pasting   (default Q)
+     // KeyBinding("Cut",                 [&](){ cut(); },                        "Ctrl+X"       ), // cut                    (default Ctrl+X)
+     // KeyBinding("Copy",                [&](){ copy(); },                       "Ctrl+C"       ), // copy                   (default Ctrl+C)
+     // KeyBinding("Paste",               [&](){ if(isHovered()) { paste(); } },  "Ctrl+V"       ), // paste                  (default Ctrl+V)
+     // KeyBinding("Undo Action",         std::bind(&NodeGraph::undo, this),      "Ctrl+Z"       ), // undo
+     // KeyBinding("Redo Action",         std::bind(&NodeGraph::redo, this),      "Ctrl+Shift+Z" ), // redo
+     // KeyBinding("Select All",          [&](){ selectAll(); },                  "Ctrl+A"       ), // select all             (default Ctrl+A)
+     // KeyBinding("Group Nodes",         [&](){ groupSelected(); },              "Ctrl+G"       ), // group selected nodes   (default Ctrl+G)
+     // KeyBinding("Ungroup Nodes",       [&](){ ungroupSelected(); },            "Ctrl+Shift+G" ), // ungroup selected nodes (default Ctrl+Shift+G)
+     // KeyBinding("Quit Placing",        [&](){ stopPlacing(); stopPasting(); }, "Q"            ), // stop placing/pasting   (default Q)
      //// Node Creation
-     KeyBinding("Add Time Node",       [&](){ placeNode("TimeNode"); },        "T" ), // T --> Time Node
-     KeyBinding("Add Time Span Node",  [&](){ placeNode("TimeSpanNode"); },    "S" ), // S --> Time Span Node
-     KeyBinding("Add Location Node",   [&](){ placeNode("LocationNode"); },    "L" ), // L --> Location Node
-     KeyBinding("Add Chart Node",      [&](){ placeNode("ChartNode");  },      "C" ), // C --> Chart Node
-     KeyBinding("Add Progress Node",   [&](){ placeNode("ProgressNode");  },   "P" ), // P --> Progress Node
-     KeyBinding("Add Chart View Node", [&](){ placeNode("ChartViewNode");  },  "V" ), // V --> Chart View Node
-     KeyBinding("Add Compare Node",    [&](){ placeNode("ChartCompareNode"); },"X" ), // X --> Chart Compare Node
-     KeyBinding("Add Data Node",       [&](){ placeNode("ChartDataNode"); },   "D" ), // D --> Chart Data Node
-     KeyBinding("Add Aspect Node",     [&](){ placeNode("AspectNode"); },      "A" ), // A --> Aspect Node
-     KeyBinding("Add Moon Node",       [&](){ placeNode("MoonNode"); },        "M" ), // M --> Moon Node
+     // KeyBinding("Add Time Node",       [&](){ placeNode("TimeNode"); },        "T" ), // T --> Time Node
+     // KeyBinding("Add Time Span Node",  [&](){ placeNode("TimeSpanNode"); },    "S" ), // S --> Time Span Node
+     // KeyBinding("Add Location Node",   [&](){ placeNode("LocationNode"); },    "L" ), // L --> Location Node
+     // KeyBinding("Add Chart Node",      [&](){ placeNode("ChartNode");  },      "C" ), // C --> Chart Node
+     // KeyBinding("Add Progress Node",   [&](){ placeNode("ProgressNode");  },   "P" ), // P --> Progress Node
+     // KeyBinding("Add Chart View Node", [&](){ placeNode("ChartViewNode");  },  "V" ), // V --> Chart View Node
+     // KeyBinding("Add Compare Node",    [&](){ placeNode("ChartCompareNode"); },"X" ), // X --> Chart Compare Node
+     // KeyBinding("Add Data Node",       [&](){ placeNode("ChartDataNode"); },   "D" ), // D --> Chart Data Node
+     // KeyBinding("Add Aspect Node",     [&](){ placeNode("AspectNode"); },      "A" ), // A --> Aspect Node
+     // KeyBinding("Add Moon Node",       [&](){ placeNode("MoonNode"); },        "M" ), // M --> Moon Node
     };
+
   mKeyBindings = mDefaultKeyBindings;
 }
 
@@ -92,6 +94,8 @@ NodeGraph::~NodeGraph()
   if(mAddNodeJSON)  { delete mAddNodeJSON; }
   if(mQuad)         { delete mQuad;        }
 }
+
+//// JSON CONVERSION ////
 
 json NodeGraph::toJSON() const
 {
@@ -214,7 +218,7 @@ bool NodeGraph::fromJSON(json js)
       n.second->update();
       n.second->setChanged(false);
     }
-  mChangedSinceSave = false;
+  mUnsavedChanges = false;
   std::cout << "=============================================================================================\n";
   if(version != SAVE_FILE_VERSION)
     {
@@ -224,42 +228,6 @@ bool NodeGraph::fromJSON(json js)
   return true;
 }
 
-void NodeGraph::placeNode(const std::string &type)
-{
-  if(!mLocked)
-    {
-      mPasting = false;
-      mPlacing = true;
-      mPlaceType = type;
-      mPlaceNode = makeNode(type);
-      mPlaceNode->setId(-1);
-      mPlaceNode->setPos(screenToGraph(ImGui::GetMousePos()) - mPlaceNode->size()/2.0f);
-      mPlaceNode->setGraph(this);
-
-      // transparent alpha (place "ghost")
-      Vec4f mask = mPlaceNode->getColorMask();
-      mask.w = GHOST_ALPHA;
-      mPlaceNode->setColorMask(mask);
-    }
-}
-
-void NodeGraph::stopPlacing()
-{
-  if(mPlacing)
-    {
-      mPlacing = false;
-      mPlaceType = "";
-      if(mPlaceNode) { delete mPlaceNode; }
-      mPlaceNode = nullptr;
-    }
-}
-
-void NodeGraph::stopPasting()
-{
-  mPasting = false;
-  // hide connections    
-  for(auto n : mClipboard) { n->setShowConnections(false); }
-}
 
 void NodeGraph::addNode(Node *n, bool select)
 {
@@ -268,7 +236,7 @@ void NodeGraph::addNode(Node *n, bool select)
       std::cout << "ADDING NODE -->\n";
       std::cout << n << "\n";
       
-      mChangedSinceSave = true;
+      mUnsavedChanges = true;
 
       if(n->id() < 0) { n->setId(NEXT_ID++); }
       // TODO: check if id should be an offset?
@@ -290,6 +258,14 @@ void NodeGraph::addNode(Node *n, bool select)
     }
 }
 
+void NodeGraph::addNodes(std::vector<Node*> &nodes, bool select)
+{
+  for(auto n : nodes)
+    { addNode(n, select); }
+  doneAdding();
+  NEXT_ID += nodes.size(); // TODO: check
+}
+
 void NodeGraph::doneAdding()
 {
   if(mAddNodeJSON->size() > 0)
@@ -298,6 +274,15 @@ void NodeGraph::doneAdding()
       mUndoStack.push_back(Action{ACTION_ADD_NODES, *mAddNodeJSON}); // add action
     }
   *mAddNodeJSON = json::array();
+}
+
+void NodeGraph::removeNodes(std::vector<Node*> &nodes, bool deleteNodes)
+{
+  for(auto n : nodes)
+    {
+      mNodes.erase(n->id()); mQuad->erase(n);
+      if(deleteNodes) { delete n; }
+    }
 }
 
 
@@ -311,74 +296,8 @@ void NodeGraph::clear()
   NEXT_ID = 0;
   mGraphCenter = Vec2f(0,0);
   mGraphScale  = 1.0f;
-  mChangedSinceSave = false;
+  mUnsavedChanges = false;
 }
-
-void NodeGraph::cut()
-{
-  std::vector<Node*> selected = getSelected();
-  if(!mLocked && selected.size() > 0)
-    {
-      // clear clipboard
-      for(auto n : mClipboard) { delete n; }
-      mClipboard.clear();
-      
-      // disconnect cut group from other nodes
-      disconnectExternal(selected, true, true);
-      for(auto n : selected) { mNodes.erase(n->id()); mQuad->erase(n); }
-      
-      // move selected nodes to clipboard
-      mClipboard = selected;
-
-      int minId = INT_MAX;
-      for(auto n : mClipboard) { minId = std::min(minId, n->id()); }
-
-      for(auto n : mClipboard) // hide connections until pasting
-        { n->setShowConnections(false); }
-      mChangedSinceSave = true;
-    }
-}
-
-
-
-void NodeGraph::copy()
-{
-  std::vector<Node*> selected = getSelected();
-  if(!mLocked && selected.size() > 0)
-    {
-      std::cout << "CLEARING CLIPBOARD...\n";
-      for(auto n : mClipboard) { delete n; }
-      mClipboard.clear();
-
-      std::cout << "MAKING COPIES...\n";
-      mClipboard = makeCopies(selected, true);
-
-      int minId = INT_MAX;
-      for(auto n : mClipboard) { minId = std::min(minId, n->id()); }
-
-      for(auto n : mClipboard)
-        {
-          n->setShowConnections(false); // hide connections until pasting
-        }
-    }
-}
-
-void NodeGraph::paste()
-{
-  if(!mLocked && mClipboard.size() > 0)
-    {
-      mPlacing = false;
-      mPasting = true;
-
-      for(auto n : mClipboard)
-        { // transparent "ghost" alpha
-          Vec4f mask = n->getColorMask();
-          mask.w = GHOST_ALPHA;
-          n->setColorMask(mask);
-        }
-    }
-}
-
 
 bool NodeGraph::undo()
 {
@@ -395,8 +314,7 @@ bool NodeGraph::undo()
           {
             std::cout << "[ADD NODE]\n";
             json js = std::any_cast<json>(a.data);
-            
-            std::cout << " --> REMOVING NODES\n";// << std::setw(JSON_SPACES) << js << "\n";
+            std::cout << " --> REMOVING NODES\n";
             json removed = json::array();
             for(auto jsid : js)
               {
@@ -422,7 +340,7 @@ bool NodeGraph::undo()
           {
             std::cout << "[MOVE NODES]\n";
             json js = std::any_cast<json>(a.data);
-            std::cout << "UN-MOVING NODES\n";// << std::setw(JSON_SPACES) << js << "\n";
+            std::cout << "UN-MOVING NODES\n";
             Vec2f dpos = Vec2f(js["dpos"].get<std::string>());
             for(auto id : js["ids"])
               {
@@ -460,7 +378,7 @@ bool NodeGraph::redo()
           {
             std::cout << "[ADD NODE]\n";
             json js = std::any_cast<json>(a.data);
-            std::cout << "ADDING NODES\n";// << std::setw(JSON_SPACES) << js << "\n";
+            std::cout << "ADDING NODES\n";
             
             json added = json::array();
             for(auto jsn : js)
@@ -495,7 +413,7 @@ bool NodeGraph::redo()
           {
             std::cout << "[MOVE NODES]\n";
             json js = std::any_cast<json>(a.data);
-            std::cout << "RE-MOVING NODES\n";// << std::setw(JSON_SPACES) << js << "\n";
+            std::cout << "RE-MOVING NODES\n";
             Vec2f dpos = Vec2f(js["dpos"].get<std::string>());
             for(auto id : js["ids"])
               {
@@ -561,14 +479,6 @@ void NodeGraph::select(const std::vector<Node*> &nodes)
 void NodeGraph::selectAll()
 { for(auto n : mNodes) { n.second->setSelected(true); } }
 
-std::vector<Node*> NodeGraph::getSelected()
-{
-  std::vector<Node*> selected;
-  for(auto n : mNodes)
-    { if(n.second->isSelected()) { selected.push_back(n.second); } }
-  return selected;
-}
-
 void NodeGraph::deselect(const std::vector<Node*> &nodes)
 { for(auto n : nodes) { n->setSelected(false); } }
 void NodeGraph::deselectAll()
@@ -584,7 +494,7 @@ void NodeGraph::moveSelected(const Vec2f &dpos)
             { n.second->setPos(n.second->pos() + dpos); }
         }
       mNodeMoveDPos += dpos;
-      mChangedSinceSave = true;
+      mUnsavedChanges = true;
     }
 }
 
@@ -733,8 +643,7 @@ void NodeGraph::copySelected()
       // doneAdding();
       
       NEXT_ID += newNodes.size();
-      mChangedSinceSave = true;
-      mCopying = true;
+      mUnsavedChanges = true;
       mClickCopied = true;
       mCopying = true;
     }
@@ -877,7 +786,6 @@ void NodeGraph::BeginDraw()
   // global config
   ImGui::PushStyleVar(ImGuiStyleVar_WindowRounding, 0); // square frames by default
   ImGui::PushStyleVar(ImGuiStyleVar_FrameRounding,  0);
-  // ImGui::PushStyleColor(ImGuiCol_ChildBorder, Vec4f());
   ImGui::PushStyleVar(ImGuiStyleVar_WindowPadding, Vec2f(0, 0));
   ImGui::PushStyleColor(ImGuiCol_ChildBg, mViewSettings->graphBgColor);
   ImGui::PushStyleColor(ImGuiCol_WindowBg, mViewSettings->graphBgColor);
@@ -897,8 +805,8 @@ void NodeGraph::EndDraw()
 
 void NodeGraph::update(double dt)
 {  
-  if(!mScaling) { mLastT = std::chrono::high_resolution_clock::now(); }
-  else { mDt += dt; }
+  //if(!mScaling) { mLastT = std::chrono::high_resolution_clock::now(); }
+  //else { mDt += dt; }
   bool changed = false;
   for(auto n : mNodes)
     {
@@ -909,7 +817,7 @@ void NodeGraph::update(double dt)
   
   // TODO: Indicator for unsaved changed (file name tabs with asterisk?)
   
-  mChangedSinceSave |= changed;
+  mUnsavedChanges |= changed;
 }
 
 void NodeGraph::draw()
@@ -917,16 +825,15 @@ void NodeGraph::draw()
   // draw with imgui
   BeginDraw();
   {
-    // mViewPos = ImGui::GetWindowPos();
-    // mViewSize = ImGui::GetWindowSize();
     Rect2f graphRect = screenToGraph(Rect2f(mViewPos, mViewPos + mViewSize)); 
     Vec2f offsetMouse = screenToGraph(ImGui::GetMousePos());
     
     ImGuiIO &io = ImGui::GetIO();
-    ImDrawList *winDrawList = ImGui::GetWindowDrawList();
+    mWinDrawList = ImGui::GetWindowDrawList();
     ImDrawList *fgDrawList = ImGui::GetForegroundDrawList();
-    winDrawList->_FringeScale = getScale();
-    fgDrawList->_FringeScale  = getScale();
+    
+    mWinDrawList->_FringeScale = getScale();
+    fgDrawList->_FringeScale   = getScale();
     
     // reset click copy flag if mouse released
     if(ImGui::IsMouseReleased(ImGuiMouseButton_Left))
@@ -940,10 +847,10 @@ void NodeGraph::draw()
     if(isHovered()) { mSelected = true; }
     
     // draw background graph lines
-    drawLines(winDrawList); //  graph lines
+    drawLines(mWinDrawList); // graph lines
 
     // fix node positions (no overlapping) -- TODO
-    // fixPositions();
+    fixPositions();
     
     // move selected nodes to front
     if(!mSelecting)
@@ -978,6 +885,10 @@ void NodeGraph::draw()
         if(!blocked[i] && n->rect().contains(screenToGraph(ImGui::GetMousePos())))
           { mHoveredNode = n; }
       }
+
+    // get selected nodes
+    mSelectedNodes.clear();
+    for(auto n : mNodes) { if(n.second->isSelected()) { mSelectedNodes.push_back(n.second); } }
     
     // draw nodes
     bool posChanged = false;
@@ -985,7 +896,7 @@ void NodeGraph::draw()
       {
         Node *n = sorted[i].second;
         Vec2f p0 = n->pos();
-        sorted[i].second->draw(winDrawList, blocked[i]);
+        sorted[i].second->draw(mWinDrawList, blocked[i]);
         Vec2f p1 = n->pos();
 
         if(p1 != p0) { posChanged = true; }
@@ -999,7 +910,7 @@ void NodeGraph::draw()
 
     {
       // draw node connections
-      for(auto n : sorted) { n.second->drawConnections(winDrawList); }
+      for(auto n : sorted) { n.second->drawConnections(mWinDrawList); }
 
       // update quadtree
       static int numNodes = 0;
@@ -1046,7 +957,7 @@ void NodeGraph::draw()
                   { erased.push_back(n.second->id()); }
               }
             for(auto nid : erased)
-              { delete mNodes[nid]; mQuad->erase(mNodes[nid]); mNodes.erase(nid); mChangedSinceSave = true; }
+              { delete mNodes[nid]; mQuad->erase(mNodes[nid]); mNodes.erase(nid); mUnsavedChanges = true; }
           }
     
         // node selection/highlighting
@@ -1103,9 +1014,10 @@ void NodeGraph::draw()
         
         if(!active)
           {
-            if(!mPlacing && !mPasting)
+            if(!mWindow->isPasting() && !mWindow->isPlacing())
               {
-                if(((ImGui::IsKeyDown(GLFW_KEY_LEFT_SHIFT) && bgHover && lbClick) || mbClick) && graphRect.contains(offsetMouse))
+                if(((ImGui::IsKeyDown(GLFW_KEY_LEFT_SHIFT) && bgHover && lbClick && !mWindow->isPasting() && !mWindow->isPlacing()) || mbClick) &&
+                   graphRect.contains(offsetMouse))
                   { // pan view center (SHIFT+leftclick+drag, or middleclick+drag)
                     mPanning = true;
                     mPanClick = screenToGraph(ImGui::GetMousePos());
@@ -1171,181 +1083,12 @@ void NodeGraph::draw()
                     ImGui::ResetMouseDragDelta(lDrag ? ImGuiMouseButton_Left : ImGuiMouseButton_Middle);
                   }
               }
-            // PLACING
-            if(mPlacing)
-              {
-                if(ImGui::IsKeyPressed(GLFW_KEY_ESCAPE))
-                  {
-                    mPlacing = false;
-                    mPlaceType = "";
-                    mPlaceNode = nullptr;
-                  }
-                else
-                  {
-                    mPlaceNode->setPos(screenToGraph(ImGui::GetMousePos()) - mPlaceNode->size()/2.0f);
-                    mPlaceNode->draw(winDrawList, true); // draw "ghost" under mouse (always blocked)
-                    mPlaceNode->drawConnections(winDrawList);
-                    
-                    if(ImGui::IsMouseClicked(ImGuiMouseButton_Left))
-                      {
-                        if(isHovered())
-                          { // clicked inside graph -- place node.
-                            mPlaceNode->setId(NEXT_ID++);
-                            if(ImGui::IsMouseDown(ImGuiMouseButton_Left))
-                              { mPlaceNode->setPlacing(); } // don't interact with ui after placing until mouse release
-                            addNode(mPlaceNode);
-                            doneAdding();
-                            mPlaceNode = nullptr;
-                            mPlacing = false;
-                            if(ImGui::IsKeyDown(GLFW_KEY_LEFT_SHIFT))
-                              { // shift down -- keep placing
-                                placeNode(mPlaceType);
-                              }
-                          }
-                        else
-                          { // clicked outside of graph -- stop placing.
-                            stopPlacing();
-                            mPlaceNode = nullptr;
-                            mPlacing = false;
-                          }
-                      }
-                  }
-              }
-            // PASTING
-            else if(mPasting)
-              {
-                if(ImGui::IsKeyPressed(GLFW_KEY_ESCAPE))
-                  {
-                    mPasting = false;
-                    // hide connections    
-                    for(auto n : mClipboard) { n->setShowConnections(false); }
-                  }
-                else
-                  {
-                    Vec2f avgPos(0,0);
-                    for(auto n : mClipboard) { avgPos += n->rect().center(); }
-                    avgPos /= mClipboard.size();
-  
-                    Vec2f offset = screenToGraph(ImGui::GetMousePos()) - avgPos;
-                    for(auto n : mClipboard)
-                      {
-                        n->setPos(n->pos() + offset);
-                        n->draw(winDrawList, true); // draw "ghost" under mouse
-                      }
-                
-                    if(ImGui::IsKeyDown(GLFW_KEY_LEFT_ALT))
-                      { // ALT pastes without external connections (don't draw)
-                        for(auto n : mClipboard)
-                          { n->setShowConnections(false); }
-                      }
-                    else
-                      { // show external connections
-                        for(auto n : mClipboard)
-                          {
-                            n->setShowConnections(true); 
-                            n->drawConnections(winDrawList);
-                          }
-                      }
-
-                    if(ImGui::IsMouseClicked(ImGuiMouseButton_Left))
-                      {
-                        if(isHovered())
-                          { // clicked inside graph -- paste clipboard
-                            deselectAll();
-                            std::vector<Node*> copied = makeCopies(mClipboard, true);
-                    
-                            
-                            for(auto n : mClipboard)
-                              {
-                                n->setPlacing(); // don't interact with ui after placing until mouse release
-                                n->setShowConnections(true); // draw connections again
-                              };
-                        
-                            if(ImGui::IsKeyDown(GLFW_KEY_LEFT_ALT))
-                              { // ALT pastes without external connections
-                                disconnectExternal(mClipboard, true, true);
-                              }
-                            std::cout << "     IDS --> ";
-                            for(auto n : mClipboard)
-                              { // normal alpha
-                                n->setId(NEXT_ID+n->id());
-                                n->setSelected(true);
-                                Vec4f mask = n->getColorMask(); mask.w = 1.0f;
-                                n->setColorMask(mask);
-
-                                //mNodes.emplace(n->id(), n);
-                                addNode(n);
-                              }
-                            doneAdding();
-                            std::cout << "\n";
-                            NEXT_ID += mClipboard.size();
-
-                            std::cout << "NEXT_ID = " << NEXT_ID << "\n";
-                        
-                            mClipboard.clear();
-                            mClipboard = copied;
-                            for(auto n : mClipboard)
-                              { // transparent "ghost" alpha
-                                Vec4f mask = n->getColorMask();
-                                mask.w = GHOST_ALPHA;
-                                n->setColorMask(mask);
-                              }
-                            mChangedSinceSave = true;
-
-                            if(!ImGui::IsKeyDown(GLFW_KEY_LEFT_SHIFT))  // stop pasting unless shift is held
-                              {
-                                mPasting = false;
-                                // hide connections    
-                                for(auto n : mClipboard)
-                                  { n->setShowConnections(false); }
-                              }
-                            else
-                              { } // keep pasting -- enable copied nodes again
-                          }
-                        else
-                          { // not hovered -- cancel pasting
-                            mPasting = false;
-                          }
-                      }
-                  }
-              }
           }
         // right click menu (alternative to keyboard for adding new nodes)
         if(ImGui::BeginPopupContextWindow("nodeGraphContext"))
           {
             if(ImGui::MenuItem("Recenter"))    { mGraphCenter = Vec2f(0,0); }
             if(ImGui::MenuItem("Reset Scale")) { mGraphScale = 1.0f; }
-
-            if(getSelected().size() > 0)
-              {
-                if(ImGui::MenuItem("Cut"))   { cut(); }
-                if(ImGui::MenuItem("Copy"))  { copy(); }
-              }
-            if(mClipboard.size() > 0)
-              {
-                if(ImGui::MenuItem("Paste")) { paste(); }
-              }
-        
-            if(ImGui::BeginMenu("Add Node"))
-              {
-                for(const auto &gIter : NODE_GROUPS)
-                  {
-                    if(ImGui::BeginMenu(gIter.name.c_str()))
-                      {
-                        for(const auto &type : gIter.types)
-                          {
-                            auto nIter = NODE_TYPES.find(type);
-                            if(nIter != NODE_TYPES.end())
-                              {
-                                if(ImGui::MenuItem(nIter->second.name.c_str()))
-                                  { placeNode(nIter->first); }
-                              }
-                          }
-                        ImGui::EndMenu();
-                      }
-                  }
-                ImGui::EndMenu();
-              }
             ImGui::EndPopup();
           }
       }
@@ -1461,9 +1204,8 @@ std::vector<Vec2f> NodeGraph::findOrthogonalPath(const Vec2f &start, const Rect2
   // TODO: avoid other node rects
   for(int i = 0; i < path.size(); i++)
     {
-
+      
     }
-  
   
   return path;
 }
