@@ -1,0 +1,22 @@
+#ifndef HYPERFIELD_CUH
+#define HYPERFIELD_CUH
+
+#include <cuda_runtime.h>
+#include "cudaField.hpp"
+#include "hyperfield.hpp"
+
+
+// hyperfluid.cu
+extern "C" void clearHFluid      (HyperFluid<2> fluid);
+extern "C" void fillHFluidCircle (HyperFluid<2> fluid);
+extern "C" void fillHFluidPattern(HyperFluid<2> fluid);
+extern "C" void advectHyper      (HyperFluid<2> src, HyperFluid<2> dst);
+extern "C" void diffuseHyper     (HyperFluid<2> src, HyperFluid<2> dst);
+extern "C" void projectHyper     (HyperFluid<2> src, HyperFluid<2> dst);
+extern "C" void addForcesHyper   (HyperFluid<2> src, HyperFluid<2> dst);
+extern "C" void updateVelHyper   (HyperFluid<2> src, HyperFluid<2> dst);
+extern "C" void renderHFluid     (HyperFluid<2> src, CudaFieldTex  dst);
+
+
+
+#endif // HYPERFIELD_CUH

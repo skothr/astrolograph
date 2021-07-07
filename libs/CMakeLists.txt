@@ -8,6 +8,7 @@ add_subdirectory(glew-2.1.0/build/cmake)
 add_subdirectory(glfw)
 include_directories(stb)
 include_directories(nfd)
+include_directories(magic_enum)
 # JSON
 set(JSON_BuildTests OFF CACHE INTERNAL "")
 set(JSON_Install OFF CACHE INTERNAL "")

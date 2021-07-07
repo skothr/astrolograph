@@ -71,7 +71,10 @@
 #define IM_VEC2_CLASS_EXTRA                                             \
   ImVec2(const Vec2f& f) { x = f.x; y = f.y; }                          \
   operator Vec2f() const { return Vec2f(x,y); }                         \
-  ImVec2(const Vec2i& f) { x = f.x; y = f.y; }
+  ImVec2(const Vec2i& f) { x = f.x; y = f.y; }                          \
+                                                                        \
+  ImVec2(const Vec2d& f) { x = f.x; y = f.y; }                          \
+  operator Vec2d() const { return Vec2d(x,y); }
 
 #define IM_VEC4_CLASS_EXTRA                                             \
   ImVec4(const Vec4f& f) { x = f.x; y = f.y; z = f.z; w = f.w; }        \

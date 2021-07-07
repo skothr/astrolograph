@@ -4412,7 +4412,7 @@ static void ShowDemoWindowTables()
             ImGuiTableFlags_Resizable | ImGuiTableFlags_Reorderable | ImGuiTableFlags_Hideable | ImGuiTableFlags_MultiSortable
             | ImGuiTableFlags_RowBg | ImGuiTableFlags_BordersOuter | ImGuiTableFlags_BordersV | ImGuiTableFlags_NoBordersInBody
             | ImGuiTableFlags_ScrollY;
-        if (ImGui::BeginTable("##table", 4, flags, ImVec2(0, TEXT_BASE_HEIGHT * 15), 0.0f))
+        if(ImGui::BeginTable("##table", 4, flags, ImVec2(0, TEXT_BASE_HEIGHT * 15), 0.0f))
         {
             // Declare columns
             // We use the "user_id" parameter of TableSetupColumn() to specify a user id that will be stored in the sort specifications.
