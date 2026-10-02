@@ -1,5 +1,4 @@
 #include "nodeGraph.hpp"
-using namespace astro;
 
 #include "glfwKeys.hpp"
 #include "imgui.h"
@@ -11,7 +10,7 @@ using json = nlohmann::json;
 #include "tools.hpp"
 #include "imtools.hpp"
 
-#include "astroWindow.hpp"
+#include "mainWindow.hpp"
 #include "geometry.hpp"
 #include "viewSettings.hpp"
 #include "labelNode.hpp"
@@ -28,6 +27,8 @@ using json = nlohmann::json;
 #include "marketDataNode.hpp"
 #include "moonNode.hpp"
 #include "vedicNode.hpp"
+using namespace astro;
+
 #include "neuralNetNode.hpp"
 
 #include "staticFieldNode.hpp"
@@ -41,67 +42,72 @@ using json = nlohmann::json;
 #include "fieldDelOperators.hpp"
 #include "fieldChannels.hpp"
 
+
 const std::unordered_map<std::string, NodeType> NodeGraph::NODE_TYPES =
-  {{ "LabelNode",          {"LabelNode",          "Label Node",          [](){ return new LabelNode();          }} },
-   { "TimeNode",           {"TimeNode",           "Time Node",           [](){ return new TimeNode();           }} },
-   { "TimeSpanNode",       {"TimeSpanNode",       "Time Span Node",      [](){ return new TimeSpanNode();       }} },
-   { "TimeShiftNode",      {"TimeShiftNode",      "Time Shift Node",     [](){ return new TimeShiftNode();      }} },
-   { "LocationNode",       {"LocationNode",       "Location Node",       [](){ return new LocationNode();       }} },
-   { "ChartNode",          {"ChartNode",          "Chart Node",          [](){ return new ChartNode();          }} },
-   { "ProgressNode",       {"ProgressNode",       "Progress Node",       [](){ return new ProgressNode();       }} },
-   { "ChartViewNode",      {"ChartViewNode",      "Chart View Node",     [](){ return new ChartViewNode();      }} },
-   { "ChartCompareNode",   {"ChartCompareNode",   "Chart Compare Node",  [](){ return new CompareNode();        }} },
-   { "ChartDataNode",      {"ChartDataNode",      "Chart Data Node",     [](){ return new ChartDataNode();      }} },
-   { "AspectNode",         {"AspectNode",         "Aspect Node",         [](){ return new AspectNode();         }} },
-   { "PlotNode",           {"PlotNode",           "Plot Node",           [](){ return new PlotNode();           }} },
-   { "MarketDataNode",     {"MarketDataNode",     "Market Data Node",    [](){ return new MarketDataNode();     }} },
-   { "MoonNode",           {"MoonNode",           "Moon Node",           [](){ return new MoonNode();           }} },
-   { "VedicNode",          {"VedicNode",          "Vedic Node",          [](){ return new VedicNode();          }} },
+  {{ "LabelNode",          {"LabelNode",             "Label Node",          [](){ return new LabelNode();          }} },
+   { "TimeNode",           {"TimeNode",              "Time Node",           [](){ return new TimeNode();           }} },
+   { "TimeSpanNode",       {"TimeSpanNode",          "Time Span Node",      [](){ return new TimeSpanNode();       }} },
+   { "TimeShiftNode",      {"TimeShiftNode",         "Time Shift Node",     [](){ return new TimeShiftNode();      }} },
+   { "LocationNode",       {"LocationNode",          "Location Node",       [](){ return new LocationNode();       }} },
+   { "ChartNode",          {"ChartNode",             "Chart Node",          [](){ return new ChartNode();          }} },
+   { "ProgressNode",       {"ProgressNode",          "Progress Node",       [](){ return new ProgressNode();       }} },
+   { "ChartViewNode",      {"ChartViewNode",         "Chart View Node",     [](){ return new ChartViewNode();      }} },
+   { "ChartCompareNode",   {"ChartCompareNode",      "Chart Compare Node",  [](){ return new CompareNode();        }} },
+   { "ChartDataNode",      {"ChartDataNode",         "Chart Data Node",     [](){ return new ChartDataNode();      }} },
+   { "AspectNode",         {"AspectNode",            "Aspect Node",         [](){ return new AspectNode();         }} },
+   { "PlotNode",           {"PlotNode",              "Plot Node",           [](){ return new PlotNode();           }} },
+   { "MarketDataNode",     {"MarketDataNode",        "Market Data Node",    [](){ return new MarketDataNode();     }} },
+   { "MoonNode",           {"MoonNode",              "Moon Node",           [](){ return new MoonNode();           }} },
+   { "VedicNode",          {"VedicNode",             "Vedic Node",          [](){ return new VedicNode();          }} },
    
    // fields
-   { "NeuralNetNode",      {"NeuralNetNode",      "Neural Net Node",     [](){ return new NeuralNetNode();      }} },
-   { "FieldViewNode",      {"FieldViewNode",      "Field View Node",     [](){ return new FieldViewNode();      }} },
-   { "FieldChannelViewNode",{"FieldChannelViewNode","Field Channel View Node",[](){ return new FieldChannelViewNode(); }} },
-   { "FFTNode",            {"FFTNode",            "FFT Node",            [](){ return new FFTNode();            }} },
-   { "FluidNode",          {"FluidNode",          "Fluid Node",          [](){ return new FluidNode();          }} },
-   { "HyperFluidNode",     {"HyperFluidNode",     "Hyper Fluid Node",    [](){ return new HyperFluidNode();     }} },
-   { "MandelbrotNode",     {"MandelbrotNode",     "Mandelbrot Node",     [](){ return new MandelbrotNode();     }} },
+   { "NeuralNetNode",      {"NeuralNetNode",         "Neural Net Node",     [](){ return new NeuralNetNode();      }} },
+   { "FieldViewNode",      {"FieldViewNode",         "Field View Node",     [](){ return new FieldViewNode();      }} },
+   { "FieldChannelViewNode",{"FieldChannelViewNode", "Channel View Node",   [](){ return new FieldChannelViewNode(); }} },
+   { "FFTNode",            {"FFTNode",               "FFT Node",            [](){ return new FFTNode();            }} },
+   { "FluidNode",          {"FluidNode",             "Fluid Node",          [](){ return new FluidNode();          }} },
+   { "HyperFluidNode",     {"HyperFluidNode",        "Hyper Fluid Node",    [](){ return new HyperFluidNode();     }} },
+   { "MandelbrotNode",     {"MandelbrotNode",        "Mandelbrot Node",     [](){ return new MandelbrotNode();     }} },
+
+   // modular fluids (TODO)
    // { "FluidStateNode",     {"FluidStateNode",     "Fluid State Node",    [](){ return new FluidStateNode();     }} },
    // { "StaticFieldNode",    {"StaticFieldNode",    "Static Field Node",   [](){ return new StaticFieldNode();    }} },
    
    // field operators
-   { "FieldAddNode",       {"FieldAddNode",       "Field Add Node",      [](){ return new FieldAddNode();       }} },
-   { "FieldAbsNode",       {"FieldAbsNode",       "Field Abs Node",      [](){ return new FieldAbsNode();       }} },
-   { "FieldLogNode",       {"FieldLogNode",       "Field Log Node",      [](){ return new FieldLogNode();       }} },
-   { "FieldExpNode",       {"FieldExpNode",       "Field Exp Node",      [](){ return new FieldExpNode();       }} },
-   { "FieldMultNode",      {"FieldMultNode",      "Field Mult Node",     [](){ return new FieldMultNode();      }} },
-   { "FieldNegNode",       {"FieldNegNode",       "Field Negate Node",   [](){ return new FieldNegNode();       }} },
-   { "FieldMaxNode",       {"FieldMaxNode",       "Field Max Node",      [](){ return new FieldMaxNode();       }} },
-   { "FieldNormNode",      {"FieldNormNode",      "Field Norm Node",     [](){ return new FieldNormNode();      }} },
+   { "FieldAddNode",       {"FieldAddNode",          "Field Add Node",      [](){ return new FieldAddNode();       }} },
+   { "FieldAbsNode",       {"FieldAbsNode",          "Field Abs Node",      [](){ return new FieldAbsNode();       }} },
+   { "FieldLogNode",       {"FieldLogNode",          "Field Log Node",      [](){ return new FieldLogNode();       }} },
+   { "FieldExpNode",       {"FieldExpNode",          "Field Exp Node",      [](){ return new FieldExpNode();       }} },
+   { "FieldMultNode",      {"FieldMultNode",         "Field Mult Node",     [](){ return new FieldMultNode();      }} },
+   { "FieldNegNode",       {"FieldNegNode",          "Field Negate Node",   [](){ return new FieldNegNode();       }} },
+   { "FieldMaxNode",       {"FieldMaxNode",          "Field Max Node",      [](){ return new FieldMaxNode();       }} },
+   { "FieldNormNode",      {"FieldNormNode",         "Field Norm Node",     [](){ return new FieldNormNode();      }} },
 
    // channels
-   { "ChannelSplitNode",     {"ChannelSplitNode",     "Channel Split Node",    [](){ return new ChannelSplitNode();     }} },
-   { "ChannelCombineNode",   {"ChannelCombineNode",   "Channel Combine Node",  [](){ return new ChannelCombineNode();   }} },
+   { "ChannelSplitNode",     {"ChannelSplitNode",    "Channel Split Node",    [](){ return new ChannelSplitNode();     }} },
+   { "ChannelCombineNode",   {"ChannelCombineNode",  "Channel Combine Node",  [](){ return new ChannelCombineNode();   }} },
    
    // ∇
-   { "FieldGradNode",      {"FieldGradNode",      "Field Gradient Node", [](){ return new FieldGradNode();      }} },
+   { "FieldGradNode",      {"FieldGradNode",         "Field Gradient Node", [](){ return new FieldGradNode();      }} },
    // { "FieldDDerivNode",    {"FieldDDerivNode",    "Field DDeriv Node",   [](){ return new FieldDDerivNode();    }} },
-   { "FieldDivNode",       {"FieldDivNode",       "Field Div Node",      [](){ return new FieldDivNode();       }} },
-   { "FieldCurlNode",      {"FieldCurlNode",      "Field Curl Node",     [](){ return new FieldCurlNode();      }} },
+   { "FieldDivNode",       {"FieldDivNode",          "Field Divergence Node",[](){ return new FieldDivNode();       }} },
+   { "FieldCurlNode",      {"FieldCurlNode",         "Field Curl Node",     [](){ return new FieldCurlNode();      }} },
   };
 
 const std::vector<NodeGroup> NodeGraph::NODE_GROUPS =
   { {"Basic",         { "LabelNode" }},
-    {"Parameter",     { "TimeNode", "LocationNode", "TimeSpanNode", "TimeShiftNode" }},
-    {"Calculation",   { "ChartNode", "ProgressNode" }},
-    {"Visualization", { "ChartViewNode", "ChartCompareNode", "ChartDataNode", "AspectNode", "MoonNode" }},
-    {"Fields",        { "NeuralNetNode", "FieldViewNode", "FieldChannelViewNode",
-                        "StaticFieldNode", "FluidNode", "MandelbrotNode", }},
-    {"Channels",      { "ChannelSplitNode", "ChannelCombineNode", }},
-    {"Operators",     { "FieldAddNode", "FieldMultNode", "FieldNegNode", "FieldAbsNode", "FieldMaxNode", "FieldNormNode",
-                        "FieldLogNode", "FieldExpNode", "FieldGradNode", "FieldDivNode", "FieldCurlNode", "FFTNode" }},
-    {"Modular Fluid", { "FluidStateNode"}},
-    {"WIP",           { "PlotNode", "MarketDataNode", "VedicNode" }},
+    {"Data Input",    { "MarketDataNode" }},
+    {"Parameter",     { "TimeNode",  "LocationNode", "TimeSpanNode", "TimeShiftNode" }},
+    {"Calculation",   { "ChartNode", "ProgressNode", "VedicNode" }},
+    {"Visualization", { "ChartViewNode", "ChartCompareNode", "ChartDataNode", "AspectNode", "PlotNode", "MoonNode" }},
+    {"NN",            { "NeuralNetNode" }},
+    {"Field",         { "FieldViewNode",    "FieldChannelViewNode", "FluidNode", "MandelbrotNode", }},
+    {"Channel",       { "ChannelSplitNode", "ChannelCombineNode", }},
+
+    {"Operator",      { "FieldAddNode", "FieldMultNode", "FieldNegNode",  "FieldAbsNode", "FieldMaxNode",  "FieldNormNode",
+                        "FieldLogNode", "FieldExpNode",  "FieldGradNode", "FieldDivNode", "FieldCurlNode", "FFTNode" }},
+    // {"Modular Fluid", { "FluidStateNode", "StaticFieldNode" }}, // TODO
+    {"WIP",           {  }},
   };
 
 Node* NodeGraph::makeNode(const std::string &nodeType)
@@ -111,20 +117,17 @@ Node* NodeGraph::makeNode(const std::string &nodeType)
   else                         { return nullptr; }
 }
 
-NodeGraph::NodeGraph(AstroWindow *window, ViewSettings *viewSettings)
+NodeGraph::NodeGraph(MainWindow *window, ViewSettings *viewSettings)
   : mWindow(window), mViewSettings(viewSettings)
 {
   mAddNodeJSON = new json;
   *mAddNodeJSON = json::array();
-
-  //mQuad = new QuadTree<Node>();
 }
 
 NodeGraph::~NodeGraph()
 {
   clear();
   if(mAddNodeJSON)  { delete mAddNodeJSON; }
-  //if(mQuad)       { delete mQuad;        }
 }
 
 //// JSON CONVERSION ////
@@ -215,7 +218,6 @@ bool NodeGraph::fromJSON(json js)
                   n->setGraph(this);
                   n->fromJSON(jsn);
                   mNodes.emplace(n->id(), n);
-                  //mQuad->add(n, n->pos());
                 }
             }
         }
@@ -277,8 +279,6 @@ void NodeGraph::addNode(Node *n, bool select)
       
       n->setGraph(this);
       mNodes.emplace(n->id(), n);
-      //mQuad->add(n, n->pos());
-      //std::cout << *mQuad << "\n";
       if(select) { deselectAll(); n->setSelected(true); }
 
       // normal alpha
@@ -312,7 +312,7 @@ void NodeGraph::removeNodes(std::vector<Node*> &nodes, bool deleteNodes)
 {
   for(auto n : nodes)
     {
-      mNodes.erase(n->id()); //mQuad->erase(n);
+      mNodes.erase(n->id());
       if(deleteNodes) { delete n; }
     }
 }
@@ -324,7 +324,6 @@ void NodeGraph::clear()
   for(auto n : mNodes) { delete n.second; }
   mNodes.clear();
   mNodes = std::unordered_map<int, Node*>(); // clear nodes and free allocation (?)
-  //mQuad->clear();
   NEXT_ID = 0;
   mGraphCenter = Vec2f(0,0);
   mGraphScale  = 1.0f;
@@ -356,16 +355,13 @@ bool NodeGraph::undo()
                   {
                     removed.push_back(iter->second->toJSON());
                     delete iter->second;
-                    //mQuad->erase(mNodes[id]);
                     mNodes.erase(id);
                   }
                 else { std::cout << "WARNING: Could not find node to remove! (" << id << ")\n"; }
               }
             
             if(removed.size() > 0)
-              {
-                mRedoStack.push_back(Action{ACTION_ADD_NODES, removed});
-              }
+              { mRedoStack.push_back(Action{ACTION_ADD_NODES, removed}); }
           }
           break;
         case ACTION_MOVE_NODES:
@@ -430,7 +426,6 @@ bool NodeGraph::redo()
                             n->fromJSON(jsn);
                             added.push_back(n->id());
                             mNodes.emplace(n->id(), n);
-                            //mQuad->add(n, n->pos());
                           }
                       }
                   }
@@ -631,18 +626,16 @@ void NodeGraph::disconnectExternal(const std::vector<Node*> &group, bool disconn
   std::cout << "  DISCONNECTING EXTERNAL NODES...\n";
   for(auto n : group)
     {
-      // loop through input connections
       if(disconnectInputs)
-        {
+        { // inputs
           for(auto c : n->getInputConnections())
             {
               if(std::find(group.begin(), group.end(), mNodes[c.nodeOut]) == group.end())
                 { n->inputs()[c.conIn]->disconnect(mNodes[c.nodeOut]->outputs()[c.conOut]); }
             }
         }
-      // loop through output connections
       if(disconnectOutputs)
-        {
+        { // outputs
           for(auto c : n->getOutputConnections())
             {
               if(std::find(group.begin(), group.end(), mNodes[c.nodeIn]) == group.end())
@@ -667,7 +660,6 @@ void NodeGraph::copySelected()
           n->bringToFront();
           n->setId(NEXT_ID+n->id());
           mNodes.emplace(n->id(), n);
-          //mQuad->add(n, n->pos());
           //addNode(n, false);
           js.push_back(n->toJSON());
         }
@@ -687,7 +679,7 @@ Node* NodeGraph::groupNodes(const std::vector<Node*> &nodes)
   for(auto n : nodes)
     {
       if(mNodes.find(n->id()) != mNodes.end())
-        { mNodes.erase(n->id()); }//mQuad->erase(n); }
+        { mNodes.erase(n->id()); }
     }
   return new GroupNode(nodes);
 }
@@ -702,7 +694,7 @@ std::vector<Node*> NodeGraph::ungroupNodes(const std::vector<Node*> &nodes)
         {
           // remove group nodes from graph node list (handled by GroupNode)
           if(mNodes.find(n->id()) != mNodes.end())
-            { mNodes.erase(n->id()); }//mQuad->erase(n); }
+            { mNodes.erase(n->id()); }
           // pop contents
           std::vector<Node*> contents = ((GroupNode*)n)->popContents();
           ungrouped.insert(ungrouped.end(), contents.begin(), contents.end());
@@ -761,6 +753,7 @@ void NodeGraph::setPos(const Vec2f &p)
   if(mDrawing) { ImGui::SetWindowPos(p); }
   else         { ImGui::SetNextWindowPos(p); BeginDraw(); EndDraw(); }
 }
+
 void NodeGraph::setSize(const Vec2f &s)
 {
   mViewSize = Vec2f(s.x, s.y);
@@ -768,40 +761,192 @@ void NodeGraph::setSize(const Vec2f &s)
   else         { ImGui::SetNextWindowSize(s); BeginDraw(); EndDraw(); }
 }
 
-void NodeGraph::drawLines(ImDrawList *drawList)
-{
-  Vec2f graphTL = screenToGraph(mViewPos);           // graph coordinates of top-left corner of view
-  Vec2f graphBR = screenToGraph(mViewPos+mViewSize); // graph coordinates of bottom-right corner of view
-  Vec2f gViewSize = screenToGraphVec(mViewSize);     // size of nodegraph view in graph space
-  Vec2f firstOffset; // offset to draw initial line
 
-  if(graphTL.x > 0.0f) { firstOffset.x = mViewSettings->graphLineSpacing.x-fmod(graphTL.x, mViewSettings->graphLineSpacing.x); }
-  else                 { firstOffset.x = fmod(abs(graphTL.x), mViewSettings->graphLineSpacing.x); }
-  if(graphTL.y > 0.0f) { firstOffset.y = mViewSettings->graphLineSpacing.y-fmod(graphTL.y, mViewSettings->graphLineSpacing.y); }
-  else                 { firstOffset.y = fmod(abs(graphTL.y), mViewSettings->graphLineSpacing.y); }
-  // draw grid lines
-  if(mViewSettings->drawGraphLines)
-    {  
-      for(float x = firstOffset.x; x < gViewSize.x; x += mViewSettings->graphLineSpacing.x)
-        {
-          drawList->AddLine(graphToScreen(Vec2f(graphTL.x + x, graphTL.y)), graphToScreen(Vec2f(graphTL.x + x, graphBR.y)),
-                            ImColor(mViewSettings->graphLineColor), mViewSettings->graphLineWidth);
-        }
-      for(float y = firstOffset.y; y < gViewSize.y; y += mViewSettings->graphLineSpacing.y)
-        {
-          drawList->AddLine(graphToScreen(Vec2f(graphTL.x, graphTL.y + y)), graphToScreen(Vec2f(graphBR.x, graphTL.y + y)),
-                            ImColor(mViewSettings->graphLineColor), mViewSettings->graphLineWidth);
-        }
-    }
-  // draw axes
-  if(mViewSettings->drawGraphAxes)
+
+//// INPUT ////
+
+void NodeGraph::handleInput()
+{
+  if(!mLocked)
     {
-      drawList->AddLine(graphToScreen(Vec2f(0.0f, graphTL.y)), graphToScreen(Vec2f(0.0f, graphBR.y)),
-                        ImColor(mViewSettings->graphAxesColor), mViewSettings->graphLineWidth);
-      drawList->AddLine(graphToScreen(Vec2f(graphTL.x, 0.0f)), graphToScreen(Vec2f(graphBR.x, 0.0f)),
-                        ImColor(mViewSettings->graphAxesColor), mViewSettings->graphLineWidth);
+      ImGuiIO &io = ImGui::GetIO();
+      Rect2f gRect = screenToGraph(Rect2f(mViewPos, mViewPos + mViewSize)); // view bounds in graph space
+      
+      // mouse info
+      Vec2f mp  = ImGui::GetMousePos(); // mouse pos in screen space
+      Vec2f gmp = screenToGraph(mp);    // mouse pos in graph space
+      bool  lbClick = ImGui::IsMouseClicked(ImGuiMouseButton_Left  ); // click --> true if button newly pressed
+      bool  mbClick = ImGui::IsMouseClicked(ImGuiMouseButton_Middle);
+      bool  lbDown  = ImGui::IsMouseDown(ImGuiMouseButton_Left  );    // down  --> true if button held
+      bool  mbDown  = ImGui::IsMouseDown(ImGuiMouseButton_Middle);
+
+      bool overGraph = isHovered();              // true if mouse is over graph window
+      bool bgHover   = ImGui::IsWindowHovered(); // true if mouse is directly over graph background
+      bool placingNode = (mWindow->isPasting() || mWindow->isPlacing()); // true if adding a node
+
+
+      // check if mouse is hovering over a node, or if node UI is active
+      //  TODO: already class member?
+      bool nodeActive = false;
+      bool nodeHover  = false;
+      for(auto n : mNodes)
+        {
+          nodeActive |= n.second->isActive();
+          nodeHover  |= n.second->isHovered() || n.second->rect().intersection(gRect).contains(gmp);
+        }
+
+
+      
+      // ESCAPE key --> deselect all nodes
+      if(ImGui::IsKeyPressed(GLFW_KEY_ESCAPE)) { deselectAll(); }
+      
+      // DELETE key --> delete selected nodes (unless interacting, e.g. for text input)
+      if(!nodeActive && ImGui::IsKeyPressed(GLFW_KEY_DELETE))
+        {
+          for(auto n : mSelectedNodes) { mNodes.erase(n->id()); delete n; mUnsavedChanges = true; }
+          mSelectedNodes.clear();
+        }
+
+      // stop panning if mouse released (unconditionally)
+      if(mPanning && !(lbDown || mbDown)) { mPanning  = false; mPanClick = gmp; }
+      // stop selecting if mouse released (unconditionally)
+      if(mSelecting && !lbDown) { mSelecting = false; mSelectAnchor = Vec2f(); mSelectRect = Rect2f(); }
+
+      
+      if(!nodeActive)
+        {
+          if(!placingNode)
+            {
+              if(bgHover)
+                { // mouse directly over background
+                  if(mbClick || (io.KeyShift && lbClick))
+                    { // pan view center (middle click-drag or SHIFT + left click-drag)
+                      mPanning  = true;
+                      mPanClick = gmp;
+                      ImGui::ResetMouseDragDelta(lbClick ? ImGuiMouseButton_Left : ImGuiMouseButton_Middle);
+                    }
+                  else if(!mSelecting && lbClick)
+                    { // start drawing selection rectangle
+                      mSelecting = true;
+                      mSelectAnchor  = screenToGraph(ImGui::GetMousePos());
+                      mSelectRect.p1 = mSelectAnchor;
+                      mSelectRect.p2 = mSelectAnchor;
+                      if(!io.KeyCtrl) { deselectAll(); }
+                    }
+                }
+              
+            }
+          else
+            { // placing or pasting new node
+              if(mbClick)
+                { // pan view center (only middle click-drag, shift used to multi-paste)
+                  mPanning = true;
+                  mPanClick = gmp;
+                  ImGui::ResetMouseDragDelta(lbClick ? ImGuiMouseButton_Left : ImGuiMouseButton_Middle);
+                }
+              if(mPanning && !mbDown)
+                {
+                  mPanning = false;
+                  mPanClick = gmp;
+                } // stop panning
+            }
+
+        }
+
+      if(mSelecting)
+        { // selection rect (click+drag)
+          if(ImGui::IsMouseDragging(ImGuiMouseButton_Left))
+            {
+              Rect2f select(Vec2f(std::min(mSelectAnchor.x, gmp.x), std::min(mSelectAnchor.y, gmp.y)),
+                            Vec2f(std::max(mSelectAnchor.x, gmp.x), std::max(mSelectAnchor.y, gmp.y)));
+              mSelectRect = select.fixed().intersection(gRect);
+            }
+          // select nodes that intersect selection rect
+          for(auto n : mNodes) { n.second->setSelected((n.second->isSelected() && io.KeyCtrl) || n.second->rect().intersects(mSelectRect)); }
+          
+          // draw selection rect in foreground
+          ImGui::GetForegroundDrawList()->AddRect(graphToScreen(mSelectRect.p1), graphToScreen(mSelectRect.p2),
+                                                  ImColor(Vec4f(1.0f,1.0f,1.0f,0.5f)), 0.0f, ImDrawCornerFlags_All, 3.0f);
+        }
+
+
+      
+      
+      if(overGraph && !nodeActive)
+        {
+          // PANNING
+          if(mPanning)
+            { // pan view (shift+click+drag, or middleclick+drag)
+              bool lDrag = ImGui::IsMouseDragging(ImGuiMouseButton_Left);
+              bool mDrag = ImGui::IsMouseDragging(ImGuiMouseButton_Middle);
+              if(lDrag || mDrag)
+                {
+                  mGraphCenter += screenToGraphVec(ImGui::GetMouseDragDelta(lDrag ? ImGuiMouseButton_Left : ImGuiMouseButton_Middle));
+                  ImGui::ResetMouseDragDelta(lDrag ? ImGuiMouseButton_Left : ImGuiMouseButton_Middle);
+                }
+            }
+      
+          // MOUSE SCROLL --> zoom/scale graph view
+          if(io.KeyCtrl && std::abs(io.MouseWheel) > 0.0f)
+            {
+              mScaling = true;
+              float vel = GRAPH_SCALE_VEL;
+          
+              float oldScale = mGraphScale;
+              mGraphScale *= (io.MouseWheel > 0.0f ? vel : 1.0f/vel);
+              mGraphScale = std::min(GRAPH_SCALE_MAX, std::max(mGraphScale, GRAPH_SCALE_MIN));
+              
+              // adjust center so gmp remains constant
+              Vec2f gmpNew = screenToGraph(mp);
+              mGraphCenter += gmpNew - gmp;
+              gmp = gmpNew;
+              
+              // TODO: framerate independent scaling!
+              // std::chrono::high_resolution_clock::time_point t = std::chrono::high_resolution_clock::now();
+              // float dt = 1.0f/30.0f;
+              // if(mScaling)
+              //   {
+              //     dt = mDt; //std::chrono::duration_cast<std::chrono::nanoseconds>(t - mLastT).count()/1000000000.0f;
+              //     Vec2f mposOld = screenToGraph(ImGui::GetMousePos());
+              //     float scaleOld = mGraphScale;
+              //     float vel = 1.0f + std::max(-0.25f, std::min(0.25f, (1.0f - GRAPH_SCALE_VEL)*((float)dt)*50.0f));
+              //     mGraphScale *= (io.MouseWheel > 0.0f ? 1.0f/vel : vel);
+              //     mGraphScale = std::min(GRAPH_SCALE_MAX, std::max(mGraphScale, GRAPH_SCALE_MIN));                
+              //     // center scaling on mouse
+              //     Vec2f mposNew = screenToGraph(ImGui::GetMousePos());
+              //     mGraphCenter += mposNew-mposOld;
+              //   }
+              // else
+              //   {
+              //     dt = std::chrono::duration_cast<std::chrono::nanoseconds>(t - mLastT).count()/1000000000.0f;
+              //     //std::chrono::high_resolution_clock::now();
+              //     mScaling = true; 
+              //   }
+              // mLastT = t;
+              // // else
+              // //   {
+              // //     std::chrono::high_resolution_clock::time_point t = std::chrono::high_resolution_clock::now();
+              // //     float dt = std::chrono::duration_cast<std::chrono::nanoseconds>(t - mLastT).count()/1000000000.0;
+              // //     mLastT = t;
+              // //   }
+            }
+          else { mScaling = false; }
+        }
+
+      
+      // right click over background --> context menu
+      if(!nodeActive && ImGui::BeginPopupContextWindow("nodeGraphContext"))
+        {
+          if(ImGui::MenuItem("Recenter"))    { mGraphCenter = Vec2f(0,0); }
+          if(ImGui::MenuItem("Reset Scale")) { mGraphScale = 1.0f; }
+          ImGui::EndPopup();
+        }
     }
 }
+
+
+
+//// DRAWING ////
 
 void NodeGraph::BeginDraw()
 {
@@ -836,6 +981,250 @@ void NodeGraph::EndDraw()
   g_contextsOpen = 0;
 }
 
+void NodeGraph::drawGrid(ImDrawList *drawList)
+{
+  Vec2f graphTL   = screenToGraph(mViewPos);           // graph coordinates of top-left corner of view
+  Vec2f graphBR   = screenToGraph(mViewPos+mViewSize); // graph coordinates of bottom-right corner of view
+  Vec2f gViewSize = screenToGraphVec(mViewSize);       // size of nodegraph view in graph space
+  Vec2f firstOffset; // offset to draw initial line
+
+  if(graphTL.x > 0.0f) { firstOffset.x = mViewSettings->graphLineSpacing.x-fmod(graphTL.x, mViewSettings->graphLineSpacing.x); }
+  else                 { firstOffset.x = fmod(abs(graphTL.x), mViewSettings->graphLineSpacing.x); }
+  if(graphTL.y > 0.0f) { firstOffset.y = mViewSettings->graphLineSpacing.y-fmod(graphTL.y, mViewSettings->graphLineSpacing.y); }
+  else                 { firstOffset.y = fmod(abs(graphTL.y), mViewSettings->graphLineSpacing.y); }
+  // draw grid lines
+  if(mViewSettings->drawGraphLines)
+    {  
+      for(float x = firstOffset.x; x < gViewSize.x; x += mViewSettings->graphLineSpacing.x)
+        {
+          drawList->AddLine(graphToScreen(Vec2f(graphTL.x + x, graphTL.y)), graphToScreen(Vec2f(graphTL.x + x, graphBR.y)),
+                            ImColor(mViewSettings->graphLineColor), mViewSettings->graphLineWidth);
+        }
+      for(float y = firstOffset.y; y < gViewSize.y; y += mViewSettings->graphLineSpacing.y)
+        {
+          drawList->AddLine(graphToScreen(Vec2f(graphTL.x, graphTL.y + y)), graphToScreen(Vec2f(graphBR.x, graphTL.y + y)),
+                            ImColor(mViewSettings->graphLineColor), mViewSettings->graphLineWidth);
+        }
+    }
+  // draw axes
+  if(mViewSettings->drawGraphAxes)
+    {
+      drawList->AddLine(graphToScreen(Vec2f(0.0f, graphTL.y)), graphToScreen(Vec2f(0.0f, graphBR.y)),
+                        ImColor(mViewSettings->graphAxesColor), mViewSettings->graphLineWidth);
+      drawList->AddLine(graphToScreen(Vec2f(graphTL.x, 0.0f)), graphToScreen(Vec2f(graphBR.x, 0.0f)),
+                        ImColor(mViewSettings->graphAxesColor), mViewSettings->graphLineWidth);
+    }
+}
+
+void NodeGraph::drawNodes(const std::vector<std::pair<int, Node*>> &nodes)
+{
+  // draw node connections (drawn underneath node UIs)
+  Node *hoveredNode = getHovered();
+  float connectedW  = 3.0f*mGraphScale; // line width while connected
+  float connectingW = 1.5f*mGraphScale; // line width while actively dragging and making connection
+  Vec2f gmp         = screenToGraph(ImGui::GetMousePos()); // mouse pos in graph space
+  ImDrawList *fgDrawList = ImGui::GetForegroundDrawList();
+  fgDrawList->_FringeScale = mGraphScale;
+  
+  std::vector<ConnectionPath> paths;
+  std::vector<ConnectorBase*> cActive;
+  std::vector<ConnectorBase*> cInactive;
+  
+  // find all active connections
+  for(auto iter : nodes)
+    {
+      Node *n = iter.second;
+      Rect2f nRect = n->rect();
+      for(auto c1 : n->connectors())
+        {
+          Vec2f mp          = gmp;
+          Vec2f offsetPos   = c1->graphPos;
+          Vec2f protrudePos = c1->getProtrudePos();
+          bool  activePaths = false;
+          
+          if(c1->isConnecting())
+            { // connector is actively being connected via mouse
+              activePaths = true;
+              Rect2f rect = Rect2f(mp, mp);
+              ConnectorBase *c2 = nullptr; // by default, just find a path to the mouse
+              if(hoveredNode && hoveredNode != n && hoveredNode->connectingTo())
+                { // snap the connection to this connector instead of mouse
+                  c2 = hoveredNode->connectingTo();
+                  if(c2 != c1 && c1->typeValid(c2) && c2->direction() != c1->direction())
+                    {
+                      rect = hoveredNode->rect();
+                      mp   = c2->graphPos;
+                    }
+                }
+              if(c1->direction() == CONNECTOR_OUTPUT)
+                { paths.push_back(ConnectionPath{ c1, c2, offsetPos, mp, nRect, rect, c1->getLineColor() }); }
+              else
+                { paths.push_back(ConnectionPath{ c2, c1, mp, offsetPos, rect, nRect, c1->getLineColor() }); }
+            }
+          if(c1->isConnected())
+            { // connector has established connection(s)
+              activePaths = true;
+              if(c1->direction() == CONNECTOR_OUTPUT)
+                {
+                  for(auto c2 : c1->getConnected())
+                    {
+                      if(!c2->parent()->getShowConnections()) { continue; }
+                      Vec2f offsetPos2 = c2->graphPos;
+                      Vec2f protrudePos2 = c2->getProtrudePos();
+                      if(c1->direction() == CONNECTOR_OUTPUT)
+                        { paths.push_back(ConnectionPath{ c1, c2, offsetPos, offsetPos2, nRect, c2->parent()->rect(), c1->getLineColor() }); }
+                      else
+                        { paths.push_back(ConnectionPath{ c2, c1, offsetPos2, offsetPos, c2->parent()->rect(), nRect, c1->getLineColor() }); }
+                    }
+                }
+            }
+          if(activePaths) { cActive.push_back(c1);   }
+          else            { cInactive.push_back(c1); }
+        }
+    }
+
+  // [...?]
+    
+  // draw active connection paths
+  for(auto &p : paths)
+    {
+      // find suitable path (TODO: improve)
+      std::vector<Vec2f> connectLines = findOrthogonalPath(p.p1, p.r1, p.p2, p.r2, p.c1 ? p.c1->direction() : CONNECTOR_OUTPUT);
+      // draw connection path
+      for(int i = 0; i < connectLines.size()-1; i++)
+        { mWinDrawList->AddLine(graphToScreen(connectLines[i]), graphToScreen(connectLines[i+1]), ImColor(p.color), connectedW); }
+      // draw dot on connection endpoint
+      Vec4f dotColor = p.c2 ? p.c2->getDotColor() : p.c1->getDotColor();
+      for(int i = 1; i < connectLines.size()-1; i++)
+        { mWinDrawList->AddCircleFilled(graphToScreen(connectLines[i]), 3.0f*mGraphScale, ImColor(dotColor), 32); }
+    }
+    
+  // draw nodes
+  bool posChanged = false;
+  for(int i = 0; i < nodes.size(); i++) // draw from back to front
+    {
+      Node *n = nodes[i].second;
+      Vec2f p0 = n->pos();
+      nodes[i].second->draw(mWinDrawList, mBlocked[i]);
+      Vec2f p1 = n->pos();
+
+      if(p1 != p0) { posChanged = true; }
+        
+      if(mShowIds)
+        {
+          ImGui::SetCursorPos(graphToScreen(nodes[i].second->pos()) - mViewPos - Vec2f(0.0f, 20.0f));
+          ImGui::Text("%d", nodes[i].second->id());
+        }
+    }
+
+  // draw dots, and overlay active connections over node drawlist
+  ConnectorBase *nConnecting = getConnectingFrom();
+  for(auto c : cInactive)
+    {
+      Node *n = c->parent();
+      if(c->isConnecting() || c->isConnected() || (hoveredNode && c == hoveredNode->connectingTo() && nConnecting && c->direction() != nConnecting->direction()))
+        {
+          Rect2f sRect = graphToScreen(n->rect());
+          n->BeginDraw();
+          Rect2f graphRect  = Rect2f(mViewPos, mViewPos + mViewSize);
+          Rect2f borderRect = sRect.expanded(n->getBorderWidth()/2.0f*mGraphScale);
+          ImGui::PushClipRect(graphRect.p1.getFloor(),  graphRect.p2.getCeil(),  false); // extend clipping to full graph
+          ImGui::PushClipRect(borderRect.p1.getFloor(), borderRect.p2.getCeil(), true);  // clamp to border around node
+          n->drawList()->AddLine(graphToScreen(c->graphPos), graphToScreen(c->getProtrudePos()), ImColor(c->getLineColor()), connectedW);
+          ImGui::PopClipRect(); ImGui::PopClipRect();
+          n->EndDraw();
+        }
+      n->drawList()->AddCircleFilled(graphToScreen(c->graphPos), CONNECTOR_POINT_RADIUS*mGraphScale, ImColor(c->getDotColor()), 32);
+    }
+  for(auto c : cActive)
+    {
+      Node *n = c->parent();
+      if(c->isConnecting() || c->isConnected() || (hoveredNode && c == hoveredNode->connectingTo() && nConnecting && c->direction() != nConnecting->direction()))
+        {
+          Rect2f sRect = graphToScreen(n->rect());
+          n->BeginDraw();
+          Rect2f graphRect  = Rect2f(mViewPos, mViewPos + mViewSize);
+          Rect2f borderRect = sRect.expanded(n->getBorderWidth()/2.0f*mGraphScale);
+          ImGui::PushClipRect(graphRect.p1.getFloor(),  graphRect.p2.getCeil(),  false); // extend clipping to full graph
+          ImGui::PushClipRect(borderRect.p1.getFloor(), borderRect.p2.getCeil(), true);  // clamp to border around node
+          n->drawList()->AddLine(graphToScreen(c->graphPos), graphToScreen(c->getProtrudePos()), ImColor(c->getLineColor()), connectedW);
+          ImGui::PopClipRect(); ImGui::PopClipRect();
+          n->EndDraw();
+        }
+      n->drawList()->AddCircleFilled(graphToScreen(c->graphPos), CONNECTOR_POINT_RADIUS*mGraphScale, ImColor(c->getDotColor()), 32);
+    }
+}
+
+void NodeGraph::draw()
+{
+  BeginDraw();
+  {
+    Rect2f gRect = screenToGraph(Rect2f(mViewPos, mViewPos + mViewSize));
+    Vec2f  gmp   = screenToGraph(ImGui::GetMousePos());
+    
+    mWinDrawList = ImGui::GetWindowDrawList();
+    ImDrawList *fgDrawList = ImGui::GetForegroundDrawList();
+    mWinDrawList->_FringeScale = getScale();
+    fgDrawList->_FringeScale   = getScale();
+    
+    // apply user input
+    handleInput();
+    
+    // reset click copy flag if mouse released
+    if(ImGui::IsMouseReleased(ImGuiMouseButton_Left)) { mClickCopied = false; }
+    
+    // keep track of whether graph view was the last thing clicked (NOTE: hovering to bring in focus?) TODO: rename to "mFocused"
+    if(ImGui::IsMouseClicked(ImGuiMouseButton_Left)) { mInFocus = isHovered(); }
+    else if(isHovered()) { mInFocus = true; }
+
+    // fix node positions (no overlapping) -- TODO(?)
+    fixPositions();
+    
+    // update list of selected nodes
+    mSelectedNodes.clear();
+    for(auto n : mNodes)
+      { if(n.second->isSelected()) { mSelectedNodes.push_back(n.second); } }
+    // move selected nodes to front
+    if(!mSelecting) { for(auto n : mSelectedNodes) { n->bringToFront(); } }
+    
+    // sort nodes by z order
+    std::vector<std::pair<int, Node*>> sorted(mNodes.begin(), mNodes.end());
+    std::sort(sorted.begin(), sorted.end(),
+              [](const std::pair<int, Node*> &n1, const std::pair<int, Node*> &n2) -> bool
+              { return (n1.second->getZ() < n2.second->getZ()) || (n1.second->getZ() == n2.second->getZ() && n1.first < n2.first); });
+    // clean up z ordering
+    for(int i = 0; i < sorted.size(); i++) { sorted[i].second->setZ(i); }
+    
+    // block input to nodes behind topmost
+    mBlocked.clear();
+    mBlocked.resize(sorted.size(), false);
+    bool mouseBlocked = false;
+    for(int i = sorted.size()-1; i >= 0; i--)
+      {
+        Node *n = sorted[i].second;
+        bool b = n->rect().expanded(-1.0f).contains(gmp);
+        mBlocked[i] = mouseBlocked;
+        mouseBlocked |= b;
+      }
+    // check for mouse hovering over node (topmost only)
+    mHoveredNode = nullptr;
+    for(int i = 0; i < sorted.size(); i++) // sort from back to front for drawing (TODO: improve ordering system)
+      {
+        Node *n = sorted[i].second;
+        if(!mBlocked[i] && n->rect().contains(gmp)) { mHoveredNode = n; }
+      }    
+    
+    // draw background grid and nodes
+    drawGrid(mWinDrawList);    
+    drawNodes(sorted);
+  }
+  EndDraw();
+}
+
+
+
+
+//// UPDATE STEP ////
 
 void NodeGraph::update(double dt)
 {  
@@ -862,10 +1251,10 @@ void NodeGraph::update(double dt)
       else                        { disconnected.push_back(n); } // no connections
     }
 
+  //// TODO: pull from input nodes to request data
   for(int i = 0; i < mNodes.size(); i++)
     {
       // update start nodes
-      //// TODO: push to or pull from children to propogate?
       for(auto n : startNodes)   { n->update(); changed |= n->hasChanged(); }
       // update disconnected nodes
       for(auto n : endNodes)     { n->update(); changed |= n->hasChanged(); }  
@@ -874,7 +1263,7 @@ void NodeGraph::update(double dt)
       // update end nodes
       for(auto n : disconnected) { n->update(); changed |= n->hasChanged(); }
 
-      // check if any nodes haven't been updated
+      // check if any node updates still pending
       std::vector<Node*> noUpdate;
       for(auto iter : mNodes) { Node *n = iter.second; if(!n->updated()) { noUpdate.push_back(n); } }
       
@@ -885,298 +1274,26 @@ void NodeGraph::update(double dt)
       for(auto n : noUpdate) { std::cout << "(i=" << i << ")    --> " << n->name() << " / " << n->id() << "\n"; }
     }
 
-
   mUnsavedChanges |= changed; // mark if graph has changed
   
   for(auto n : mNodes)     { n.second->resetUpdate(); }
-  for(auto n : startNodes) { n->setChanged(false); } // reset changed state
-  
-  
-  //// OLD (update order undefined)
-  // for(auto n : mNodes)
-  //   {
-  //     n.second->update();
-  //     changed |= n.second->hasChanged();
-  //     n.second->setChanged(false);
-  //   } // update nodes
-
+  for(auto n : startNodes) { n->setChanged(false);    } // reset changed state
 }
 
-void NodeGraph::draw()
-{
-  // draw with imgui
-  BeginDraw();
-  {
-    Rect2f graphRect = screenToGraph(Rect2f(mViewPos, mViewPos + mViewSize)); 
-    Vec2f offsetMouse = screenToGraph(ImGui::GetMousePos());
-    
-    ImGuiIO &io = ImGui::GetIO();
-    mWinDrawList = ImGui::GetWindowDrawList();
-    ImDrawList *fgDrawList = ImGui::GetForegroundDrawList();
-    
-    mWinDrawList->_FringeScale = getScale();
-    fgDrawList->_FringeScale   = getScale();
-    
-    // reset click copy flag if mouse released
-    if(ImGui::IsMouseReleased(ImGuiMouseButton_Left))
-      { mClickCopied = false; }
 
-    if(ImGui::IsMouseClicked(ImGuiMouseButton_Left))
-      {
-        if(isHovered()) { mSelected = true;  }
-        else            { mSelected = false; }
-      }
-    if(isHovered()) { mSelected = true; }
-    
-    // draw background graph lines
-    drawLines(mWinDrawList); // graph lines
 
-    // fix node positions (no overlapping) -- TODO
-    fixPositions();
-    
-    // move selected nodes to front
-    if(!mSelecting)
-      {
-        for(auto n : mNodes)
-          { if(n.second->isSelected()) { n.second->bringToFront(); } }
-      }
-    // sort nodes by z value
-    std::vector<std::pair<int, Node*>> sorted(mNodes.begin(), mNodes.end());
-    std::sort(sorted.begin(), sorted.end(),
-              [](const std::pair<int, Node*> &n1, const std::pair<int, Node*> &n2) -> bool
-              { return (n1.second->getZ() < n2.second->getZ()) || (n1.second->getZ() == n2.second->getZ() && n1.first < n2.first); });
-    // clean up z ordering (z = i)
-    for(int i = 0; i < sorted.size(); i++) { sorted[i].second->setZ(i); }
 
-    // block from front to back
-    std::vector<bool> blocked(sorted.size(), false);
-    bool mouseBlocked = false;
-    for(int i = sorted.size()-1; i >= 0; i--)
-      {
-        Node *n = sorted[i].second;
-        bool b = n->rect().expanded(-1.0f).contains(screenToGraph(ImGui::GetMousePos()));
-        blocked[i] = mouseBlocked;
-        mouseBlocked |= b;
-      }
 
-    // get hovered node
-    mHoveredNode = nullptr;
-    for(int i = 0; i < sorted.size(); i++) // draw from back to front
-      {
-        Node *n = sorted[i].second;
-        if(!blocked[i] && n->rect().contains(screenToGraph(ImGui::GetMousePos())))
-          { mHoveredNode = n; }
-      }
 
-    // get selected nodes
-    mSelectedNodes.clear();
-    for(auto n : mNodes) { if(n.second->isSelected()) { mSelectedNodes.push_back(n.second); } }
-    
-    // draw nodes
-    bool posChanged = false;
-    for(int i = 0; i < sorted.size(); i++) // draw from back to front
-      {
-        Node *n = sorted[i].second;
-        Vec2f p0 = n->pos();
-        sorted[i].second->draw(mWinDrawList, blocked[i]);
-        Vec2f p1 = n->pos();
 
-        if(p1 != p0) { posChanged = true; }
-        
-        if(mShowIds)
-          {
-            ImGui::SetCursorPos(graphToScreen(sorted[i].second->pos()) - mViewPos - Vec2f(0.0f, 20.0f));
-            ImGui::Text("%d", sorted[i].second->id());
-          }
-      }
 
-    {
-      // draw node connections
-      for(auto n : sorted) { n.second->drawConnections(mWinDrawList); }
-      // update quadtree
-      static int numNodes = 0;
-      // if(posChanged || numNodes != mNodes.size()) { mQuad->update(); }
-      // // draw division lines
-      // std::vector<std::vector<Vec2f>> divLines;
-      // mQuad->getDivisionLines(divLines);
-      // float maxW = 10.0f;
-      // for(int i = 0; i < divLines.size(); i++)
-      //   {
-      //     float lineW   = std::min(maxW, (float)(divLines.size() - i));
-      //     Vec4f col = (i % 2 == 0 ? Vec4f(0.2f, 1.0f, 1.0f, 1.0f) : Vec4f(1.0f, 0.2f, 1.0f, 1.0f));
-      //     for(int j = 0; j < divLines[i].size(); j += 2)
-      //       {
-      //         if(j+1 < divLines[i].size())
-      //           { fgDrawList->AddLine(graphToScreen(divLines[i][j]), graphToScreen(divLines[i][j+1]), ImColor(col), lineW); }
-      //       }
-      //   }
-      numNodes = mNodes.size();
-    }
-    
-    bool active = false;
-    if(!mLocked)
-      {
-        // deselect all nodes if escape pressed
-        if(ImGui::IsKeyPressed(GLFW_KEY_ESCAPE))
-          { deselectAll(); }
-    
-        // determine if mouse is hovering over a node, or if node UI is active
-        bool hover = false;
-        for(auto n : mNodes)
-          {
-            active |= n.second->isActive();
-            hover  |= n.second->isHovered() || n.second->rect().intersection(graphRect).contains(offsetMouse);
-          }
-        
-        // DELETE key --> delete selected nodes
-        if(!active && ImGui::IsKeyPressed(GLFW_KEY_DELETE))
-          {
-            std::vector<int> erased;
-            for(auto n : mNodes) // delete selected nodes
-              {
-                if(n.second->isSelected())
-                  { erased.push_back(n.second->id()); }
-              }
-            for(auto nid : erased)
-              { delete mNodes[nid]; mNodes.erase(nid); mUnsavedChanges = true; }//mQuad->erase(mNodes[nid]);
-          }
-    
-        // node selection/highlighting
-        bool bgHover = ImGui::IsWindowHovered();
-        bool lbClick = ImGui::IsMouseClicked(ImGuiMouseButton_Left);
-        bool mbClick = ImGui::IsMouseClicked(ImGuiMouseButton_Middle);
-        
-        if(graphRect.contains(offsetMouse) && (!active || isConnecting()))
-          {
-            if(io.KeyCtrl && std::abs(io.MouseWheel) > 0.0f)
-              { // zoom/scale
-                mScaling = true;
-                Vec2f mposOld = screenToGraph(ImGui::GetMousePos());
-                float scaleOld = mGraphScale;
-                float vel = GRAPH_SCALE_VEL; //1.0f + std::max(-0.25f, std::min(0.25f, (1.0f - GRAPH_SCALE_VEL)));
-                mGraphScale *= (io.MouseWheel > 0.0f ? vel : 1.0f/vel);
-                mGraphScale = std::min(GRAPH_SCALE_MAX, std::max(mGraphScale, GRAPH_SCALE_MIN));
-                
-                // center scaling on mouse
-                Vec2f mposNew = screenToGraph(ImGui::GetMousePos());
-                mGraphCenter += mposNew-mposOld;
 
-                // TODO: framerate independent scaling!
-                // std::chrono::high_resolution_clock::time_point t = std::chrono::high_resolution_clock::now();
-                // float dt = 1.0f/30.0f;
-                // if(mScaling)
-                //   {
-                //     dt = mDt; //std::chrono::duration_cast<std::chrono::nanoseconds>(t - mLastT).count()/1000000000.0f;
-                    
-                //     Vec2f mposOld = screenToGraph(ImGui::GetMousePos());
-                //     float scaleOld = mGraphScale;
-                //     float vel = 1.0f + std::max(-0.25f, std::min(0.25f, (1.0f - GRAPH_SCALE_VEL)*((float)dt)*50.0f));
-                //     mGraphScale *= (io.MouseWheel > 0.0f ? 1.0f/vel : vel);
-                //     mGraphScale = std::min(GRAPH_SCALE_MAX, std::max(mGraphScale, GRAPH_SCALE_MIN));
-                
-                //     // center scaling on mouse
-                //     Vec2f mposNew = screenToGraph(ImGui::GetMousePos());
-                //     mGraphCenter += mposNew-mposOld;
-                //   }
-                // else
-                //   {
-                //     dt = std::chrono::duration_cast<std::chrono::nanoseconds>(t - mLastT).count()/1000000000.0f;
-                //     //std::chrono::high_resolution_clock::now();
-                //     mScaling = true; 
-                //   }
-                // mLastT = t;
-                // // else
-                // //   {
-                // //     std::chrono::high_resolution_clock::time_point t = std::chrono::high_resolution_clock::now();
-                // //     float dt = std::chrono::duration_cast<std::chrono::nanoseconds>(t - mLastT).count()/1000000000.0;
-                // //     mLastT = t;
-                // //   }
-              }
-            else { mScaling = false; } 
-          }            
 
-        bool lbUp = ImGui::IsMouseReleased(ImGuiMouseButton_Left);
-        bool mbUp = ImGui::IsMouseReleased(ImGuiMouseButton_Middle);
-        if(mSelecting && lbUp)
-          { // stop selecting
-            mSelecting = false;
-            mSelectAnchor = Vec2f(0,0);
-            mSelectRect.p1 = mSelectAnchor;
-            mSelectRect.p2 = mSelectAnchor;
-          }
-        if(mPanning && (lbUp || mbUp)) { mPanning = false; } // stop panning
-        
-        if(!active)
-          {
-            if(!mWindow->isPasting() && !mWindow->isPlacing())
-              {
-                if(((ImGui::IsKeyDown(GLFW_KEY_LEFT_SHIFT) && bgHover && lbClick && !mWindow->isPasting() && !mWindow->isPlacing()) || mbClick) &&
-                   graphRect.contains(offsetMouse))
-                  { // pan view center (SHIFT+leftclick+drag, or middleclick+drag)
-                    mPanning = true;
-                    mPanClick = screenToGraph(ImGui::GetMousePos());
-                    ImGui::ResetMouseDragDelta(lbClick ? ImGuiMouseButton_Left : ImGuiMouseButton_Middle);
-                  }
-                else if(bgHover && lbClick)
-                  { // start drawing selection rectangle
-                    mSelecting = true;
-                    mSelectAnchor = screenToGraph(ImGui::GetMousePos());
-                    mSelectRect.p1 = mSelectAnchor;
-                    mSelectRect.p2 = mSelectAnchor;
-                    if(!io.KeyCtrl) { deselectAll(); }
-                  }
-    
-                if(mSelecting)
-                  { // selection rect (click+drag)
-                    if(ImGui::IsMouseDragging(ImGuiMouseButton_Left))
-                      {
-                        Vec2f mpos = screenToGraph(ImGui::GetMousePos());
-                        Rect2f select(Vec2f(std::min(mSelectAnchor.x, mpos.x), std::min(mSelectAnchor.y, mpos.y)),
-                                      Vec2f(std::max(mSelectAnchor.x, mpos.x), std::max(mSelectAnchor.y, mpos.y)));
-                        mSelectRect = select.fixed().intersection(graphRect);
-                      }
-                    // draw selection rect
-                    fgDrawList->AddRect(graphToScreen(mSelectRect.p1), graphToScreen(mSelectRect.p2),
-                                        ImColor(Vec4f(1.0f,1.0f,1.0f,0.5f)), 0.0f, ImDrawCornerFlags_All, 3.0f);
-                    // select nodes that intersect selection rect
-                    for(auto n : mNodes) { n.second->setSelected((n.second->isSelected() && io.KeyCtrl) || n.second->rect().intersects(mSelectRect)); }
-                  }
-              }
-            else
-              { // pan view center (only middleclick+drag -- shift used to multi-paste)
-                if(mbClick && graphRect.contains(offsetMouse))
-                  {
-                    mPanning = true;
-                    mPanClick = screenToGraph(ImGui::GetMousePos());
-                    ImGui::ResetMouseDragDelta(lbClick ? ImGuiMouseButton_Left : ImGuiMouseButton_Middle);
-                  }
-                bool mbUp = ImGui::IsMouseReleased(ImGuiMouseButton_Middle);
-                if(mPanning && mbUp) { mPanning = false; } // stop panning
-              }
 
-            // PANNING
-            if(mPanning)
-              { // pan view (shift+click+drag, or middleclick+drag)
-                bool lDrag = ImGui::IsMouseDragging(ImGuiMouseButton_Left);
-                bool mDrag = ImGui::IsMouseDragging(ImGuiMouseButton_Middle);
-                if(lDrag || mDrag)
-                  {
-                    mGraphCenter += screenToGraphVec(ImGui::GetMouseDragDelta(lDrag ? ImGuiMouseButton_Left : ImGuiMouseButton_Middle));
-                    ImGui::ResetMouseDragDelta(lDrag ? ImGuiMouseButton_Left : ImGuiMouseButton_Middle);
-                  }
-              }
-          }
-        // right click menu (alternative to keyboard for adding new nodes)
-        if(!active && ImGui::BeginPopupContextWindow("nodeGraphContext"))
-          {
-            if(ImGui::MenuItem("Recenter"))    { mGraphCenter = Vec2f(0,0); }
-            if(ImGui::MenuItem("Reset Scale")) { mGraphScale = 1.0f; }
-            ImGui::EndPopup();
-          }
-      }
-  }
-  EndDraw();
-}
+
+
+
+
 
 // TODO: find path that doesn't intersect any node rects. (recursion?)
 

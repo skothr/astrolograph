@@ -15,14 +15,14 @@ inline Rect<T> toPolar(const Rect<T> &r)               { return Rect<T>(toPolar(
 template<typename T>
 inline Rect<T> toCartesian(const Rect<T> &r)           { return Rect<T>(toCartesian(r.p1), toCartesian(r.p2)); }
 
-#ifndef  ENABLE_CUDA
+#ifndef  __NVCC__
 template<typename T, int N>
 inline Vector<T, N> lerp(const Vector<T, N> &x0, const Vector<T, N> &x1, T alpha)
 { return x0 * alpha + x1 * ((T)1 - alpha); }
 template<typename T>
 inline T lerp(T x0, T x1, T alpha)
 { return x0 * alpha + x1 * ((T)1 - alpha); }
-#endif // ENABLE_CUDA
+#endif // __NVCC__
 
 
 // line/line intersection

@@ -228,7 +228,7 @@ void ChartView::renderHouses(Chart *chart, const ViewParams &params, ImDrawList 
 
               // contained objects
               std::vector<ChartObject*> inHouse;
-              for(int i2 = OBJ_SUN; i2 < OBJ_COUNT; i2++) // (angles already at house cusps)
+              for(int i2 = OBJ_SUN; i2 < ANGLE_END; i2++) // (angles already at house cusps)
                 {
                   ChartObject *obj = chart->getObject(i2);
                   int hi = chart->getHouse(obj->angle);
@@ -265,7 +265,6 @@ void ChartView::renderHouses(Chart *chart, const ViewParams &params, ImDrawList 
         }
     }
 }
-
 
 void ChartView::renderAngles(Chart *chart, const ViewParams &params, ImDrawList *draw_list, ChartParams &chartParams)
 {

@@ -22,7 +22,7 @@
 #define BLOCKDIM_Y 8
 #define BLOCKDIM_Z 8
 
-#define TOL 0.0000001 // tolerance/epsilon to make sure ray fully intersects
+#define TOL 0.00000001 // tolerance/epsilon to make sure ray fully intersects
 
 
 // fills texture data with solid color
@@ -44,7 +44,7 @@ __global__ void clearFluidH3_k(HyperFluid<3> fluid)
     }
 }
 
-__global__ void fillFluidCircleH3_k(HyperFluid<3> fluid)
+__global__ void fillFluidCircleH3_k(HyperFluid<3> fluid, bool bounded)
 {
   long unsigned int ix = blockIdx.x*blockDim.x + threadIdx.x;
   long unsigned int iy = blockIdx.y*blockDim.y + threadIdx.y;
@@ -56,8 +56,8 @@ __global__ void fillFluidCircleH3_k(HyperFluid<3> fluid)
                         (iy-fluid.size.y/2.0f)/float(fluid.size.y),
                         (iz-fluid.size.z/2.0f)/float(fluid.size.z) };
       float dist = sqrt(p.x*p.x + p.y*p.y + p.z*p.z);
-      fluid.vel.dData[i] = (dist > 1.0f/4.0f ? float3{0.0f, 0.0f, 0.0f} : p/dist)*10.0f;
-      fluid.d.dData[i]    = (dist > 1.0f/4.0f ? 0.0f : 1.0f);
+      fluid.vel.dData[i]  = p/dist * ((bounded && dist > 1.0f/4.0f) ? -0.1f : 1.0) * 8.0f;
+      fluid.d.dData[i]    = ((bounded && dist > 1.0f/4.0f) ? 0.001f : 0.1f);
       fluid.p.dData[i]    = 0.0f;
       fluid.wv.dData[i]   = float2{0.0f, 0.0f};
       fluid.div.dData[i]  = 0.0f;
@@ -84,7 +84,7 @@ __global__ void fillFluidPatternH3_k(HyperFluid<3> fluid)
       int zm = (iz % (fluid.size.z/SIN_FREQ) < c.z ? 1 : 0);
       
       // fluid.vel.dData[i] = ((xm == ym) ^ (zm) ? float3{1.0f, 1.0f, 1.0f}/dist/4 : float3{0.0f, 0.0f, 0.0f});
-      fluid.d.dData[i]    = ((xm == ym) ^ (zm) ? 1.0f/dist : 0.0f);
+      fluid.d.dData[i]    = ((xm == ym) ^ (zm) ? 1.0f/dist : 0.0f) * 0.1f;
       // fluid.p.dData[i]    = 0.0f;
       // fluid.wv.dData[i]   = float2{0.0f, 0.0f};
       // fluid.div.dData[i]  = 0.0f;
@@ -134,7 +134,6 @@ __global__ void advectH3_k(HyperFluid<3> src, HyperFluid<3> dst)
 
 
       u = lastU;
-
       
       // float3 nextPos = float3{ float(ix) + dt*u.x + 0.5f, float(iy) + dt*u.y + 0.5f };
       // if(nextPos.x < 0.5f) { nextPos.x = 0.5f; } else if(nextPos.x > src.size.x-0.5f) { nextPos.x = src.size.x-0.5f; }
@@ -245,10 +244,10 @@ __global__ void advectH3_k(HyperFluid<3> src, HyperFluid<3> dst)
       //   }
 
       dst.vel.dData[i] = u;
-      dst.d.dData[i]    = newD;
-      dst.p.dData[i]    = newP;
-      dst.wv.dData[i]   = lastWv;
-      dst.div.dData[i]  = src.div.dData[i];
+      dst.d.dData[i]   = newD;
+      dst.p.dData[i]   = newP;
+      dst.wv.dData[i]  = lastWv;
+      dst.div.dData[i] = src.div.dData[i];
     }
 }
 
@@ -261,36 +260,62 @@ __global__ void diffuseH3_k(HyperFluid<3> src, HyperFluid<3> dst)
   int iz = blockIdx.z*blockDim.z + threadIdx.z;
 
   int kRad = src.params.diffuseRad;
-  if(ix < src.size.x-kRad && iy < src.size.y-kRad && iz < src.size.z-kRad && ix > kRad && iy > kRad && iz > kRad)
+  float dt = src.params.dt;
+  if(ix < src.size.x-kRad && iy < src.size.y-kRad && iz < src.size.z-kRad && ix > kRad && iy > kRad && iz > kRad &&
+     kRad > 0 && dt != 0)
     {
       int i = src.pindex(ix, iy, iz);
-      float dt = src.params.dt;
       
       float3 u    = float3{0.0f, 0.0f, 0.0f};
       float  d    = 0.0f;
-      float  p    = 0.0f;
+      // float  p    = 0.0f;
       float2 wv   = float2{0.0f, 0.0f};
       float  mult = 0.0f;
-      
-      for(int x = -kRad; x <= kRad; x++)
-        for(int y = -kRad; y <= kRad; y++)
-          for(int z = -kRad; z <= kRad; z++)
-            {
-              float dist = (x==0 && y==0 && z==0) ? 1.0f : sqrt(float(x*x + y*y + z*z)) / dt;
-              if(isnan(dist) || dist == 0.0f) { continue; }
+
+      if(kRad > 0)
+        {
+          for(int x = -kRad; x <= kRad; x++)
+            for(int y = -kRad; y <= kRad; y++)
+              for(int z = -kRad; z <= kRad; z++)
+                {
+                  float dist = (x==0 && y==0 && z==0) ? 1.0f : sqrt(float(x*x + y*y + z*z));
+                  if(isnan(dist) || dist == 0.0f) { continue; }
               
-              mult += 1.0f/dist;
-              int li = src.pindex(ix+x, iy+y, iz+z);
-              u  += src.vel.dData[li]/dist;
-              d  += src.d.dData[li]/dist;
-              p  += src.p.dData[li]/dist;
-              wv += src.wv.dData[li]/dist;
+                  mult += 1.0f/dist;
+                  int li = src.pindex(ix+x, iy+y, iz+z);
+                  u  += src.vel.dData[li]/dist;
+                  d  += src.d.dData[li]/dist;
+                  // p  += src.p.dData[li]/dist;
+                  wv += src.wv.dData[li]/dist;
             }
-      dst.vel.dData[i] = (mult != 0.0f && !isnan(mult) && !isnan(u))  ? (u / mult)  : src.vel.dData[i];
-      dst.d.dData[i]    = (mult != 0.0f && !isnan(mult) && !isnan(d))  ? (d / mult)  : src.d.dData[i];
-      dst.p.dData[i]    = (mult != 0.0f && !isnan(mult) && !isnan(p))  ? (p / mult)  : src.p.dData[i];
-      dst.wv.dData[i]   = (mult != 0.0f && !isnan(mult) && !isnan(wv)) ? (wv / mult) : src.wv.dData[i];
-      dst.div.dData[i]  = src.div.dData[i];
+        }
+      else
+        {
+          
+        }
+      
+      dst.vel.dData[i] = ((isnan(mult) || mult == 0.0f) ? src.vel.dData[i] : u/mult);
+      dst.d.dData[i]   = ((isnan(mult) || mult == 0.0f) ? src.d.dData[i]   : d/mult);
+      dst.wv.dData[i]  = ((isnan(mult) || mult == 0.0f) ? src.wv.dData[i]  : wv/mult);
+      // dst.vel.dData[i] = (mult != 0.0f && !isnan(mult) && !isnan(u))  ? u*(1.0-dt) + (u / mult)*dt  : src.vel.dData[i];
+      // dst.d.dData[i]   = (mult != 0.0f && !isnan(mult) && !isnan(d))  ? u*(1.0-dt) + (d / mult)*dt  : src.d.dData[i];
+      // dst.p.dData[i]   = (mult != 0.0f && !isnan(mult) && !isnan(p))  ? u*(1.0-dt) + (p / mult)*dt  : src.p.dData[i];
+      // dst.wv.dData[i]  = (mult != 0.0f && !isnan(mult) && !isnan(wv)) ? u*(1.0-dt) + (wv / mult)*dt : src.wv.dData[i];
+      dst.p.dData[i]   = src.p.dData[i];
+      dst.div.dData[i] = src.div.dData[i];
+
+      //
+      //////// bouncing fluid blob of schizophrenic chaos
+      //// V1:  (~0.990 < dt < ~0.995)
+      // dst.vel.dData[i] = (mult != 0.0f && !isnan(mult) && !isnan(u))  ? u*(1.0-dt) + (u / mult)*dt  : src.vel.dData[i];
+      // dst.d.dData[i]   = (mult != 0.0f && !isnan(mult) && !isnan(d))  ? u*(1.0-dt) + (d / mult)*dt  : src.d.dData[i];
+      // dst.p.dData[i]   = (mult != 0.0f && !isnan(mult) && !isnan(p))  ? u*(1.0-dt) + (p / mult)*dt  : src.p.dData[i];
+      // dst.wv.dData[i]  = (mult != 0.0f && !isnan(mult) && !isnan(wv)) ? u*(1.0-dt) + (wv / mult)*dt : src.wv.dData[i];
+      //// V2: (fs = 128x128x128, dt = -3.0, pressureIter = 60)
+      // dst.vel.dData[i] = (mult != 0.0f && !isnan(mult) && !isnan(u))  ? src.vel.dData[i] + (u  / mult)/(1-dt) : src.vel.dData[i];
+      // dst.d.dData[i]   = (mult != 0.0f && !isnan(mult) && !isnan(d))  ? src.d.dData[i]   + (d  / mult)/(1-dt) : src.d.dData[i];
+      // dst.p.dData[i]   = (mult != 0.0f && !isnan(mult) && !isnan(p))  ? src.p.dData[i]   + (p  / mult)/(1-dt) : src.p.dData[i];
+      // dst.wv.dData[i]  = (mult != 0.0f && !isnan(mult) && !isnan(wv)) ? src.wv.dData[i]  + (wv / mult)/(1-dt) : src.wv.dData[i];
     }
 }
 
@@ -338,6 +363,7 @@ __global__ void preProjectH3_k(HyperFluid<3> src, HyperFluid<3> dst)
           dst.p.dData[i]    = src.p.dData[i];
           dst.div.dData[i]  = src.div.dData[i];
         }
+      dst.vel.dData[i]  = src.vel.dData[i];
       dst.d.dData[i]    = src.d.dData[i];
       dst.wv.dData[i]   = src.wv.dData[i];
     }
@@ -356,18 +382,30 @@ __global__ void postProjectH3_k(HyperFluid<3> src, HyperFluid<3> dst)
       float hy = 1.0f/dst.size.y;
       float hz = 1.0f/dst.size.z;
       
-      // dst.vel.dData[i] = dst.vel.dData[i];
-      // dst.p.dData[i]   = dst.p.dData[i];
-      // dst.div.dData[i] = dst.div.dData[i];
-
       if(ix > 0 && iy > 0 && iz > 0 && ix < dst.size.x-1 && iy < dst.size.y-1 && iz < dst.size.z-1)
         {
-          dst.vel.dData[i].x -= 0.5f*(dst.p.dData[dst.pindex(ix+1, iy,   iz)] - dst.p.dData[dst.pindex(ix-1, iy,   iz)]) / hx;
-          dst.vel.dData[i].y -= 0.5f*(dst.p.dData[dst.pindex(ix,   iy+1, iz)] - dst.p.dData[dst.pindex(ix,   iy-1, iz)]) / hy;
-          dst.vel.dData[i].z -= 0.5f*(dst.p.dData[dst.pindex(ix,   iy, iz+1)] - dst.p.dData[dst.pindex(ix,   iy, iz-1)]) / hz;
+          dst.vel.dData[i].x -= 0.5f*(src.p.dData[src.pindex(ix+1, iy,   iz)] - src.p.dData[src.pindex(ix-1, iy,   iz)]) / hx;
+          dst.vel.dData[i].y -= 0.5f*(src.p.dData[src.pindex(ix,   iy+1, iz)] - src.p.dData[src.pindex(ix,   iy-1, iz)]) / hy;
+          dst.vel.dData[i].z -= 0.5f*(src.p.dData[src.pindex(ix,   iy, iz+1)] - src.p.dData[src.pindex(ix,   iy, iz-1)]) / hz;
+
+          if(isnan(dst.vel.dData[i].x)) { dst.vel.dData[i].x = src.vel.dData[i].x; }
+          if(isnan(dst.vel.dData[i].y)) { dst.vel.dData[i].y = src.vel.dData[i].y; }
+          if(isnan(dst.vel.dData[i].z)) { dst.vel.dData[i].z = src.vel.dData[i].z; }
         }
-      dst.d.dData[i]    = dst.d.dData[i];
-      dst.wv.dData[i]   = dst.wv.dData[i];
+      else
+        { dst.vel.dData[i] = src.vel.dData[i]; }
+
+      if(ix == 0)                 { dst.vel.dData[i].x =  abs(dst.vel.dData[i].x)/2.0f; }
+      else if(ix == dst.size.x-1) { dst.vel.dData[i].x = -abs(dst.vel.dData[i].x)/2.0f; }
+      if(iy == 0)                 { dst.vel.dData[i].y =  abs(dst.vel.dData[i].y)/2.0f; }
+      else if(iy == dst.size.y-1) { dst.vel.dData[i].y = -abs(dst.vel.dData[i].y)/2.0f; }
+      if(iz == 0)                 { dst.vel.dData[i].z =  abs(dst.vel.dData[i].z)/2.0f; }
+      else if(iz == dst.size.z-1) { dst.vel.dData[i].z = -abs(dst.vel.dData[i].z)/2.0f; }
+      
+      dst.d.dData[i]   = src.d.dData[i];
+      dst.p.dData[i]   = src.p.dData[i];
+      dst.div.dData[i] = src.div.dData[i];
+      dst.wv.dData[i]  = src.wv.dData[i];
     }
 }
 
@@ -388,17 +426,21 @@ __global__ void projectH3_k(HyperFluid<3> src, HyperFluid<3> dst)
       
       if(ix > 0 && iy > 0 && iz > 0 && ix < dst.size.x-1 && iy < dst.size.y-1 && iz < dst.size.z-1)
         {
-          dst.p.dData[i] = (dst.div.dData[dst.pindex(ix, iy, iz)] +
-                            dst.p.dData[dst.pindex(ix-1, iy, iz)] + dst.p.dData[dst.pindex(ix+1, iy, iz)] +
-                            dst.p.dData[dst.pindex(ix, iy-1, iz)] + dst.p.dData[dst.pindex(ix, iy+1, iz)] +
-                            dst.p.dData[dst.pindex(ix, iy, iz-1)] + dst.p.dData[dst.pindex(ix, iy, iz+1)]) / 6.0f;
+          dst.p.dData[i] = (src.div.dData[src.pindex(ix, iy, iz)] +
+                            src.p.dData[src.pindex(ix-1, iy, iz)] + src.p.dData[src.pindex(ix+1, iy, iz)] +
+                            src.p.dData[src.pindex(ix, iy-1, iz)] + src.p.dData[src.pindex(ix, iy+1, iz)] +
+                            src.p.dData[src.pindex(ix, iy, iz-1)] + src.p.dData[src.pindex(ix, iy, iz+1)]) / 6.0f;
+          if(isnan(dst.p.dData[i])) { dst.p.dData[i] = src.p.dData[i]; }
         }
-      if(ix == 0)                 { dst.vel.dData[i].x =  abs(dst.vel.dData[i].x)/2.0f; }
-      else if(ix == dst.size.x-1) { dst.vel.dData[i].x = -abs(dst.vel.dData[i].x)/2.0f; }
-      if(iy == 0)                 { dst.vel.dData[i].y =  abs(dst.vel.dData[i].y)/2.0f; }
-      else if(iy == dst.size.y-1) { dst.vel.dData[i].y = -abs(dst.vel.dData[i].y)/2.0f; }
-      if(iz == 0)                 { dst.vel.dData[i].z =  abs(dst.vel.dData[i].z)/2.0f; }
-      else if(iz == dst.size.z-1) { dst.vel.dData[i].z = -abs(dst.vel.dData[i].z)/2.0f; }
+      else
+        { dst.p.dData[i] = src.p.dData[i]; }
+      
+      // if(ix == 0)                 { dst.vel.dData[i].x =  abs(dst.vel.dData[i].x)/2.0f; }
+      // else if(ix == dst.size.x-1) { dst.vel.dData[i].x = -abs(dst.vel.dData[i].x)/2.0f; }
+      // if(iy == 0)                 { dst.vel.dData[i].y =  abs(dst.vel.dData[i].y)/2.0f; }
+      // else if(iy == dst.size.y-1) { dst.vel.dData[i].y = -abs(dst.vel.dData[i].y)/2.0f; }
+      // if(iz == 0)                 { dst.vel.dData[i].z =  abs(dst.vel.dData[i].z)/2.0f; }
+      // else if(iz == dst.size.z-1) { dst.vel.dData[i].z = -abs(dst.vel.dData[i].z)/2.0f; }
     }
 }
 
@@ -553,9 +595,9 @@ __global__ void addForcesH3_k(HyperFluid<3> src, HyperFluid<3> dst)
       //       }
       //   }
 
-      // //if(u.y*params->gravity > 0 && abs(u.y) < abs(params->gravity))
+      //if(u.y*params->gravity > 0 && abs(u.y) < abs(params->gravity))
       // {
-      //   u.y += dt*params->gravity;//*params->density; // GRAVITY
+      //   u.y += dt*params->gravity/params->density; // GRAVITY
       // }
 
       // dst.vx.dData[i]  = u.x;
@@ -564,8 +606,12 @@ __global__ void addForcesH3_k(HyperFluid<3> src, HyperFluid<3> dst)
       // dst.d.dData[i]   = d;
       // dst.p.dData[i]   = p;
       // dst.div.dData[i] = src.div.dData[i];
+
+      float g = params->gravity;
+      //float d = src.d.dData[i];
+      // if(d != 0.0f) { g /= d; }
       
-      dst.vel.dData[i] = src.vel.dData[i] + float3{0.0f, 0.0f, dt*params->gravity};
+      dst.vel.dData[i]  = src.vel.dData[i] + float3{0.0f, 0.0f, dt*g};
       dst.d.dData[i]    = src.d.dData[i];
       dst.p.dData[i]    = src.p.dData[i];
       dst.wv.dData[i]   = src.wv.dData[i];
@@ -586,6 +632,7 @@ __device__ double planeIntersect(const double3 &p, const double3 &n, const doubl
 
 // render 3D --> raytrace field
 //  - field assumed to be size (1,1,1) in 3D space
+//  - return value < 0 means ray missed, value == 0 means ray started inside cube
 __device__ double2 cubeIntersect(const double3 &fPos, const double3 &fSize, const double3 &rPos, const double3 &rDir)
 {
   double tnx = (fPos.x - rPos.x)           / rDir.x;
@@ -596,10 +643,8 @@ __device__ double2 cubeIntersect(const double3 &fPos, const double3 &fSize, cons
   double tpz = (fPos.z - rPos.z + fSize.z) / rDir.z;
   double tmin = max(max(min(tnx, tpx), min(tny, tpy)), min(tnz, tpz));
   double tmax = min(min(max(tnx, tpx), max(tny, tpy)), max(tnz, tpz));
-  return (tmin > tmax) ? double2{-1.0, -1.0} : double2{tmin, tmax};
+  return (tmin < 0 ? double2{0.0, 0.0} : (tmin > tmax) ? double2{-1.0, -1.0} : double2{tmin, tmax});
 }
-
-
 
 // __device__ double2 cubeMarch(const double3 &fPos, const double3 &fSize, const double3 &rPos, const double3 &rDir)
 // {
@@ -619,55 +664,78 @@ __device__ double2 cubeIntersect(const double3 &fPos, const double3 &fSize, cons
 //   else            { return double2{tmin, tmax}; }
 // }
 
-
-
-
-
 //#define FIELD_POS     double3{-0.5, -0.5, -0.5}      // position of field (ratio of field size)
 //#define DIM_BASE_SIZE 64.0                           // dim size equivalent to 1.0 unit in world space
 #define BG_COLOR      float4{0.1f, 0.1f, 0.1f, 1.0f} // color of background behind field
 #define FAIL_COLOR    float4{1.0f, 0.0f, 1.0f, 1.0f} // color returned on failure/error
 
-__device__ double3 rayProject(const double3 &p, const double3 &d, double t)       { return p + d*t; }
+__device__ float3 renderCell(const HyperFluid<3> &src, int i, FluidRenderType r, FluidRenderType g, FluidRenderType b)
+{
+  float3 color = float3{0.0f, 0.0f, 0.0f};
+  
+  // sample data
+  float3 vel  = src.vel.dData[i];
+  float  d    = abs(src.d.dData[i]);
+  float  p    = abs(src.p.dData[i]);
 
-// inf --> inverse normalized field (pos/size)
-__device__ double3 worldToField(const double3 &wp, const double3 &foffset, const double3 &fscale)
-{ return (wp/fscale - foffset); }
-
-// // nfs --> normalized field size
-// __device__ double3 fieldToWorld(const double3 &fp, const double3 &foffset, const double3 &fscale)
-// { return (fp*nfsize + infpos); }
-
+  float3 nvel = normalize(vel);
+  float  vlen = length(vel);
+  float3 v    = float3{ ((r & HF_RENDER_VMAG) ? vlen : ((r & HF_RENDER_VNORM) ? abs(nvel.x) : abs(vel.x))),
+                        ((g & HF_RENDER_VMAG) ? vlen : ((g & HF_RENDER_VNORM) ? abs(nvel.y) : abs(vel.y))),
+                        ((b & HF_RENDER_VMAG) ? vlen : ((b & HF_RENDER_VNORM) ? abs(nvel.z) : abs(vel.z))) };
+  
+  // apply rendering
+  color += float3{ (r & HF_RENDER_V) ? v.x : 0.0f, (g & HF_RENDER_V) ? v.y : 0.0f, (b & HF_RENDER_V) ? v.z : 0.0f };
+  color += float3{ (r & HF_RENDER_D) ? d   : 0.0f, (g & HF_RENDER_D) ? d   : 0.0f, (b & HF_RENDER_D) ? d   : 0.0f };
+  color += float3{ (r & HF_RENDER_P) ? p   : 0.0f, (g & HF_RENDER_P) ? p   : 0.0f, (b & HF_RENDER_P) ? p   : 0.0f };
+  // apply density scaling
+  color *= float3{ (r & HF_RENDER_DSCALE) ? d : 1.0f, (g & HF_RENDER_DSCALE) ? d : 1.0f, (b & HF_RENDER_DSCALE) ? d : 1.0f };
+  
+  return color;
+}
 
 // render 3D --> raytrace field
-__device__ float4 rayTraceFluid(const HyperFluid<3> &src, const double3 &fPos, const double3 &fSize, const double3 &rPos, const double3 &rDir)
+__device__ float4 rayTraceFluid(const HyperFluid<3> &src, const double3 &fPos, const double3 &fSize, const double3 &rPos, const double3 &rDir,
+                                FluidRenderType r, FluidRenderType g, FluidRenderType b)
 {
   double3 fs = double3{(double)src.size.x, (double)src.size.y, (double)src.size.z}; // field size as double
   double2 tp = cubeIntersect(fPos, fSize, rPos, rDir); // returns {tmin, tmax} // <-- TODO: both needed?
   double  t  = tp.x;                                   // tmin
-  if(t < 0.0) { return BG_COLOR; }
+  if(t < 0.0)
+    { return BG_COLOR; }
   else
     {
-      double3 wp = rayProject(rPos, rDir, t+TOL); // world-space pos of primary intersection
+      double3 wp = rPos + rDir*(t+TOL); // world-space pos of primary intersection
       double3 fp = (wp - fPos) / fSize * fs;
       // cube marching
       int i = src.pindex((int)fp.x, (int)fp.y, (int)fp.z);
       float4 color = float4{0.0f, 0.0f, 0.0f, 0.0f};
-      while(color.x < 1 && color.y < 1 && color.z < 1 && t <= tp.y+TOL)
+      while(color.x < 1 && color.y < 1 && color.z < 1 && (t <= tp.y || tp.x == 0.0))
         {
-          if(i < 0 || i >= src.size.x*src.size.y*src.size.z)
-            { color = FAIL_COLOR; break; }
-          float3 v = src.vel.dData[i];
-          float  d = src.d.dData[i];
-          color += float4{abs(v.x), abs(v.y), abs(v.z), 0.0f}*d;
+          if(i < 0 || i >= src.size.x*src.size.y*src.size.z) { color = BG_COLOR; break; }
+          
+          float3 dcol = renderCell(src, i, r, g, b);
+          color += float4{dcol.x, dcol.y, dcol.z, 0.0f};
           
           double3 fp2 = fp;
-          while((int)fp2.x == (int)fp.x && (int)fp2.y == (int)fp.y && (int)fp2.z == (int)fp.z && t <= tp.y+TOL)
-            {
-              t += 0.005;
-              double3 wp2 = rayProject(rPos, rDir, t+TOL);
-              fp2 = (wp2 - fPos) / fSize * fs;
-            }
+          while((int)fp2.x == (int)fp.x && (int)fp2.y == (int)fp.y && (int)fp2.z == (int)fp.z && (t <= tp.y || tp.x == 0.0))
+          {
+            double3 pi = double3{(rDir.x < 0.0 ? ceil(fp2.x) : floor(fp2.x)), // fractional distance past current grid index along ray trajectory
+                                 (rDir.y < 0.0 ? ceil(fp2.y) : floor(fp2.y)),
+                                 (rDir.z < 0.0 ? ceil(fp2.z) : floor(fp2.z)) };
+            //double3 dSign = rDir / abs(rDir); // sign of each component of ray direction
+            double3 dSign = double3{(rDir.x < 0.0 ? -1.0 : 1.0), (rDir.y < 0.0 ? -1.0 : 1.0), (rDir.z < 0.0 ? -1.0 : 1.0)};
+            double3 step = (pi + dSign) - fp2; // distance to next grid index in each dimension
+            
+            step = fmod(step, double3{1.0, 1.0, 1.0});  // (TODO: necessary?)
+            step = (step/fs)*fSize;  // convert to world coordinates
+            step = abs(step / rDir); // project distance onto ray
+            
+            t += min(step.x, min(step.y, step.z)) + 0.000001;
+
+            double3 wp2 = rPos + rDir*(t+TOL);
+            fp2 = (wp2 - fPos) / fSize * fs;
+          }
           fp = fp2;
           i = src.pindex((int)fp.x, (int)fp.y, (int)fp.z);
         }
@@ -677,7 +745,8 @@ __device__ float4 rayTraceFluid(const HyperFluid<3> &src, const double3 &fPos, c
 
 // render 3D --> raytrace field
 __global__ void renderFluidH3_k(HyperFluid<3> src, CudaFieldTex dst, double3 fPos, double3 fSize,
-                                double3 camPos, double3 camDir, double3 up, double3 right, double fov)
+                                double3 camPos, double3 camDir, double3 up, double3 right, double fov,
+                                FluidRenderType r, FluidRenderType g, FluidRenderType b)
 {
   long unsigned int ix = blockIdx.x*blockDim.x + threadIdx.x;
   long unsigned int iy = blockIdx.y*blockDim.y + threadIdx.y;
@@ -687,7 +756,7 @@ __global__ void renderFluidH3_k(HyperFluid<3> src, CudaFieldTex dst, double3 fPo
       double2 hs = double2{(double)dst.size.x, (double)dst.size.y}/2.0;
       
       double3 rayDir = normalize(camDir + right*tf2*((ix-dst.size.x/2.0)/dst.size.x) + up*tf2*((iy-dst.size.y/2.0)/dst.size.y));
-      float4 color   = rayTraceFluid(src, fPos, fSize, camPos, rayDir);
+      float4 color   = rayTraceFluid(src, fPos, fSize, camPos, rayDir, r, g, b);
       
       long unsigned int di = ix + iy*dst.size.x;
       dst.dData[di] = (color.w < 0.0f ? float4{0.0f, 0.0f, 0.0f, 1.0f} : color);
@@ -698,31 +767,38 @@ __global__ void renderFluidH3_k(HyperFluid<3> src, CudaFieldTex dst, double3 fPo
 // render 3D --> raytrace field
 __global__ void renderFluidH3Slice_k(HyperFluid<3> src, CudaFieldTex dst, double3 fPos, double3 fSize,
                                      double3 camPos, double3 camDir, double3 up, double3 right, double fov,
+                                     FluidRenderType r, FluidRenderType g, FluidRenderType b,
                                      int sdim, int si)
 {
   long unsigned int ix = blockIdx.x*blockDim.x + threadIdx.x;
   long unsigned int iy = blockIdx.y*blockDim.y + threadIdx.y;
   if(ix < dst.size.x && iy < dst.size.y)
     {
+      long unsigned int i = ix + iy*dst.size.x;
+      
       double tf2 = tan(fov/2.0);
       double2 hs = double2{(double)dst.size.x, (double)dst.size.y}/2.0;
       
       double3 rayDir  = normalize(camDir + right*tf2*((ix-dst.size.x/2.0)/dst.size.x) + up*tf2*((iy-dst.size.y/2.0)/dst.size.y));
-      double3 pCenter = double3{0.0, 0.0, 0.0};
-      double3 pNorm   = double3{0.0, 0.0, 0.0};
+      double3 pOffset = fPos;
+      double3 pSize   = fSize;
       switch(sdim)
         {
-        case 0: pCenter.x = fPos.x + (si + 0.5)*fSize.x/(double)src.size.x; pNorm.x = 1.0; break;
-        case 1: pCenter.y = fPos.y + (si + 0.5)*fSize.y/(double)src.size.y; pNorm.y = 1.0; break;
-        case 2: pCenter.z = fPos.z + (si + 0.5)*fSize.z/(double)src.size.z; pNorm.z = 1.0; break;
+        case 0: pOffset.x = fPos.x + (si)*fSize.x/(double)src.size.x; pSize.x = 1.0 / (double)src.size.x; break;
+        case 1: pOffset.y = fPos.y + (si)*fSize.y/(double)src.size.y; pSize.y = 1.0 / (double)src.size.y; break;
+        case 2: pOffset.z = fPos.z + (si)*fSize.z/(double)src.size.z; pSize.z = 1.0 / (double)src.size.z; break;
         }
-      double t = planeIntersect(pCenter, pNorm, camPos, rayDir);
+      //double t = planeIntersect(pCenter, pNorm, camPos, rayDir);
+      double t = cubeIntersect(pOffset, pSize, camPos, rayDir).x;
 
-      float4 color;
-      if(t < 0.0) { color = BG_COLOR; }
+      if(t < 0.0)
+        {
+          dst.dData[i] = BG_COLOR;
+          return;
+        }
       else
         {
-          double3 p = rayProject(camPos, rayDir, t);
+          double3 p = camPos + rayDir*(t+TOL);
           int3 fp;
           switch(sdim)
             {
@@ -734,16 +810,14 @@ __global__ void renderFluidH3Slice_k(HyperFluid<3> src, CudaFieldTex dst, double
           if(fp.x >= 0 && fp.x < src.size.x && fp.y >= 0 && fp.y < src.size.y && fp.z >= 0 && fp.z < src.size.z)
             {
               int fi = src.pindex(fp.x, fp.y, fp.z);
-              float3 v = src.vel.dData[fi];
-              float  d = src.d.dData[fi];
-              color = float4{abs(v.x), abs(v.y), abs(v.z), 0.0f}*d;
-              color.w = 1.0f;
+              // render cell
+              float3 c     = renderCell(src, fi, r, g, b);
+              dst.dData[i] = float4{c.x, c.y, c.z, 1.0f};
+              return;
             }
-          else { color = BG_COLOR; }
+          else { dst.dData[i] = FAIL_COLOR; }
         }
-      
-      long unsigned int di = ix + iy*dst.size.x;
-      dst.dData[di] = color;
+      dst.dData[i] = FAIL_COLOR; // (just in case)
     }
 }
 
@@ -772,7 +846,7 @@ void clearHFluid3(HyperFluid<3> fluid)
     }
 }
 
-void fillHFluidCircle3(HyperFluid<3> fluid)
+void fillHFluidCircle3(HyperFluid<3> fluid, bool bounded)
 {
   if(fluid.size.x > 0 && fluid.size.y > 0 && fluid.size.z > 0)
     {
@@ -780,7 +854,7 @@ void fillHFluidCircle3(HyperFluid<3> fluid)
       dim3 grid((int)ceil(fluid.size.x/(float)BLOCKDIM_X),
                 (int)ceil(fluid.size.y/(float)BLOCKDIM_Y),
                 (int)ceil(fluid.size.z/(float)BLOCKDIM_Z));
-      fillFluidCircleH3_k<<<grid, threads>>>(fluid);
+      fillFluidCircleH3_k<<<grid, threads>>>(fluid, bounded);
       getLastCudaError("====> ERROR: fillFluidCircleH3_k failed!");
     }
 }
@@ -835,7 +909,11 @@ extern "C" void projectHyper3(HyperFluid<3> src, HyperFluid<3> dst)
       
       preProjectH3_k<<<grid, threads>>>(src, dst);
       for(int i = 0; i < src.params.projectIter; i++) // iterate to converge
-        { projectH3_k<<<grid, threads>>>(src, dst); }
+        {
+          if((i % 2) == 1) { projectH3_k<<<grid, threads>>>(src, dst); }
+          else             { projectH3_k<<<grid, threads>>>(dst, src); }
+        }
+      if((src.params.projectIter % 2) == 0) { dst.copyTo(src); } 
       postProjectH3_k<<<grid, threads>>>(src, dst);
       getLastCudaError("====> ERROR: projection kernel failed! (projectHyper3)");
     }
@@ -855,7 +933,8 @@ extern "C" void addForcesHyper3(HyperFluid<3> src, HyperFluid<3> dst)
 }
 
 extern "C" void renderHFluid3(HyperFluid<3> src, CudaFieldTex dst, double3 fPos, double3 fSize,
-                              double3 camPos, double3 camDir, double3 up, double3 right, double fov)
+                              double3 camPos, double3 camDir, double3 up, double3 right, double fov,
+                              FluidRenderType r, FluidRenderType g, FluidRenderType b)
 {
   if(src.size.x > 0 && src.size.y > 0 && src.size.z > 0)
     {
@@ -864,7 +943,7 @@ extern "C" void renderHFluid3(HyperFluid<3> src, CudaFieldTex dst, double3 fPos,
                 (int)ceil(dst.size.y/(float)BLOCKDIM_Y));
       bool mapped = dst.mapped;
       if(!mapped) { dst.map(); }
-      renderFluidH3_k<<<grid, threads>>>(src, dst, fPos, fSize, camPos, camDir, up, right, fov);
+      renderFluidH3_k<<<grid, threads>>>(src, dst, fPos, fSize, camPos, camDir, up, right, fov, r, g, b);
       getLastCudaError("====> ERROR: renderFluidH3_k failed!");
       if(!mapped) { dst.unmap(); }
     }
@@ -874,6 +953,7 @@ extern "C" void renderHFluid3(HyperFluid<3> src, CudaFieldTex dst, double3 fPos,
 
 extern "C" void renderHFluid3Slice(HyperFluid<3> src, CudaFieldTex dst, double3 fPos, double3 fSize,
                                    double3 camPos, double3 camDir, double3 up, double3 right, double fov,
+                                   FluidRenderType r, FluidRenderType g, FluidRenderType b,
                                    int sdim, int si)
 {
   if(src.size.x > 0 && src.size.y > 0 && src.size.z > 0)
@@ -883,7 +963,7 @@ extern "C" void renderHFluid3Slice(HyperFluid<3> src, CudaFieldTex dst, double3 
                 (int)ceil(dst.size.y/(float)BLOCKDIM_Y));
       bool mapped = dst.mapped;
       if(!mapped) { dst.map(); }
-      renderFluidH3Slice_k<<<grid, threads>>>(src, dst, fPos, fSize, camPos, camDir, up, right, fov, sdim, si);
+      renderFluidH3Slice_k<<<grid, threads>>>(src, dst, fPos, fSize, camPos, camDir, up, right, fov, r, g, b, sdim, si);
       getLastCudaError("====> ERROR: renderFluidH3Slice_k failed!");
       if(!mapped) { dst.unmap(); }
     }

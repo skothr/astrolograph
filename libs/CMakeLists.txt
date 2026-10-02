@@ -11,5 +11,5 @@ include_directories(nfd)
 include_directories(magic_enum)
 # JSON
 set(JSON_BuildTests OFF CACHE INTERNAL "")
-set(JSON_Install OFF CACHE INTERNAL "")
+set(JSON_Install    OFF CACHE INTERNAL "")
 add_subdirectory(json)

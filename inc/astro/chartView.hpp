@@ -11,7 +11,6 @@
 
 namespace astro
 {
-
   // forward declarations
   class ChartCompare;
 

@@ -1,5 +1,4 @@
 #include "node.hpp"
-using namespace astro;
 
 #include <string>
 
@@ -8,9 +7,11 @@ using namespace astro;
 #include "nlohmann/json.hpp" // json definitions
 using json = nlohmann::json;
 
-#include "imtools.hpp"
 #include "chart.hpp"
-#include "astroWindow.hpp"
+using namespace astro;
+
+#include "imtools.hpp"
+#include "mainWindow.hpp"
 #include "nodeGraph.hpp"
 #include "viewSettings.hpp"
 #include "setting.hpp"
@@ -71,6 +72,9 @@ void Node::addOutput(ConnectorBase *con)
   con->setDirection(CONNECTOR_OUTPUT);
   mOutputs.push_back(con);
 }
+
+void Node::addInputs(const std::vector<ConnectorBase*>  &cons) { for(auto con : cons) { addInput(con);  } }
+void Node::addOutputs(const std::vector<ConnectorBase*> &cons) { for(auto con : cons) { addOutput(con); } }
 
 void Node::removeInput(int i)
 {
@@ -598,8 +602,10 @@ bool Node::draw(ImDrawList *graphDrawList, bool blocked)
 // returns true once all input dependencies are met
 bool Node::updateReady()
 {
-  for(auto con : mInputs) if(con->required())
-                            { if(!con->parent()->updated()) { return false; } } // required input not updated yet}
+  for(auto con : mInputs)
+    { // (required input not updated yet}
+      if(con->required() && !con->parent()->updated()) { return false; } 
+    }
   return true;
 }
 

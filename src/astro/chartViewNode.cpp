@@ -170,10 +170,10 @@ void ChartViewNode::drawSettings()
           ImGui::Indent();
           
           ImGui::BeginTable("##angVis", 4, ImGuiTableFlags_SizingPolicyStretchX | ImGuiTableFlags_NoClip);
-          ImGui::TableSetupColumn("", ImGuiTableColumnFlags_WidthStretch);
-          ImGui::TableSetupColumn("", ImGuiTableColumnFlags_WidthStretch);
-          ImGui::TableSetupColumn("", ImGuiTableColumnFlags_WidthStretch);
-          ImGui::TableSetupColumn("", ImGuiTableColumnFlags_WidthStretch);
+          ImGui::TableSetupColumn("##angVis", ImGuiTableColumnFlags_WidthStretch);
+          ImGui::TableSetupColumn("##angVis", ImGuiTableColumnFlags_WidthStretch);
+          ImGui::TableSetupColumn("##angVis", ImGuiTableColumnFlags_WidthStretch);
+          ImGui::TableSetupColumn("##angVis", ImGuiTableColumnFlags_WidthStretch);
           {
             ImGui::TableNextRow(); ImGui::TableSetColumnIndex(0);
             // angles

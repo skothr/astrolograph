@@ -1,5 +1,7 @@
-#include "astroWindow.hpp"
-using namespace astro;
+#include "mainWindow.hpp"
+
+#include <iomanip>
+
 #include <imgui.h>
 #include <imgui_internal.h>
 #include <nfd.h>
@@ -11,33 +13,35 @@ using json = nlohmann::json;
 
 #include "version/version.hpp"
 #include "tools.hpp"
-#include "astroWindow.hpp"
 #include "nodeGraph.hpp"
 #include "nodeList.hpp"
+#include "tabMenu.hpp"
 #include "viewSettings.hpp"
 #include "moonNode.hpp"
 #include "fileDialog.hpp"
 #include "setting.hpp"
 #include "settingForm.hpp"
 
-static AstroWindow *astroWin = nullptr; // TODO: remove global reference?
-void AstroWindow::windowCloseCallback(GLFWwindow *window)
+
+
+static MainWindow *mainWin = nullptr; // TODO: remove global reference?
+void MainWindow::windowCloseCallback(GLFWwindow *window)
 {
-  astroWin->mClosing = true;
-  if(astroWin->graph() && astroWin->graph()->unsavedChanges())
+  mainWin->mClosing = true;
+  if(mainWin->graph() && mainWin->graph()->unsavedChanges())
     {
       std::cout << "Unsaved changes!\n";
       glfwSetWindowShouldClose(window, GLFW_FALSE);
     }
   else { std::cout << "No unsaved changes!\n"; }
 }
-void AstroWindow::keyCallback(GLFWwindow* window, int key, int scancode, int action, int mods)
+void MainWindow::keyCallback(GLFWwindow* window, int key, int scancode, int action, int mods)
 {
   if(action == GLFW_PRESS || action == GLFW_RELEASE)
-    { astroWin->keyPress(mods, key, (action == GLFW_PRESS)); }
+    { mainWin->keyPress(mods, key, (action == GLFW_PRESS)); }
 }
 
-void AstroWindow::keyPress(int mods, int key, bool press)
+void MainWindow::keyPress(int mods, int key, bool press)
 {
   if(key != GLFW_KEY_LEFT_CONTROL && key != GLFW_KEY_RIGHT_CONTROL && // (don't count modifiers as presses)
      key != GLFW_KEY_LEFT_SHIFT   && key != GLFW_KEY_RIGHT_SHIFT   &&
@@ -62,21 +66,28 @@ void AstroWindow::keyPress(int mods, int key, bool press)
     }
 }
 
-#define ABIND(func)       std::bind(&AstroWindow::func, this)
-#define ABINDV(func, ...) std::bind(&AstroWindow::func, this, __VA_ARGS__)
-#define ABIND1(func)      std::bind(&AstroWindow::func, this, std::placeholders::_1)
-#define ABIND2(func)      std::bind(&AstroWindow::func, this, std::placeholders::_1, std::placeholders::_2)
+#define ABIND(func)       std::bind(&MainWindow::func, this)
+#define ABINDV(func, ...) std::bind(&MainWindow::func, this, __VA_ARGS__)
+#define ABIND1(func)      std::bind(&MainWindow::func, this, std::placeholders::_1)
+#define ABIND2(func)      std::bind(&MainWindow::func, this, std::placeholders::_1, std::placeholders::_2)
 
-AstroWindow::AstroWindow(GLFWwindow *window)
+MainWindow::MainWindow(GLFWwindow *window)
   : mWindow(window)
 {
-  astroWin = this; // NOTE/TODO: only one window total allowed for now
+  mainWin = this; // NOTE/TODO: only one window total allowed for now
   glEnable(GL_MULTISAMPLE); // enable antialiasing
-  glfwSetWindowCloseCallback(mWindow, &AstroWindow::windowCloseCallback);  // callback when closing window
+  glfwSetWindowCloseCallback(mWindow, &MainWindow::windowCloseCallback);  // callback when closing window
   glfwSetKeyCallback(mWindow, &keyCallback);                               // key event callback
   
   mViewSettings = new ViewSettings();
   mNodeList     = new NodeList(nullptr, mViewSettings);
+  mSideTabs     = new TabMenu();
+  mSideTabs->setVertical(true, true);
+  mSideTabs->setCollapsible(true);
+  mSideTabs->select(-1);
+  mSideTabs->add(TabDesc{"Nodes",  [&](){ mNodeList->draw(); }, 512});
+  // mSideTabs->add(TabDesc{"Timing", [&](){ mUpdateMenu->draw(); }, 512});
+
   mFileDialog   = new FileDialog();
   newProject();
   
@@ -152,7 +163,10 @@ AstroWindow::AstroWindow(GLFWwindow *window)
                 ABIND(groupNodes)),
      KeyBinding("Ungroup Nodes",                         "Ctrl+Shift+G", "Explodes group node into its components",
                 ABIND(ungroupNodes)),
-     //// Adding Nodes
+     
+     //// Nodes
+
+     //// Base/Astro
      KeyBinding("Add Label Node",                        "Z",            "Basic text display for organization",
                 ABINDV(startPlacing, "LabelNode")),
      KeyBinding("Add Time Node",                         "T",            "Defines a date and time",
@@ -177,6 +191,8 @@ AstroWindow::AstroWindow(GLFWwindow *window)
                 ABINDV(startPlacing, "AspectNode")),
      KeyBinding("Add Moon Node",                         "M",            "Shows current phase of the moon for a chart",
                 ABINDV(startPlacing, "MoonNode")),
+     KeyBinding("Add Vedic Node",                        "Ctrl+Alt+V",   "Shows Vedic Dasha periods (WIP)",
+                ABINDV(startPlacing, "VedicNode")),
      KeyBinding("Add Plot Node",                         "O",            "Plots positions over time and show retrogrades",
                 ABINDV(startPlacing, "PlotNode")),
      KeyBinding("Add Market Data Node",                  "J",            "Loads market data for a ticker",
@@ -186,11 +202,11 @@ AstroWindow::AstroWindow(GLFWwindow *window)
      KeyBinding("Add Neural Net Node",                   "N",            "Simulates a neural network (WIP)",
                 ABINDV(startPlacing, "NeuralNetNode")),
 
-     // fields/fluids
+     // Fields/Fluids
      KeyBinding("Add Field View Node",                   "Shift+V",      "Displays the contents of a field",
                 ABINDV(startPlacing, "FieldViewNode")),
-     KeyBinding("Add Field Channel View Node",           "Ctrl+Shift+V", "Displays one field per color channel",
-                ABINDV(startPlacing, "FieldChannelViewNode" )),
+     KeyBinding("Add Channel View Node",                 "Ctrl+Shift+V", "Displays one field (scalar/magnitude) per color channel",
+                ABINDV(startPlacing, "FieldChannelViewNode")),
      KeyBinding("Add FFT Node",                          "E",            "Calculates Fourier transform of a field",
                 ABINDV(startPlacing, "FFTNode")),
      KeyBinding("Add Fluid Node",                        "F",            "Simulates a vector field fluid",
@@ -199,39 +215,52 @@ AstroWindow::AstroWindow(GLFWwindow *window)
                 ABINDV(startPlacing, "HyperFluidNode")),
      KeyBinding("Add Mandelbrot Node",                   "Shift+M",      "Calculates the Mandelbrot Set",
                 ABINDV(startPlacing, "MandelbrotNode")),
+     
+     KeyBinding("Add Channel Split Node",                "Shift+S",      "Splits a field into its component values",
+                ABINDV(startPlacing, "ChannelSplitNode")),
+     KeyBinding("Add Channel Combine Node",              "Shift+C",      "Combines scalar fields into a composite multidimensional field",
+                ABINDV(startPlacing, "ChannelCombineNode")),
 
-     // field operators
+     // Field Operators
      KeyBinding("Add Field Add Node",                    "Shift+=",      "Adds two fields together (+)",
                 ABINDV(startPlacing, "FieldAddNode")),
-     KeyBinding("Add Field Abs Node",                    "Shift+\\",     "Magnitude of field (|)",
-                ABINDV(startPlacing, "FieldAbsNode")),
      KeyBinding("Add Field Mult Node",                   "Shift+8",      "Multiplies two fields together (*)",
                 ABINDV(startPlacing, "FieldMultNode")),
-     KeyBinding("Add Field Neg Node",                    "-",            "Negates field (-)",
+     KeyBinding("Add Field Negate Node",                 "-",            "Negates field (-)",
                 ABINDV(startPlacing, "FieldNegNode")),
+     KeyBinding("Add Field Abs Node",                    "Shift+|",      "Magnitude of field (|)",
+                ABINDV(startPlacing, "FieldAbsNode")),
      KeyBinding("Add Field Max Node",                    "Shift+.",      "Scales field by maximum magnitude",
                 ABINDV(startPlacing, "FieldMaxNode")),
      KeyBinding("Add Field Norm Node",                   "Shift+N",      "Scales field by average magnitude",
                 ABINDV(startPlacing, "FieldNormNode")),
+     KeyBinding("Add Field Log Node",                    "Shift+L",      "Calculates log(field)",
+                ABINDV(startPlacing, "FieldLogNode")),
+     KeyBinding("Add Field Exp Node",                    "Shift+E",      "Calculates exp(field)",
+                ABINDV(startPlacing, "FieldExpNode")),
 
-     // ∇
+     // Field ∇ Operators
      KeyBinding("Add Field Gradient Node",               "Shift+G",      "Finds gradient of field over X and Y",
                 ABINDV(startPlacing, "FieldGradNode")),
+     KeyBinding("Add Field Divergence Node",             "Shift+D",      "Finds divergence of field",
+                ABINDV(startPlacing, "FieldDivNode")),
+     KeyBinding("Add Field Curl Node",                   "Shift+Z",      "Finds curl of field",
+                ABINDV(startPlacing, "FieldCurlNode")),
+     
+     // Modular Fluids (TODO)
      //KeyBinding("Add Static Field",                      "Shift+S",      "Filled with static shape or pattern",
      //           ABINDV(startPlacing, "StaticFieldNode")),
      //KeyBinding("Add Fluid State Node",                  "Shift+S",      "State of a fluid field for simulation",
      //           ABINDV(startPlacing, "FluidStateNode")),
-     //KeyBinding("Add Field Divergence Node",             "Shift+D",      "Finds divergence of field",
-     //           ABINDV(startPlacing, "FieldDivNode")),
      
      //// Debug
-     KeyBinding("Show ImGui Demo",                       "Alt+D",        "Toggles ImGui demo window (with widget examples, style editor, metrics, etc.)",
+     KeyBinding("Show ImGui Demo",                       "Alt+D",        "Toggles ImGui demo window, and enables debug mode",
                 [&](){ mShowDemo = !mShowDemo; } )
     };
   mKeyBindings = mDefaultKeyBindings;
   for(auto k : mKeyBindings) { if(k.sequence.size() > 0 && k.name == "Cancel") { mCancelKey = k.sequence.back().key; } } // get cancel key
 
-  // key binding groups  
+  // key binding groups (node binding groups added automatically)
   mKeyBindingGroups =
     { {"Global Bindings", { "New Project", "Open Project", "Save Project", "Save Project As",
                             "Prev Project", "Next Project", "Exit", "Cancel" },
@@ -242,12 +271,22 @@ AstroWindow::AstroWindow(GLFWwindow *window)
                             "Group Nodes", "Ungroup Nodes", "Quit Placing" },
        {}},
     };
+
   // key bindings to add node types for each node group
+  std::cout << "==============================================================================\n";
+  std::cout << "= DEFAULT NODE KEY BINDINGS\n";
+  std::cout << "==============================================================================\n";
   for(auto &g : NodeGraph::NODE_GROUPS)
     {
       KeyBindingGroup kbg { g.name + " Nodes", { }, { } };
+      
+      std::cout << "\n";
+      std::cout << " " << kbg.name << "\n";
+      std::cout << "-----------------------------------------------\n";
+      
       for(auto &t : g.types)
         {
+          std::cout << "  " << std::left << std::setw(24) << t << " -->  ";
           auto iter = NodeGraph::NODE_TYPES.find(t);
           if(iter != NodeGraph::NODE_TYPES.end())
             {
@@ -257,20 +296,25 @@ AstroWindow::AstroWindow(GLFWwindow *window)
                 {
                   if(kb.name == kbName)
                     {
+                      std::cout << std::left << std::setw(12) << kb.toString() << "  ";
                       kbg.bindings.push_back(kb.name);
-                      found = true;
-                      //break; // binding exists
+                      found = true; break; // default binding defined above
                     }
                 }
               if(!found)
-                {
+                { // add empty binding (added to misc group below)
+                  std::cout << "UNDEFINED";
                   KeyBinding kb(kbName, "", "Add a " + kbName + ".", ABINDV(startPlacing, iter->second.typeName));
                   mKeyBindings.push_back(kb); mDefaultKeyBindings.push_back(kb);
                 }
             }
+          else { std::cout << "[INVALID]"; }
+          std::cout << "\n";
         }
       mKeyBindingGroups.push_back(kbg);
     }
+  std::cout << "==============================================================================\n";
+  std::cout << "\n\n";
   
   std::vector<std::string> miscNames;
   std::vector<int>         miscIds;
@@ -297,52 +341,77 @@ AstroWindow::AstroWindow(GLFWwindow *window)
       miscGroup.ids.push_back(miscIds[i]);
     }
   if(miscGroup.bindings.size() > 0) { mKeyBindingGroups.push_back(miscGroup); }
+  
+  std::cout << "\n\n";
 }
 
-AstroWindow::~AstroWindow()
+MainWindow::~MainWindow()
 {
-  mUpdateThread.join();
+  //mUpdating = false;
+  //mUpdateThread.join();
   saveConfig();
   for(auto &p : mProjects) { if(p.graph)   { delete p.graph; } }
   mProjects.clear();
   if(mNodeList)     { delete mNodeList; }
+  if(mSideTabs)     { delete mSideTabs; }
   if(mFileDialog)   { delete mFileDialog; }
   if(mViewSettings) { delete mViewSettings; }
 }
 
-void AstroWindow::init()
+void MainWindow::init(bool mainThread)
 {
   mViewSettings->init();
   loadConfig();
   // TODO: fix threading issues!
-  mUpdateThread = std::thread(std::bind(&AstroWindow::update, this));
+  //if(mainThread) { mUpdateThread = std::thread(std::bind(&MainWindow::update, this)); }
   
   ImGui::PushStyleColor(ImGuiCol_NavHighlight, Vec4f(0,0,0,0)); // no keyboard nav highlighting
   ImGui::GetStyle().TouchExtraPadding = Vec2f(3,3); // makes it easier to connect nodes
 }
 
-double AstroWindow::calcFps()
+double MainWindow::calcFps(bool updateThread)
 {
-  tNow = CLOCK_T::now();
-  dt = std::chrono::duration_cast<std::chrono::nanoseconds>(tNow - tLast).count()/1000000000.0;
-  tLast = tNow;
-  
-  tDiff += dt; // convert to nanoseconds
-  nFrames++;
-  double fps = fpsLast;
-  if(tDiff > FPS_UPDATE_INTERVAL)
+  if(updateThread)
     {
-      fps = nFrames / tDiff;
-      fpsLast = fps;
-      tDiff = 0.0;
-      nFrames = 0;
+      tNowU = CLOCK_T::now();
+      dtU = std::chrono::duration_cast<std::chrono::nanoseconds>(tNowU - tLastU).count()/1000000000.0;
+      tLastU = tNowU;
+  
+      tDiffU += dtU; // convert to nanoseconds
+      nFramesU++;
+      double fps = fpsLastU;
+      if(tDiffU > FPS_UPDATE_INTERVAL)
+        {
+          fps = nFramesU / tDiffU;
+          fpsLastU = fps;
+          tDiffU = 0.0;
+          nFramesU = 0;
+        }
+      return fps;
     }
-  return fps;
+  else
+    {
+      tNow = CLOCK_T::now();
+      dt = std::chrono::duration_cast<std::chrono::nanoseconds>(tNow - tLast).count()/1000000000.0;
+      tLast = tNow;
+  
+      tDiff += dt; // convert to nanoseconds
+      nFrames++;
+      double fps = fpsLast;
+      if(tDiff > FPS_UPDATE_INTERVAL)
+        {
+          fps = nFrames / tDiff;
+          fpsLast = fps;
+          tDiff = 0.0;
+          nFrames = 0;
+        }
+      return fps;
+    }
 }
 
 //// DIRECTORIES ////
 
-bool AstroWindow::checkProjectDir()
+bool MainWindow::checkProjectDir()
 {
   if(!directoryExists(mProjectDir))
     { // make sure project directory exists
@@ -352,9 +421,9 @@ bool AstroWindow::checkProjectDir()
   return true;
 }
 
-std::vector<AstroProject*> AstroWindow::getUnsavedProjects()
+std::vector<MainProject*> MainWindow::getUnsavedProjects()
 {
-  std::vector<AstroProject*> unsaved;
+  std::vector<MainProject*> unsaved;
   for(auto &p : mProjects)
     {
       if(p.graph && p.graph->unsavedChanges())
@@ -365,16 +434,16 @@ std::vector<AstroProject*> AstroWindow::getUnsavedProjects()
 
 
 //// NODE ACTIONS ////
-void AstroWindow::selectAll()    { if(activeProject()) { activeProject()->graph->selectAll(); } }
-void AstroWindow::quitPlacing()  { stopPlacing(true, true); stopPasting(); }
-void AstroWindow::groupNodes()   { if(activeProject()) { activeProject()->graph->groupSelected(); } }
-void AstroWindow::ungroupNodes() { if(activeProject()) { activeProject()->graph->ungroupSelected(); } }
+void MainWindow::selectAll()    { if(activeProject()) { activeProject()->graph->selectAll(); } }
+void MainWindow::quitPlacing()  { stopPlacing(true, true); stopPasting(); }
+void MainWindow::groupNodes()   { if(activeProject()) { activeProject()->graph->groupSelected(); } }
+void MainWindow::ungroupNodes() { if(activeProject()) { activeProject()->graph->ungroupSelected(); } }
 
 //// CUT/COPY/PASTE ////
 
-void AstroWindow::cut()
+void MainWindow::cut()
 {
-  AstroProject *proj = activeProject();
+  MainProject *proj = activeProject();
   if(proj && !proj->graph->isLocked())
     {
       std::vector<Node*> selected = proj->graph->getSelected();
@@ -401,9 +470,9 @@ void AstroWindow::cut()
     }
 }
 
-void AstroWindow::copy()
+void MainWindow::copy()
 {
-  AstroProject *proj = activeProject();
+  MainProject *proj = activeProject();
   if(proj && !proj->graph->isLocked())
     {
       std::vector<Node*> selected = proj->graph->getSelected();
@@ -426,9 +495,9 @@ void AstroWindow::copy()
     }
 }
 
-void AstroWindow::startPasting()
+void MainWindow::startPasting()
 {
-  AstroProject *proj = activeProject();
+  MainProject *proj = activeProject();
   if(!mPasting && mClipboard.size() > 0 && proj && !proj->graph->isLocked())
     {
       stopPlacing();
@@ -444,9 +513,9 @@ void AstroWindow::startPasting()
         }
     }
 }
-void AstroWindow::stopPasting()
+void MainWindow::stopPasting()
 {
-  AstroProject *proj = activeProject();
+  MainProject *proj = activeProject();
   if(mPasting && proj && !proj->graph->isLocked())
     {
       mPasting = false;
@@ -455,9 +524,9 @@ void AstroWindow::stopPasting()
     }
 }
 
-void AstroWindow::handlePasting()
+void MainWindow::handlePasting()
 {
-  AstroProject *proj = activeProject();
+  MainProject *proj = activeProject();
   if(mPasting && proj && !proj->graph->isLocked())
     {
       ImDrawList *winDrawList = proj->graph->getWinDrawList();
@@ -530,9 +599,9 @@ void AstroWindow::handlePasting()
 }
 
 
-void AstroWindow::startPlacing(const std::string &type)
+void MainWindow::startPlacing(const std::string &type)
 {
-  AstroProject *proj = activeProject();
+  MainProject *proj = activeProject();
   if(proj && !proj->graph->isLocked())
     {
       stopPasting();
@@ -551,7 +620,7 @@ void AstroWindow::startPlacing(const std::string &type)
     }
 }
 
-void AstroWindow::stopPlacing(bool deleteNode, bool selectHovered)
+void MainWindow::stopPlacing(bool deleteNode, bool selectHovered)
 {
   if(mPlacing)
     {
@@ -563,15 +632,15 @@ void AstroWindow::stopPlacing(bool deleteNode, bool selectHovered)
   else
     {
 
-      AstroProject *proj = activeProject();
+      MainProject *proj = activeProject();
       if(selectHovered && proj && proj->graph->getHovered()) // start placing type of node mouse is hovering over
         { startPlacing(proj->graph->getHovered()->type()); }
     }
 }
 
-void AstroWindow::handlePlacing()
+void MainWindow::handlePlacing()
 {
-  AstroProject *proj = activeProject();
+  MainProject *proj = activeProject();
   if(mPlacing && proj && !proj->graph->isLocked())
     {
       ImDrawList *winDrawList = proj->graph->getWinDrawList();
@@ -601,7 +670,7 @@ void AstroWindow::handlePlacing()
 
 //// PROJECTS ////
 
-AstroProject* AstroWindow::newProject()
+MainProject* MainWindow::newProject()
 {
   int id = 1;
   std::string name = "";
@@ -616,7 +685,7 @@ AstroProject* AstroWindow::newProject()
     } while(true);
   mProjects.push_back({ "", name, new NodeGraph(this, mViewSettings), true });
   mActiveProject = mProjects.size()-1;
-  AstroProject *proj = activeProject();
+  MainProject *proj = activeProject();
   
   mNodeList->setGraph(proj->graph);
   mFileDialog->setGraph(proj->graph);
@@ -625,7 +694,7 @@ AstroProject* AstroWindow::newProject()
   return activeProject();
 }
 
-void AstroWindow::projectOpen()
+void MainWindow::projectOpen()
 {
   stopPlacing(); stopPasting();
   if(checkProjectDir())
@@ -633,12 +702,12 @@ void AstroWindow::projectOpen()
   else                  { std::cout << "ERROR: Could not create project directory!\n"; }
 }
 
-void AstroWindow::projectSave()
+void MainWindow::projectSave()
 {
   stopPlacing(); stopPasting();
   if(checkProjectDir())
     {
-      AstroProject *proj = activeProject();
+      MainProject *proj = activeProject();
       if(proj)
         {
           if(!proj->path.empty())
@@ -654,7 +723,7 @@ void AstroWindow::projectSave()
   else { std::cout << "ERROR: Could not create project directory!\n"; }
 }
 
-void AstroWindow::projectSaveAs()
+void MainWindow::projectSaveAs()
 {
   stopPlacing(); stopPasting();
   if(checkProjectDir())
@@ -665,25 +734,25 @@ void AstroWindow::projectSaveAs()
   else { std::cout << "ERROR: Could not create project directory!\n"; }
 }
 
-void AstroWindow::prevProject()
+void MainWindow::prevProject()
 {
   mActiveProject--;
   if(mActiveProject < 0) { mActiveProject += mProjects.size(); }
 }
 
-void AstroWindow::nextProject()
+void MainWindow::nextProject()
 {
   mActiveProject = ((mActiveProject+1) % mProjects.size());
 }
 
-void AstroWindow::escape()
+void MainWindow::escape()
 {
   for(auto &p : mPopups)   { p.open = false; }   // close all popups
   if(!mCancelDebounce)
     {
       if(mClosing && !mNoSave) { mClosing = false; } // prevents unsaved data popup from reappearing when closing
 
-      AstroProject *proj = activeProject();
+      MainProject *proj = activeProject();
       if(proj && !mPasting && !mPlacing) { proj->graph->deselectAll(); }
       stopPasting(); stopPlacing();
 
@@ -691,25 +760,25 @@ void AstroWindow::escape()
     }
 }
 
-void AstroWindow::quit()
+void MainWindow::quit()
 {
   stopPlacing(); stopPasting();
-  std::vector<AstroProject*> unsaved = getUnsavedProjects();
+  std::vector<MainProject*> unsaved = getUnsavedProjects();
   if(unsaved.size() == 0 || (mClosing && mNoSave))
     { glfwSetWindowShouldClose(mWindow, GLFW_TRUE); }
   else if(unsaved.size() > 0) { mClosing = true; }
 }
 
 
-bool AstroWindow::undo()
+bool MainWindow::undo()
 {
-  AstroProject *proj = activeProject();
+  MainProject *proj = activeProject();
   return (proj ? proj->graph->undo() : false);
 }
 
-bool AstroWindow::redo()
+bool MainWindow::redo()
 {
-  AstroProject *proj = activeProject();
+  MainProject *proj = activeProject();
   return (proj ? proj->graph->redo() : false);
 }
 
@@ -717,7 +786,7 @@ bool AstroWindow::redo()
 
 //// CONFIG ////
 
-void AstroWindow::loadConfig()
+void MainWindow::loadConfig()
 {
   std::cout << "LOADING CONFIG\n";
   if(fileExists(CONFIG_FILE_PATH))
@@ -757,7 +826,7 @@ void AstroWindow::loadConfig()
     }
 }
 
-void AstroWindow::saveConfig()
+void MainWindow::saveConfig()
 {
   std::cout << "SAVING CONFIG\n";
   json js = json::object();
@@ -777,7 +846,7 @@ void AstroWindow::saveConfig()
 
 //// DRAWING ////
 
-void AstroWindow::drawMenuBar()
+void MainWindow::drawMenuBar()
 {
   //// MENU BAR ////
   if(ImGui::BeginMainMenuBar())
@@ -798,18 +867,18 @@ void AstroWindow::drawMenuBar()
           if(ImGui::MenuItem("Paste"))   { startPasting();  }
           if(ImGui::BeginMenu("Add Node"))
             {
-              for(const auto &gIter : astro::NodeGraph::NODE_GROUPS)
+              for(const auto &gIter : NodeGraph::NODE_GROUPS)
                 {
                   if(ImGui::BeginMenu(gIter.name.c_str()))
                     {
                       for(const auto &type : gIter.types)
                         {
-                          auto nIter = astro::NodeGraph::NODE_TYPES.find(type);
-                          if(nIter != astro::NodeGraph::NODE_TYPES.end())
+                          auto nIter = NodeGraph::NODE_TYPES.find(type);
+                          if(nIter != NodeGraph::NODE_TYPES.end())
                             {
                               if(ImGui::MenuItem(nIter->second.name.c_str()))
                                 {
-                                  AstroProject *proj = activeProject();
+                                  MainProject *proj = activeProject();
                                   if(proj) { startPlacing(nIter->first); }
                                 }
                             }
@@ -836,7 +905,7 @@ void AstroWindow::drawMenuBar()
     }  
 }
 
-void AstroWindow::drawTabs()
+void MainWindow::drawProjectTabs()
 {
   Vec4f circleColor        = Vec4f(0.3f, 0.6f, 0.8f, 1.0f);
   Vec4f xColor             = Vec4f(1.0f, 1.0f, 1.0f, 1.0f);
@@ -859,7 +928,7 @@ void AstroWindow::drawTabs()
   ImGui::BeginGroup();
   for(int i = 0; i < mProjects.size(); i++)
     {
-      AstroProject *proj = &mProjects[i];
+      MainProject *proj = &mProjects[i];
       if(!proj) { continue; }
       
       bool selected = false;
@@ -910,11 +979,11 @@ void AstroWindow::drawTabs()
           drawList->AddLine(xRect.p1, xRect.p2, ImColor(xColor), xWidth);
           drawList->AddLine(Vec2f(xRect.p2.x, xRect.p1.y), Vec2f(xRect.p1.x, xRect.p2.y), ImColor(xColor), xWidth);
         }
-      if(clicked || selected)
-        {
-          stopPlacing(); stopPasting();
-          if(proj->open && i != mClosingProject) { mActiveProject = i; }
-        }
+        if(clicked || selected)
+          {
+            stopPlacing(); stopPasting();
+            if(proj->open && i != mClosingProject) { mActiveProject = i; }
+          }
         if(i < mProjects.size() - 1) { ImGui::SameLine(); }
     }
   ImGui::EndGroup();
@@ -922,7 +991,7 @@ void AstroWindow::drawTabs()
 
   for(int i = 0; i < mProjects.size(); i++)
     {
-      AstroProject *proj = &mProjects[i];
+      MainProject *proj = &mProjects[i];
       if(!proj->open)
         {
           if(proj->graph->unsavedChanges())
@@ -952,16 +1021,19 @@ void AstroWindow::drawTabs()
     }
 }
 
-void AstroWindow::handleFileDialog()
+void MainWindow::handleFileDialog()
 {
   // check/update file dialog
   if(mFileDialog->check())
     {
+      std::cout << "(  --> check()   = true)\n";
       if(mFileDialog->success())
         {
+          std::cout << "(  --> success() = true)\n";
           std::string path = mFileDialog->getPath();
           if(mFileDialog->getType() == DIALOG_LOAD)
             {
+              std::cout << "(  --> DIALOG_LOAD)\n";
               // check if already opened
               for(int i = 0; i < mProjects.size(); i++)
                 {
@@ -972,8 +1044,9 @@ void AstroWindow::handleFileDialog()
                     }
                 }
               // load new project from file
+              std::cout << "(  --> MainWindow::newProject())\n";
               newProject();
-              AstroProject *proj = activeProject();
+              MainProject *proj = activeProject();
               if(proj)
                 {
                   proj->path = path;
@@ -986,7 +1059,8 @@ void AstroWindow::handleFileDialog()
             }
           else if(mFileDialog->getType() == DIALOG_SAVE)
             { // save active project to file
-              AstroProject *proj = activeProject();
+              std::cout << "(  --> DIALOG_SAVE)\n";
+              MainProject *proj = activeProject();
               if(proj)
                 {
                   proj->path = path;
@@ -1006,23 +1080,23 @@ void AstroWindow::handleFileDialog()
 
 //// POPUPS ////
 
-void AstroWindow::openPopup(const std::string &name)
+void MainWindow::openPopup(const std::string &name)
 {
   stopPlacing(); stopPasting();
   for(auto &iter : mPopupMap)
     { iter.second->open = (iter.first == name); } // only one popup open at a time
 }
 
-void AstroWindow::togglePopup(const std::string &name)
+void MainWindow::togglePopup(const std::string &name)
 {
   stopPlacing(); stopPasting();
   for(auto &iter : mPopupMap)
     { iter.second->open = ((iter.first == name) ? !iter.second->open : false); } // only one popup open at a time
 }
 
-void AstroWindow::drawPopup(Popup &p)
+void MainWindow::drawPopup(Popup &p)
 {
-  AstroProject *proj = activeProject();
+  MainProject *proj = activeProject();
   Vec2f wPos;     // popup window position
   Vec2f wSize;    // popup window size
   Vec2f sizeDiff; // size difference between popup window and child window
@@ -1109,7 +1183,7 @@ void AstroWindow::drawPopup(Popup &p)
     }
 }
 
-void AstroWindow::drawAbout(Popup &popup)
+void MainWindow::drawAbout(Popup &popup)
 {
   Vec2f textSize = ImGui::CalcTextSize("Astrolograph");
   ImGui::SetCursorPos(Vec2f(ImGui::GetCursorPos())+Vec2f((popup.size.x - textSize.x)/2.0f, 0));
@@ -1123,7 +1197,7 @@ void AstroWindow::drawAbout(Popup &popup)
   ImGui::TextUnformatted(ss.str().c_str());
 }
 
-void AstroWindow::drawViewSettings(Popup &popup)
+void MainWindow::drawViewSettings(Popup &popup)
 {
   ImGuiIO &io = ImGui::GetIO();
   ImGuiStyle& style = ImGui::GetStyle();
@@ -1151,9 +1225,9 @@ void AstroWindow::drawViewSettings(Popup &popup)
 }
 
 // opened when exiting program with unsaved projects
-void AstroWindow::drawExitUnsavedAlert(Popup &popup)
+void MainWindow::drawExitUnsavedAlert(Popup &popup)
 {
-  std::vector<AstroProject*> unsaved = getUnsavedProjects();
+  std::vector<MainProject*> unsaved = getUnsavedProjects();
   if(unsaved.size() == 0) // nothing to save -- exit
     { mClosing = true; mNoSave  = true; quit(); }
   else
@@ -1175,7 +1249,7 @@ void AstroWindow::drawExitUnsavedAlert(Popup &popup)
 }
 
 // opened when closing an unsaved project
-void AstroWindow::drawClosingUnsavedAlert(Popup &popup)
+void MainWindow::drawClosingUnsavedAlert(Popup &popup)
 {
   ImGui::Text("Warning: Project '%s' has been modified.", closingProject()->name.c_str());
   if(!closingProject()) { popup.open = true; }
@@ -1217,7 +1291,7 @@ void AstroWindow::drawClosingUnsavedAlert(Popup &popup)
 //// KEY BINDINGS ////
 
 // draw single key binding //
-void AstroWindow::drawKeyBinding(KeyBinding &kb, const KeyBinding &defaultKb)
+void MainWindow::drawKeyBinding(KeyBinding &kb, const KeyBinding &defaultKb)
 {
   ImGui::BeginGroup();
   {
@@ -1247,37 +1321,39 @@ void AstroWindow::drawKeyBinding(KeyBinding &kb, const KeyBinding &defaultKb)
 }
 
 // draw key binding popup //
-void AstroWindow::drawKeyBindings(Popup &popup)
+void MainWindow::drawKeyBindings(Popup &popup)
 {
-  AstroProject *proj = activeProject();
+  MainProject *proj = activeProject();
   for(auto &g : mKeyBindingGroups)
     {
-      ImGui::Indent();
-      ImGui::TextUnformatted(g.name.c_str());
-      
-      ImGui::Unindent(); ImGui::Separator(); ImGui::Spacing(); ImGui::Indent();
-      ImGui::Indent();
-      for(int i = 0; i < g.bindings.size(); i++)
+      if(g.bindings.size() > 0)
         {
-          KeyBinding *kb  = (g.ids[i] < mKeyBindings.size()        ? &mKeyBindings[g.ids[i]]        : nullptr);
-          KeyBinding *kbd = (g.ids[i] < mDefaultKeyBindings.size() ? &mDefaultKeyBindings[g.ids[i]] : nullptr);
-          // auto kb  = std::find(mKeyBindings.begin(),        mKeyBindings.end(),        );
-          // auto kbd = std::find(mDefaultKeyBindings.begin(), mDefaultKeyBindings.end(), g.ids[i]);
+          ImGui::Indent();
+          ImGui::TextUnformatted(g.name.c_str());
+          ImGui::Unindent(); ImGui::Separator(); ImGui::Spacing(); ImGui::Indent();
+          ImGui::Indent();
+          for(int i = 0; i < g.bindings.size(); i++)
+            {
+              KeyBinding *kb  = (g.ids[i] < mKeyBindings.size()        ? &mKeyBindings[g.ids[i]]        : nullptr);
+              KeyBinding *kbd = (g.ids[i] < mDefaultKeyBindings.size() ? &mDefaultKeyBindings[g.ids[i]] : nullptr);
+              // auto kb  = std::find(mKeyBindings.begin(),        mKeyBindings.end(),        );
+              // auto kbd = std::find(mDefaultKeyBindings.begin(), mDefaultKeyBindings.end(), g.ids[i]);
           
-          if(kb && kbd) { drawKeyBinding(*kb, *kbd); }
-          else { std::cout << "====> WARNING: Missing key binding! --> " << g.ids[i] << " / " << g.bindings[i] << "\n"; }
+              if(kb && kbd) { drawKeyBinding(*kb, *kbd); }
+              else { std::cout << "====> WARNING: Missing key binding! --> " << g.ids[i] << " / " << g.bindings[i] << "\n"; }
+            }
+          ImGui::Unindent(); ImGui::Unindent();
+          ImGui::SetCursorPos(Vec2f(ImGui::GetCursorPos()) + Vec2f(0.0f, 16.0f));
+          ImGui::Separator();
         }
-      ImGui::Unindent(); ImGui::Unindent();
-      ImGui::SetCursorPos(Vec2f(ImGui::GetCursorPos()) + Vec2f(0.0f, 16.0f));
-      ImGui::Separator();
     }
   // ImGui::Unindent();
 }
 
-// TODO: Bindings for NodeList, ViewSettings, etc.
-void AstroWindow::handleKeyBindings()
+// TODO: Bindings for NodeList, ViewSettings, etc. (?)
+void MainWindow::handleKeyBindings()
 {
-  AstroProject *proj = activeProject();
+  MainProject *proj = activeProject();
   if(mBindingEdit)
     { // user setting new key binding
       mBindingEdit->sequence = mKeySequence;
@@ -1317,10 +1393,10 @@ void AstroWindow::handleKeyBindings()
     }
 }
 
-void AstroWindow::draw(const Vec2i &frameSize)
+void MainWindow::draw(const Vec2i &frameSize)
 {
   mFrameSize = frameSize;
-  ImGui::PushFont(astroWin->viewSettings()->mainFont); // main font
+  ImGui::PushFont(mainWin->viewSettings()->mainFont); // main font
   
   //// DRAWING ////
   ImGuiWindowFlags wFlags = (ImGuiWindowFlags_NoTitleBar        |
@@ -1333,7 +1409,8 @@ void AstroWindow::draw(const Vec2i &frameSize)
                              ImGuiWindowFlags_NoBringToFrontOnFocus
                              );
   const Vec2f padding = GRAPH_PADDING;
-  int listWidth = (mNodeList->isCollapsed() ? mNodeList->getWidth() : 512.0f);
+  // int listWidth = (mSideTabs->isCollapsed() ? mSideTabs->getWidth() : 512.0f);
+  int tabBarWidth = mSideTabs->getSize().x;
   
   // draw menu bar
   drawMenuBar();
@@ -1352,15 +1429,15 @@ void AstroWindow::draw(const Vec2i &frameSize)
   {
     // call any key binding actions (must be called from main thread)
     handleKeyBindings();
-    AstroProject *proj = activeProject();
+    MainProject *proj = activeProject();
     for(auto &k : mKeyBindings) { k.update(); }
     proj = activeProject(); // in case switched to new project
     
-    drawTabs();
+    drawProjectTabs();
     Vec2f tbSize = Vec2f(ImGui::GetItemRectMax()) - ImGui::GetItemRectMin() + Vec2f(0.0f, 2*TABBAR_PADDING.y - padding.y);
     
     Vec2f graphPos = Vec2f(padding.x, mbSize.y + tbSize.y + TABBAR_PADDING.y - padding.y);
-    Vec2f graphSize = Vec2f(frameSize.x - 3*padding.x - listWidth, frameSize.y - mbSize.y - tbSize.y - 2*padding.y);
+    Vec2f graphSize = Vec2f(frameSize.x - 3*padding.x - tabBarWidth, frameSize.y - mbSize.y - tbSize.y - 2*padding.y);
     if(proj && proj->open)
       {
         proj->graph->setPos(graphPos);
@@ -1424,29 +1501,23 @@ void AstroWindow::draw(const Vec2i &frameSize)
             }
         }
         proj->graph->EndDraw();
-        
-        //if(!closingProject()) { proj->graph->update(dt); }
+        // if(!closingProject()) { proj->graph->update(dt); }
         mNodeList->setGraph(proj->graph);
       }
     
-    if(mNodeList->isCollapsed())
-      {
-        mNodeList->setPos(Vec2f(frameSize.x - 2.0f*padding.x - listWidth, graphPos.y));
-      }
-    else
-      {
-        mNodeList->setPos(Vec2f(frameSize.x - padding.x - listWidth, graphPos.y));
-        mNodeList->setSize(Vec2f(listWidth, graphSize.y));
-      }
-    mNodeList->draw();
+    mSideTabs->setLength(graphSize.y);
+    ImGui::SetCursorScreenPos(Vec2f(frameSize.x - padding.x - mSideTabs->getBarWidth(), graphPos.y));
+    mSideTabs->draw();
   }
   ImGui::End();
 
   if(mShowFps)
     { // FPS counter
+      float renderFps = (float)calcFps(false);
+      
       std::ostringstream ss;
-      ss << ((int)calcFps()) << " FPS";
-      AstroProject *proj = activeProject();
+      ss << "R: " << (int)renderFps << " FPS | U: " << (int)fpsLastU << " FPS ";
+      MainProject *proj = activeProject();
       if(proj)
         {
           Vec2f center = proj->graph->getCenter();
@@ -1457,7 +1528,7 @@ void AstroWindow::draw(const Vec2i &frameSize)
       ImGui::PushFont(mViewSettings->titleFont);
       Vec2f tSize = ImGui::CalcTextSize(str.c_str());
       ImGui::GetForegroundDrawList()->AddText(Vec2f(15.0f, frameSize.y - tSize.y - 15.0f), ImColor(Vec4f(1,1,1,1)),
-                                              str.c_str(), str.c_str()+(str.end() - str.begin()));
+                                              str.c_str(), str.c_str()+(str.end() - str.begin()));      
       ImGui::PopFont(); // titleFont
     }
   
@@ -1469,7 +1540,7 @@ void AstroWindow::draw(const Vec2i &frameSize)
   for(auto &p : mPopups) { drawPopup(p); }
   
   // handle file dialog (outside main window!)
-  AstroProject *proj = activeProject();
+  MainProject *proj = activeProject();
   mFileDialog->setGraph(proj->graph);
   handleFileDialog();
   
@@ -1483,8 +1554,14 @@ void AstroWindow::draw(const Vec2i &frameSize)
   ImGui::PopFont(); // main font
 }
 
-void AstroWindow::update()
+void MainWindow::update()
 {
-  AstroProject *proj = activeProject();
-  if(proj && proj->graph) { proj->graph->update(dt); }
+  //mUpdating = true;
+  //while(mUpdating)
+    {
+      calcFps(true);
+      MainProject *proj = activeProject();
+      if(proj && proj->graph) { proj->graph->update(dt); }
+      //usleep(1000);
+    }
 }

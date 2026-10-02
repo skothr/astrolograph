@@ -1,5 +1,5 @@
 #include "groupNode.hpp"
-using namespace astro;
+
 #include "nodeGraph.hpp"
 #include "imgui.h"
 //#include "setting.hpp"

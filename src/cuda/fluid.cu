@@ -91,7 +91,7 @@ __global__ void advect_k(CudaFluid<float> src, CudaFluid<float> dst, int lb)
       float2 u0 = float2{tex2DD(src.vx.dData, ix+0.5f, iy+0.5f, w, h), tex2DD(src.vy.dData, ix+0.5f, iy+0.5f, w, h)};
       float2 u  = u0;
       
-       float2 lastPos = float2{ float(ix) - dt*u.x + 0.5f, float(iy) - dt*u.y + 0.5f };
+      float2 lastPos = float2{ float(ix) - dt*u.x + 0.5f, float(iy) - dt*u.y + 0.5f };
       //float2 lastPos = float2{ float(ix) - dt*u.x-0.5f, float(iy) - dt*u.y-0.5f };
       if(lastPos.x < 0.5f) { lastPos.x = 0.5f; } else if(lastPos.x > src.size.x-0.5f) { lastPos.x = src.size.x-0.5f; }
       if(lastPos.y < 0.5f) { lastPos.y = 0.5f; } else if(lastPos.y > src.size.y-0.5f) { lastPos.y = src.size.y-0.5f; }
@@ -132,19 +132,22 @@ __global__ void advect_k(CudaFluid<float> src, CudaFluid<float> dst, int lb)
       float2 nextUdy = float2{tex2DD(src.vx.dData, nextPos.x+1,   nextPos.y+1,   w, h),
                               tex2DD(src.vy.dData, nextPos.x,     nextPos.y+1+1, w, h) } - nextU;
 
-      float  d  = tex2DD(src.d.dData, lastPos.x, lastPos.y, w, h);
+      float  d      = tex2DD(src.d.dData,  lastPos.x, lastPos.y, w, h);
       float  p      = tex2DD(src.p.dData,  lastPos.x, lastPos.y, w, h);
       float2 lastWv = tex2DD(src.wv.dData, lastPos.x, lastPos.y, w, h);
 
       
       u = lastU; //(lastU + u)/2;
-      if(ix > 0 && iy > 0 && ix < src.size.x-1 && iy < src.size.y-1)
+
+      // VISCOSITY
+      //   NOTE: uses absolute value of timestep to avoid explosion (set viscosity < 0 for same effect as -timestep)
+      if(src.params.applyVisc && ix > 0 && iy > 0 && ix < src.size.x-1 && iy < src.size.y-1)
         {
           float2 du_dt = float2{0.0f,0.0f}; //-0.25*(u.x*nextUdx + u.y*nextUdy);
           du_dt += src.params.viscosity*(lastUd2x + lastUd2y);
           // float2 du_dt = -0.5*(abs(u.x)*lastUdx + abs(u.y)*lastUdy) + src.params.viscosity*(lastUd2x + lastUd2y);
           //float2 du_dt = {0.0, 0.0}; //-src.params.viscosity*(lastUd2x + lastUd2y);
-          u -= dt*du_dt*d;
+          u -= abs(dt)*du_dt;//*d;
         }
       
       if(isnan(u.x))  { u.x  = 0.0; }
@@ -433,7 +436,7 @@ __forceinline__ __device__ float2 closestPoint(float2 l1, float2 l2, float2 p0)
   return l1 + n*d;
 }
 
-__global__ void addForces_k(CudaFluid<float> src, CudaFluid<float> dst)
+__global__ void addForces_k(CudaFluid<float> src, CudaFluid<float> dst, CudaFluid<float> prev)
 {
   int ix = blockIdx.x*blockDim.x + threadIdx.x;
   int iy = blockIdx.y*blockDim.y + threadIdx.y;
@@ -450,122 +453,117 @@ __global__ void addForces_k(CudaFluid<float> src, CudaFluid<float> dst)
       float2 mv = forcePoint1 - forcePoint2;
       float mvLen = length(mv);
       
-      float  d  = src.d.dData[i];
-      float  p  = src.p.dData[i];
-      float2 u  = float2{src.vx.dData[i], src.vy.dData[i]};
+      float  d    = src.d.dData[i];
+      float  p    = src.p.dData[i];
+      float2 u    = float2{src.vx.dData[i], src.vy.dData[i]};
       float2 norm = u / length(u);
-      float2 wv = src.wv.dData[i];
+      float2 wv   = src.wv.dData[i];
+      
+      float2 pp = float2{float(ix + 0.5f)/w, float(iy + 0.5f)/h}; // pixel pos
 
-      float2 pp = float2{float(ix + 0.5f)/w, float(iy + 0.5f)/h};
-
-      // calculate force based on distance from mouse movement line segment
-      float2 diff; float  dist;
-      if((dot(normalize(forcePoint2 - forcePoint1), normalize(pp - forcePoint1)) <= 0) ||
-         (dot(normalize(forcePoint1 - forcePoint2), normalize(pp - forcePoint2)) <= 0))
-        {
-          float distp1 = length(forcePoint1 - pp);
-          float distp2 = length(forcePoint2 - pp);
-
-          if(distp1 < distp2)
+      float2 diff; float dist;
+      if(mvLen > 0.0f)
+        { // calculate force based on distance from mouse movement line segment
+          if((dot(normalize(forcePoint2 - forcePoint1), normalize(pp - forcePoint1)) <= 0) ||
+             (dot(normalize(forcePoint1 - forcePoint2), normalize(pp - forcePoint2)) <= 0)) // (dot(v1, v2) < 0) --> angle < pi/2
             {
-              diff = pp - forcePoint1;
-              dist = distp1;
-            }
+              float distp1 = length(pp - forcePoint1); // distance to last mouse pos
+              float distp2 = length(pp - forcePoint2); // distance to current mouse pos
+              if(distp1 < distp2)
+                { diff = pp - forcePoint1; dist = distp1; }
+              else
+                { diff = pp - forcePoint2; dist = distp2; }
+            } // part of semicircle caps at line endpoints (TODO: improve?)
           else
-            {
-              diff = pp - forcePoint2;
-              dist = distp2;
+            { // part of rectangular overlap area -- get perpendicular distance to line
+              dist = lineDist(forcePoint1, forcePoint2, pp);
+              //diff = pp - closestPoint(forcePoint1, forcePoint2, pp);
+
+              diff = normalize(mv);
+              diff = float2{diff.y, -diff.x};
+              if(dot(diff, normalize(forcePoint1 - pp)) < 0.0f || dot(diff, normalize(forcePoint2 - pp)) < 0.0f) { diff = -diff; }
+              diff *= dist;
             }
         }
-      else if(mvLen > 0.0f)
-        {
-          diff = closestPoint(forcePoint1, forcePoint2, pp);
-          dist = lineDist    (forcePoint1, forcePoint2, pp);
-        }
-      else
-        {
-          diff = pp - forcePoint1;
+      else if(mvLen == 0.0f)
+        { // only one point
+          diff = pp - forcePoint2;
           dist = length(diff);
         }
       
       float  dist2 = dist*dist;
-      float2 pDiff = pp - forcePoint1;
+      float2 pDiff = pp - forcePoint2;
+      // if(params->movedLast && length(pp-forcePoint1) < params->forceRad)
+      //   { pDiff -= prev.f.dData[i]; }
       float  pDist = length(pDiff);
-      
+
       if(params->mdown)
         {
+          // only applies force around current mouse pos
           float mult = 0.0;
-          //float dMult = 0.0;
-          
           if(pDist <= params->forceRad)
+            { mult = (1.0f - smoothstep(0.0f, 1.0f, pDist/params->forceRad)) / sqrt(params->forceRad); }
+
+          // applies force between previous and current mouse pos
+          float mult2 = (1.0f - smoothstep(0.0f, 1.0f, dist/params->forceRad)) / (params->forceRad);
+
+          if(dist < params->forceRad)
             {
-              //mult = mvLen/(1.0 + (pDist)/(params->forceRad*params->forceRad));
-              //mult = 1.0f/(1.0f + (pDist)/(params->forceRad*params->forceRad));
-              //mult = 1.0/(1.0 + ((pDiff.x*pDiff.x+pDiff.y*pDiff.y)*dist2)/(params->forceRad*params->forceRad));
-              mult = (1.0f - smoothstep(0.0f, 1.0f, pDist/params->forceRad)) / sqrt(params->forceRad);
-              //mult = mult;
-            }
-          //mult *= (1.0f + mvLen));
-          // #define FORCE_SIGMA (sqrt(params->forceRad/3.0f))
-          
-          if(params->ftype & FLUIDFORCE_PUSH)
-            { // push force
-              if(dist < params->forceRad)
-                {
-                  float mult2 = (1.0f-smoothstep(0.0f, 1.0f, dist/params->forceRad)) / (params->forceRad);//1.0 - dist);
+              if(params->ftype & FLUIDFORCE_PUSH)
+                { // push force
                   //float mult2 = exp(-dist/(2*FORCE_SIGMA*FORCE_SIGMA));
                   //mult2 = mult2*mult2;
                   u.x += mv.x * mult2 * params->vfPush;
                   u.y += mv.y * mult2 * params->vfPush;
                   if(params->ftype & FLUIDFORCE_WV)
                     {
-                      wv += float2{0.2,0.1} * mvLen * mult2 * params->wvf;
+                      wv += float2{0.1,0.3} * mvLen * mult2 * params->wvf;
                       //wv.y += mvLen * mult2 * params->wvf;
                     }
                 }
-            }
           
-          if(params->ftype & FLUIDFORCE_DENSITY)  { d += mult*params->df; }
-          if(params->ftype & FLUIDFORCE_PRESSURE) { p += mult*params->pf; }
+              if(params->ftype & FLUIDFORCE_DENSITY)  { d += mult2*params->df; }
+              if(params->ftype & FLUIDFORCE_PRESSURE) { p += mult2*params->pf; }
           
-          if(params->ftype & FLUIDFORCE_IN)
-            { // inward forceRadius
-              u.x += -pDiff.x*mult*params->vfIn;
-              u.y += -pDiff.y*mult*params->vfIn;
-              if(params->ftype & FLUIDFORCE_WV)
-                {
-                  wv.x += -pDist*mult*params->wvf;
-                  // wv.y += -pDist*mult*params->wvf;
+              if(params->ftype & FLUIDFORCE_IN)
+                { // inward forceRadius
+                  u.x += -pDiff.x*mult2*params->vfIn;
+                  u.y += -pDiff.y*mult2*params->vfIn;
+                  if(params->ftype & FLUIDFORCE_WV)
+                    {
+                      wv.x += -pDist*mult2*params->wvf;
+                      // wv.y += -pDist*mult*params->wvf;
+                    }
                 }
-            }
-          if(params->ftype & FLUIDFORCE_OUT)
-            { // outward force
-              u.x += pDiff.x*mult*params->vfOut;
-              u.y += pDiff.y*mult*params->vfOut;
-              if(params->ftype & FLUIDFORCE_WV)
-                {
-                  wv.x += pDist*mult*params->wvf;
-                  // wv.y += pDist*mult*params->wvf;
+              if(params->ftype & FLUIDFORCE_OUT)
+                { // outward force
+                  u.x += pDiff.x*mult2*params->vfOut;
+                  u.y += pDiff.y*mult2*params->vfOut;
+                  if(params->ftype & FLUIDFORCE_WV)
+                    {
+                      wv.x += pDist*mult2*params->wvf;
+                      // wv.y += pDist*mult*params->wvf;
+                    }
                 }
-            }
-          if(params->ftype & FLUIDFORCE_CW)
-            { // clockwise force
-              u.x += -pDiff.y*mult*params->vfCw;
-              u.y += pDiff.x*mult*params->vfCw;
-              if(params->ftype & FLUIDFORCE_WV)
-                {
-                  //wv.x += -pDiff.y*norm.x*mult*params->wvf;
-                  wv.y += pDist*mult*params->wvf;
+              if(params->ftype & FLUIDFORCE_CW)
+                { // clockwise force
+                  u.x += -pDiff.y*mult2*params->vfCw;
+                  u.y += pDiff.x*mult2*params->vfCw;
+                  if(params->ftype & FLUIDFORCE_WV)
+                    {
+                      //wv.x += -pDiff.y*norm.x*mult*params->wvf;
+                      wv.y += pDist*mult2*params->wvf;
+                    }
                 }
-            }
-          if(params->ftype & FLUIDFORCE_CCW)
-            { // counter-clockwise
-              u.x += pDiff.y*mult*params->vfCcw;
-              u.y += -pDiff.x*mult*params->vfCcw;
-              if(params->ftype & FLUIDFORCE_WV)
-                {
-                  //wv.x += pDiff.y*norm.x*mult*params->wvf;
-                  wv.y += -pDist*mult*params->wvf;
+              if(params->ftype & FLUIDFORCE_CCW)
+                { // counter-clockwise
+                  u.x += pDiff.y*mult2*params->vfCcw;
+                  u.y += -pDiff.x*mult2*params->vfCcw;
+                  if(params->ftype & FLUIDFORCE_WV)
+                    {
+                      //wv.x += pDiff.y*norm.x*mult*params->wvf;
+                      wv.y += -pDist*mult2*params->wvf;
+                    }
                 }
             }
         }
@@ -574,13 +572,14 @@ __global__ void addForces_k(CudaFluid<float> src, CudaFluid<float> dst)
       {
         u.y += dt*params->gravity;//*params->density; // GRAVITY
       }
-
-      dst.vx.dData[i]  = u.x;
-      dst.vy.dData[i]  = u.y;
-      dst.wv.dData[i]  = wv;
-      dst.d.dData[i]   = d;
-      dst.p.dData[i]   = p;
-      dst.div.dData[i] = src.div.dData[i];
+      
+      dst.vx.dData[i]   = u.x;
+      dst.vy.dData[i]   = u.y;
+      dst.wv.dData[i]   = wv;
+      dst.d.dData[i]    = d;
+      dst.p.dData[i]    = p;
+      dst.div.dData[i]  = src.div.dData[i];
+      //dst.f.dData[i] = u - float2{src.vx.dData[i], src.vy.dData[i]};
     }
 }
 
@@ -693,13 +692,13 @@ extern "C" void fluidProject(CudaFluid<float> src, CudaFluid<float> dst)
     }
 }
 
-extern "C" void fluidAddForces(CudaFluid<float> src, CudaFluid<float> dst)
+extern "C" void fluidAddForces(CudaFluid<float> src, CudaFluid<float> dst, CudaFluid<float> prev)
 {
   if(src.size.x > 0 && src.size.y > 0)
     {
       dim3 threads(BLOCKDIM_X, BLOCKDIM_Y);
       dim3 grid((int)ceil(src.size.x/(float)BLOCKDIM_X), (int)ceil(src.size.y/(float)BLOCKDIM_Y));
-      addForces_k<<<grid, threads>>>(src, dst);
+      addForces_k<<<grid, threads>>>(src, dst, prev);
       getLastCudaError("====> ERROR: addForces_k failed!");
     }
 }

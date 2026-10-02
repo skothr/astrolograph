@@ -33,7 +33,7 @@ typedef std::map<std::string, StockData> MarketData;
  
 
 
-inline astro::DateTime marketDate(const std::string &dateStr)
+inline DateTime marketDate(const std::string &dateStr)
 {
   std::stringstream ss(dateStr);
   std::string val;
@@ -43,7 +43,7 @@ inline astro::DateTime marketDate(const std::string &dateStr)
   if(vals.size() != 3)
     {
       std::cout << "ERROR: could not parse market date! --> (" << dateStr << ")\n";
-      return astro::DateTime();
+      return DateTime();
     } 
   
   int year, month, day;
@@ -53,10 +53,10 @@ inline astro::DateTime marketDate(const std::string &dateStr)
   ss >> month;
   ss.str(vals[2]); ss.clear();
   ss >> day;
-  return astro::DateTime(year, month, day, 0, 0, 0);
+  return DateTime(year, month, day, 0, 0, 0);
 }
 
-inline std::string marketDateStr(const astro::DateTime &dt)
+inline std::string marketDateStr(const DateTime &dt)
 {
   std::stringstream ss;
   ss << std::setfill('0');
@@ -71,18 +71,18 @@ static bool compareDate(Pair i, Pair j)
 { return i.first < j.first; }
 
 // gets minimum date in data
-inline astro::DateTime minDate(const StockData &data) 
+inline DateTime minDate(const StockData &data) 
 {
-  if(data.size() == 0) { return astro::DateTime(); }
+  if(data.size() == 0) { return DateTime(); }
   Pair minVal = *std::min_element(data.begin(), data.end(), &compareDate);
   return marketDate(minVal.first);
 }
 
 // gets minimum date in data
 typedef std::pair<std::string, MarketPoint> Pair;
-inline astro::DateTime maxDate(const StockData &data) 
+inline DateTime maxDate(const StockData &data) 
 {
-  if(data.size() == 0) { return astro::DateTime(); }
+  if(data.size() == 0) { return DateTime(); }
   Pair maxVal = *std::max_element(data.begin(), data.end(), &compareDate);
   return marketDate(maxVal.first);
 }
@@ -229,7 +229,7 @@ inline StockData loadStockDataCsv(const std::string &csvPath)
           int year;  ss >> year;
           int month; ss >> month;
           int day;   ss >> day;
-          astro::DateTime rowDt = astro::DateTime(year, month, day, 0, 0, 0); rowDt.fix();
+          DateTime rowDt = DateTime(year, month, day, 0, 0, 0); rowDt.fix();
           
           data.emplace(dateStr, MarketPoint{});
           MarketPoint &d = data[dateStr];

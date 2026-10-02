@@ -1,5 +1,4 @@
 #include "plotWidget.hpp"
-using namespace astro;
 
 #include <fstream>
 #include <sstream>
@@ -667,7 +666,7 @@ std::vector<AxisLabel> PlotWidget::getYAxisLabels(ViewSettings *vs, float scale,
   Vec2f framePadding = AXIS_FRAME_PADDING*scale;
   
   double start     = axis->labelMin;
-  double interval  = axis->labelInterval;
+  double interval  = std::max(axis->labelInterval, 0.0);
   double end       = std::ceil(axis->p2()/interval)*interval;
   if(std::isnan(start) || std::isnan(end) || std::isnan(end)) { return { }; }
   if(axis->labelMax != 0.0) { end = std::min(end, std::ceil(axis->labelMax/interval)*interval); }
@@ -1091,7 +1090,7 @@ Vec2f PlotWidget::draw(ViewSettings *vs, bool blocked, float scale, const Vec2f 
                                   }
                               }
                             else
-                              { // draw vertical line instead of rect
+                              { // draw vertical lines instead of rects
                                 po = plotToScreenPos(Vec2d(dateIndex+0.5f, d.open),  &mMarketAxis);
                                 pc = plotToScreenPos(Vec2d(dateIndex+0.5f, d.close), &mMarketAxis);
                                 if(d.close != d.open || (d.open != 0.0 && d.close != 0.0))
@@ -1204,9 +1203,9 @@ void PlotWidget::setMarketData(const StockData *marketData, bool updateView)
       mVolumeAxis.labelInterval = mVolumeAxis.dataMax / 10.0;
       if(mVolumeAxis.logScale)
         {
-          mVolumeAxis.labelMin      = mVolumeAxis.labelMin <= 0 ? 1.0 : log(mVolumeAxis.labelMin);
-          mVolumeAxis.labelMax      = mVolumeAxis.labelMax <= 0 ? 1.0 : log(mVolumeAxis.labelMax);
-          mVolumeAxis.labelInterval = mVolumeAxis.labelInterval <= 0 ? 1.0 : log(mVolumeAxis.labelInterval);
+          // mVolumeAxis.labelMin      = mVolumeAxis.labelMin <= 0 ? 1.0 : log(mVolumeAxis.labelMin);
+          // mVolumeAxis.labelMax      = mVolumeAxis.labelMax <= 0 ? 1.0 : log(mVolumeAxis.labelMax);
+          mVolumeAxis.labelInterval = mVolumeAxis.labelInterval <= 0 ? 1.0 : std::max(log(mVolumeAxis.labelInterval), 0.0);
         }
       mMarketAxis.labelMin      = 0.0;
       mMarketAxis.labelMax      = 0.0;
@@ -1215,7 +1214,7 @@ void PlotWidget::setMarketData(const StockData *marketData, bool updateView)
         {
           mMarketAxis.labelMin      = mMarketAxis.labelMin <= 0 ? 1.0 : log(mMarketAxis.labelMin);
           mMarketAxis.labelMax      = mMarketAxis.labelMax <= 0 ? 1.0 : log(mMarketAxis.labelMax);
-          mMarketAxis.labelInterval = mMarketAxis.labelInterval <= 0 ? 1.0 : log(mMarketAxis.labelInterval);
+          mMarketAxis.labelInterval = mMarketAxis.labelInterval <= 0 ? 1.0 : std::max(log(mMarketAxis.labelInterval), 0.0);
         }
     }
   else

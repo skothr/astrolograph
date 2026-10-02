@@ -1,5 +1,4 @@
 #include "fieldOperators.hpp"
-using namespace astro;
 
 #include <imgui.h>
 

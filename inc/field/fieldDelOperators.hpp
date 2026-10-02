@@ -8,113 +8,105 @@
 #include "shapeBuffer.hpp"
 #include "cudaField.hpp"
 
-                 
-namespace astro
-{
-  // FIELD GRADIENT //
+
+// FIELD GRADIENT //
   
-  //// node connector indices ////
-  // inputs
+//// node connector indices ////
+// inputs
 #define FIELDGRADIENTNODE_INPUT_FIELD  0
-  // outputs
+// outputs
 #define FIELDGRADIENTNODE_OUTPUT_FIELDX 0
 #define FIELDGRADIENTNODE_OUTPUT_FIELDY 1
-  ////////////////////////////////
+////////////////////////////////
   
-  class FieldGradNode : public Node
-  {
-  private:
-    // node connectors
-    static std::vector<ConnectorBase*> CONNECTOR_INPUTS()  { return { new Connector<CudaFieldBase>("Field Input")  }; }
-    static std::vector<ConnectorBase*> CONNECTOR_OUTPUTS() { return { new Connector<CudaFieldBase>("dF/dX Output"),
-                                                                      new Connector<CudaFieldBase>("dF/dY Output")}; }
+class FieldGradNode : public Node
+{
+private:
+  // node connectors
+  static std::vector<ConnectorBase*> CONNECTOR_INPUTS()  { return { new Connector<CudaFieldBase>("Field Input")  }; }
+  static std::vector<ConnectorBase*> CONNECTOR_OUTPUTS() { return { new Connector<CudaFieldBase>("dF/dX Output"),
+                                                                    new Connector<CudaFieldBase>("dF/dY Output")}; }
 
-    CudaFieldBase *mInputField = nullptr;
-    CudaFieldBase *mResultX    = nullptr; // (dF/dX)
-    CudaFieldBase *mResultY    = nullptr; // (dF/dY)
-    // Vec2i     mFSize;
-    // FieldType mFType = FIELDTYPE_INVALID;
+  CudaFieldBase *mInputField = nullptr;
+  CudaFieldBase *mResultX    = nullptr; // (dF/dX)
+  CudaFieldBase *mResultY    = nullptr; // (dF/dY)
+  // Vec2i     mFSize;
+  // FieldType mFType = FIELDTYPE_INVALID;
     
-    virtual void onUpdate() override;
-    virtual void onDraw() override;
+  virtual void onUpdate() override;
+  virtual void onDraw() override;
 
-    void resizeField(const Vec2f &fSize);
+  void resizeField(const Vec2f &fSize);
     
-  public:
-    FieldGradNode();
-    ~FieldGradNode();
-    virtual std::string type() const { return "FieldGradNode"; }
-    };
+public:
+  FieldGradNode();
+  ~FieldGradNode();
+  virtual std::string type() const { return "FieldGradNode"; }
+};
 
-  // FIELD DIVERGENCE //
+// FIELD DIVERGENCE //
   
-  //// node connector indices ////
-  // inputs
+//// node connector indices ////
+// inputs
 #define FIELDDIVNODE_INPUT_FIELD  0
-  // outputs
+// outputs
 #define FIELDDIVNODE_OUTPUT_FIELD 0
-  ////////////////////////////////
+////////////////////////////////
   
-  class FieldDivNode : public Node
-  {
-  private:
-    // node connectors
-    static std::vector<ConnectorBase*> CONNECTOR_INPUTS()  { return { new Connector<CudaFieldBase>("Field Input")  }; }
-    static std::vector<ConnectorBase*> CONNECTOR_OUTPUTS() { return { new Connector<CudaFieldBase>("Divergence Output") }; }
+class FieldDivNode : public Node
+{
+private:
+  // node connectors
+  static std::vector<ConnectorBase*> CONNECTOR_INPUTS()  { return { new Connector<CudaFieldBase>("Field Input")  }; }
+  static std::vector<ConnectorBase*> CONNECTOR_OUTPUTS() { return { new Connector<CudaFieldBase>("Divergence Output") }; }
 
-    CudaFieldBase *mInputField = nullptr;
-    CudaFieldBase *mResult    = nullptr;
+  CudaFieldBase *mInputField = nullptr;
+  CudaFieldBase *mResult    = nullptr;
     
-    virtual void onUpdate() override;
-    virtual void onDraw() override;
+  virtual void onUpdate() override;
+  virtual void onDraw() override;
 
-    void resizeField(const Vec2f &fSize);
+  void resizeField(const Vec2f &fSize);
     
-  public:
-    FieldDivNode();
-    ~FieldDivNode();
-    virtual std::string type() const { return "FieldDivNode"; }
-    };
+public:
+  FieldDivNode();
+  ~FieldDivNode();
+  virtual std::string type() const { return "FieldDivNode"; }
+};
 
 
-  // FIELD CURL //
+// FIELD CURL //
   
-  //// node connector indices ////
-  // inputs
+//// node connector indices ////
+// inputs
 #define FIELDCURLNODE_INPUT_FIELD  0
-  // outputs
+// outputs
 #define FIELDCURLNODE_OUTPUT_FIELD 0
-  ////////////////////////////////
+////////////////////////////////
   
-  class FieldCurlNode : public Node
-  {
-  private:
-    // node connectors
-    static std::vector<ConnectorBase*> CONNECTOR_INPUTS()  { return { new Connector<CudaFieldBase>("Field Input")  }; }
-    static std::vector<ConnectorBase*> CONNECTOR_OUTPUTS() { return { new Connector<CudaFieldBase>("Curl Output")}; }
+class FieldCurlNode : public Node
+{
+private:
+  // node connectors
+  static std::vector<ConnectorBase*> CONNECTOR_INPUTS()  { return { new Connector<CudaFieldBase>("Field Input")  }; }
+  static std::vector<ConnectorBase*> CONNECTOR_OUTPUTS() { return { new Connector<CudaFieldBase>("Curl Output")}; }
 
-    CudaFieldBase *mInputField = nullptr;
-    CudaFieldBase *mResult    = nullptr; // (dF/dX)
-    //CudaFieldBase *mResultY    = nullptr; // (dF/dY)
-    // Vec2i     mFSize;
-    // FieldType mFType = FIELDTYPE_INVALID;
+  CudaFieldBase *mInputField = nullptr;
+  CudaFieldBase *mResult    = nullptr; // (dF/dX)
+  //CudaFieldBase *mResultY    = nullptr; // (dF/dY)
+  // Vec2i     mFSize;
+  // FieldType mFType = FIELDTYPE_INVALID;
     
-    virtual void onUpdate() override;
-    virtual void onDraw() override;
+  virtual void onUpdate() override;
+  virtual void onDraw() override;
 
-    void resizeField(const Vec2f &fSize);
+  void resizeField(const Vec2f &fSize);
     
-  public:
-    FieldCurlNode();
-    ~FieldCurlNode();
-    virtual std::string type() const { return "FieldCurlNode"; }
-    };
-
-
-
-  
-  }
-
+public:
+  FieldCurlNode();
+  ~FieldCurlNode();
+  virtual std::string type() const { return "FieldCurlNode"; }
+};
 
 
 

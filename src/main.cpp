@@ -15,7 +15,7 @@
 
 #include "argParser.hpp"
 #include "astro.hpp"
-#include "astroWindow.hpp"
+#include "mainWindow.hpp"
 #include "nodeGraph.hpp"
 #include "nodeList.hpp"
 #include "viewSettings.hpp"
@@ -39,7 +39,7 @@ void glfw_error_callback(int error, const char* description)
 char toLower(char c) { return std::tolower(c); }
 
 
-void printChart(astro::Chart &chart, const std::string &name, astro::DateTime &dt, astro::Location &loc, bool debug);
+void printChart(astro::Chart &chart, const std::string &name, DateTime &dt, Location &loc, bool debug);
 
 int main(int argc, char* argv[])
 {
@@ -54,9 +54,9 @@ int main(int argc, char* argv[])
                      new Argument<std::string>    ("file",       'f',  "Specify CSV file with bulk data for --chart."),
                      new Argument<std::string>    ("output",     'o',  "Specify CSV file to output data for --chart."),
                      new Argument<bool>           ("debug",      'd',  "Print debug info during calculation."),
-                     new Argument<astro::DateTime>("time",       't',  "Sets date/time for single command-line calculation."),
-                     new Argument<astro::DateTime>("time2",      '\0', "Sets second date/time for single command-line calculation."),
-                     new Argument<astro::Location>("location",   'l',  "Sets location for single command-line calculation."),
+                     new Argument<DateTime>       ("time",       't',  "Sets date/time for single command-line calculation."),
+                     new Argument<DateTime>       ("time2",      '\0', "Sets second date/time for single command-line calculation."),
+                     new Argument<Location>       ("location",   'l',  "Sets location for single command-line calculation."),
                      new Argument<std::string>    ("obj1",       '1',  "Defines first object for single command-line calculation."),
                      new Argument<std::string>    ("obj2",       '2',  "Defines second object for single command-line calculation."),
                      new Argument<std::string>    ("aspect",     'a',  "Defines aspect type for single command-line calculation."),
@@ -87,10 +87,10 @@ int main(int argc, char* argv[])
   bool success = true;
   if(parser.getValue<bool>("findAspect"))
     {
-      astro::DateTime argDt = astro::DateTime::now();
-      if(parser.isValid("time"))     { argDt   = parser.getValue<astro::DateTime>("time"); } 
-      astro::Location argLoc;
-      if(parser.isValid("location")) { argLoc  = parser.getValue<astro::Location>("location"); } 
+      DateTime argDt = DateTime::now();
+      if(parser.isValid("time"))     { argDt   = parser.getValue<DateTime>("time"); } 
+      Location argLoc;
+      if(parser.isValid("location")) { argLoc  = parser.getValue<Location>("location"); } 
       std::string     argObj1 = "";
       if(parser.isValid("obj1"))     { argObj1 = parser.getValue<std::string>("obj1"); }
       std::string     argObj2 = "";
@@ -131,7 +131,7 @@ int main(int argc, char* argv[])
           double error = 0.0;
           int numSteps = 0;
           auto t0 = std::chrono::system_clock::now();
-          astro::DateTime suPeak = chart.findAspectPeak(argDt, argDt, o1, o2, a, 1.0/3600.0/10.0, &error, &numSteps);
+          DateTime suPeak = chart.findAspectPeak(argDt, argDt, o1, o2, a, 1.0/3600.0/10.0, &error, &numSteps);
           auto t1 = std::chrono::system_clock::now();
           std::cout << "Next peak (" << std::setprecision(8) << std::setw(20) << std::left
                     <<  argObj1<< " / "  << std::setw(20) << argObj2
@@ -150,7 +150,7 @@ int main(int argc, char* argv[])
             {
               if(o == oo) { continue; }
               auto t0 = std::chrono::system_clock::now();
-              astro::DateTime suPeak = chart.findAspectPeak(argDt, argDt, o, oo, a, 1.0/3600.0/10.0, &error, &numSteps);
+              DateTime suPeak = chart.findAspectPeak(argDt, argDt, o, oo, a, 1.0/3600.0/10.0, &error, &numSteps);
               auto t1 = std::chrono::system_clock::now();
               std::cout << "Next peak (" << std::setprecision(8) << std::left
                         << std::setw(20) << astro::getObjName(o) << " / "  << std::setw(20) << astro::getObjName(oo)
@@ -166,10 +166,10 @@ int main(int argc, char* argv[])
     }
   else if(parser.getValue<bool>("position"))
     {
-      astro::DateTime argDt = astro::DateTime::now();
-      if(parser.isValid("time"))     { argDt = parser.getValue<astro::DateTime>("time"); } 
-      astro::Location argLoc; // default --> NYSE
-      if(parser.isValid("location")) { argLoc = parser.getValue<astro::Location>("location"); } 
+      DateTime argDt = DateTime::now();
+      if(parser.isValid("time"))     { argDt = parser.getValue<DateTime>("time"); } 
+      Location argLoc; // default --> NYSE
+      if(parser.isValid("location")) { argLoc = parser.getValue<Location>("location"); } 
       std::string     argObj1 = "";
       if(parser.isValid("obj1"))     { argObj1 = parser.getValue<std::string>("obj1"); }
       std::string     argObj2 = "";
@@ -200,8 +200,8 @@ int main(int argc, char* argv[])
   else if(parser.getValue<bool>("chart"))
     { // print all position in a chart
       
-      astro::DateTime argDt = astro::DateTime::now();
-      astro::Location argLoc; // default --> NYSE
+      DateTime argDt = DateTime::now();
+      Location argLoc; // default --> NYSE
       std::string     outFile = "";
 
       if(parser.isValid("file"))
@@ -263,10 +263,10 @@ int main(int argc, char* argv[])
                   std::cout << "DT STRING:  " << dtStr  << "\n";
                   std::cout << "LOC STRING: " << locStr << "\n\n";
 
-                  astro::DateTime dt = astro::DateTime::now();
-                  if(!dtStr.empty()) { dt = astro::DateTime(dtStr); }
-                  astro::Location loc;
-                  if(!locStr.empty()) { loc = astro::Location(locStr); }
+                  DateTime dt = DateTime::now();
+                  if(!dtStr.empty()) { dt = DateTime(dtStr); }
+                  Location loc;
+                  if(!locStr.empty()) { loc = Location(locStr); }
 
                   // dt.fromSaveString(dtStr);
                   // loc.fromSaveString(locStr);
@@ -285,8 +285,8 @@ int main(int argc, char* argv[])
         }
       else
         { // single calculation
-          if(parser.isValid("time"))     { argDt  = parser.getValue<astro::DateTime>("time"); } 
-          if(parser.isValid("location")) { argLoc = parser.getValue<astro::Location>("location"); }
+          if(parser.isValid("time"))     { argDt  = parser.getValue<DateTime>("time"); } 
+          if(parser.isValid("location")) { argLoc = parser.getValue<Location>("location"); }
           astro::Chart chart;
           printChart(chart, "", argDt, argLoc, argDebug);
         }
@@ -295,12 +295,12 @@ int main(int argc, char* argv[])
     }
   else if(parser.getValue<bool>("findRx"))
     {
-      astro::DateTime argDt = astro::DateTime::now();
-      if(parser.isValid("time"))     { argDt = parser.getValue<astro::DateTime>("time"); } 
-      astro::DateTime argDt2 = astro::DateTime::now();
-      if(parser.isValid("time2"))    { argDt2 = parser.getValue<astro::DateTime>("time2"); } 
-      astro::Location argLoc; // default --> NYSE
-      if(parser.isValid("location")) { argLoc = parser.getValue<astro::Location>("location"); } 
+      DateTime argDt = DateTime::now();
+      if(parser.isValid("time"))     { argDt = parser.getValue<DateTime>("time"); } 
+      DateTime argDt2 = DateTime::now();
+      if(parser.isValid("time2"))    { argDt2 = parser.getValue<DateTime>("time2"); } 
+      Location argLoc; // default --> NYSE
+      if(parser.isValid("location")) { argLoc = parser.getValue<Location>("location"); } 
       std::string     argObj1 = "";
       if(parser.isValid("obj1"))     { argObj1 = parser.getValue<std::string>("obj1"); }
       std::string     argObj2 = "";
@@ -390,7 +390,7 @@ int main(int argc, char* argv[])
   // get screen size
   GLFWmonitor       *monitor = glfwGetPrimaryMonitor();
   const GLFWvidmode *mode    = glfwGetVideoMode(monitor);
-  std::cout << "Screen Size: " << mode->width <<  "x" << mode->height << "\n";
+  std::cout << "Screen Size: " << mode->width <<  "x" << mode->height << "\n\n";
   
 #if !START_MAXIMIZED // center window on screen
   glfwSetWindowPos(window, (mode->width - WINDOW_W)/2, (mode->height - WINDOW_H)/2);
@@ -406,7 +406,7 @@ int main(int argc, char* argv[])
   if(glewInit() != GLEW_OK) { std::cout << "Failed to initialize OpenGL loader!\n"; return 1; }
 
   // create astro window before imgui setup to preserve GLFW callbacks
-  astro::AstroWindow *astroWindow = new astro::AstroWindow(window);
+  MainWindow *mainWindow = new MainWindow(window);
   
   // set up imgui context
   IMGUI_CHECKVERSION();
@@ -429,7 +429,7 @@ int main(int argc, char* argv[])
   ImGui_ImplGlfw_InitForOpenGL(window, true);
   ImGui_ImplOpenGL3_Init(glsl_version);
 
-  astroWindow->init();
+  mainWindow->init();
   
   // Our state
   Vec4f clearColor  = Vec4f(0.05f, 0.05f, 0.05f, 1.0f);
@@ -448,8 +448,8 @@ int main(int argc, char* argv[])
       // get frame size
       glfwGetFramebufferSize(window, &frameSize.x, &frameSize.y);
       
-      astroWindow->draw(frameSize);
-      astroWindow->update();
+      mainWindow->draw(frameSize);
+      mainWindow->update();
       ImGui::EndFrame();
       
       //// RENDERING ////
@@ -470,8 +470,8 @@ int main(int argc, char* argv[])
   {
     ImGui::PopStyleColor(); // ImGuiStyleCol_NavHighlight
     astro::MoonNode::cleanShaders();
-    if(astroWindow) { delete astroWindow; }
-    if(appIcon)  { delete appIcon;  }
+    if(mainWindow) { delete mainWindow; }
+    if(appIcon)    { delete appIcon;  }
     
     // imgui cleanup
     ImGui_ImplOpenGL3_Shutdown();
@@ -488,7 +488,7 @@ int main(int argc, char* argv[])
 
 
 
-void printChart(astro::Chart &chart, const std::string &name, astro::DateTime &dt, astro::Location &loc, bool debug)
+void printChart(astro::Chart &chart, const std::string &name, DateTime &dt, Location &loc, bool debug)
 {
   loc.updateTimezone();
   dt.setDstOffset(loc.utcOffset - loc.getTimezoneOffset(dt));

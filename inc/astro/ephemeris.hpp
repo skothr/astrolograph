@@ -154,7 +154,7 @@ namespace astro
     double getHouseCusp(int house) const;
     
     void printHouses() const;
-    void printObjects(const astro::DateTime &dt, const astro::Location &loc) const;
+    void printObjects(const DateTime &dt, const Location &loc) const;
   };
 }
 

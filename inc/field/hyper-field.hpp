@@ -58,6 +58,7 @@ struct HyperFluidParams : public HyperFieldParams
   float texMult = 1.0f;
   float dt      = 0.1f;
   bool  applyChaos  = true;
+  bool  applyVisc   = true;
   float chaos       = 0.1f; // multiplier for WV chaotic modifier
   float viscosity   = 0.1f; // viscosity constant
   int   diffuseRad  = 2;    // radius of diffusion
@@ -195,6 +196,7 @@ public:
   virtual void destroy()  = 0;
   virtual void pullData() = 0;
   virtual void pushData() = 0;
+  // virtual void copyTo(HyperFieldBase<N> &other) = 0;
   virtual FieldType type() const { return FIELDTYPE_INVALID; }  
 };
 
@@ -210,6 +212,7 @@ public:
   virtual void destroy() override;
   virtual void pullData() override;
   virtual void pushData() override;
+  void copyTo(HyperField<DTYPE, N> &other);
   
   virtual bool allocated() const override;
   virtual FieldType type() const override;
@@ -267,19 +270,24 @@ bool HyperField<DTYPE, N>::allocated() const { return (HyperFieldBase<N>::alloca
 template<typename DTYPE, int N>
 void HyperField<DTYPE, N>::pullData()
 {
-  if(allocated())
-    {
-      cudaMemcpy(hData, dData, this->dataSize, cudaMemcpyDeviceToHost); getLastCudaError("HyperField::pullData()\n");
-    } else { std::cout << "====> WARNING(HyperField " << type() << "::pullData()): Field not allocated!\n"; }
+  if(allocated()) { cudaMemcpy(hData, dData, this->dataSize, cudaMemcpyDeviceToHost); getLastCudaError("HyperField::pullData()\n"); }
+  else            { std::cout << "====> WARNING(HyperField " << type() << "::pullData()): Field not allocated!\n"; }
 }
 
 template<typename DTYPE, int N>
 void HyperField<DTYPE, N>::pushData()
 {
-  if(allocated())
-    {
-      cudaMemcpy(dData, hData, this->dataSize, cudaMemcpyHostToDevice); getLastCudaError("HyperField::pushData()\n");
-    } else { std::cout << "====> WARNING(HyperField" << type() << "::pushData()): Field not allocated!\n"; }
+  if(allocated()) { cudaMemcpy(dData, hData, this->dataSize, cudaMemcpyHostToDevice); getLastCudaError("HyperField::pushData()\n"); }
+  else            { std::cout << "====> WARNING(HyperField" << type() << "::pushData()): Field not allocated!\n"; }
+}
+
+template<typename DTYPE, int N>
+void HyperField<DTYPE, N>::copyTo(HyperField<DTYPE, N> &other)
+{
+  if(allocated() && other.allocated())
+    { cudaMemcpy(dData, other.dData, this->dataSize, cudaMemcpyDeviceToDevice); getLastCudaError("HyperField::copyTo()\n"); }
+  else
+    { std::cout << "====> WARNING(HyperField" << type() << "::copyTo()): Field not allocated!\n"; }
 }
 
 template<typename DTYPE, int N>
@@ -293,7 +301,33 @@ template<>      struct VelType<2> { using type = float2; };
 template<>      struct VelType<3> { using type = float3; };
 template<>      struct VelType<4> { using type = float4; };
 
+
 //// HYPER "FLUID" -- handles host/device data ////
+enum FluidRenderType
+  {
+   HF_RENDER_NONE    = 0x00,
+   HF_RENDER_V       = 0x01,
+   HF_RENDER_D       = 0x02,
+   HF_RENDER_P       = 0x04,
+   // HF_RENDER_DIV     = 0x08,
+   // HF_RENDER_WV      = 0x10,
+   
+   HF_RENDER_VMAG    = 0x20, // (use velocity magnitude instead of channel mapping (x->r, y->g, z->b))
+   HF_RENDER_VNORM   = 0x40, // (use normalized velocity (x->r, y->g, z->b))
+   HF_RENDER_DSCALE  = 0x80, // (scale result by density)
+  };
+
+inline __host__ __device__ FluidRenderType  operator~ (FluidRenderType t)
+{ return static_cast<FluidRenderType>(~static_cast<int>(t)); }
+inline __host__ __device__ FluidRenderType& operator|=(FluidRenderType &t0, FluidRenderType t1)
+{ t0 = static_cast<FluidRenderType>(static_cast<int>(t0) | static_cast<int>(t1)); return t0; }
+inline __host__ __device__ FluidRenderType& operator&=(FluidRenderType &t0, FluidRenderType t1)
+{ t0 = static_cast<FluidRenderType>(static_cast<int>(t0) & static_cast<int>(t1)); return t0; }
+inline __host__ __device__ FluidRenderType  operator| (FluidRenderType t0, FluidRenderType t1)
+{ return static_cast<FluidRenderType>(static_cast<int>(t0) | static_cast<int>(t1)); }
+inline __host__ __device__ FluidRenderType  operator& (FluidRenderType t0, FluidRenderType t1)
+{ return static_cast<FluidRenderType>(static_cast<int>(t0) & static_cast<int>(t1)); }
+
 template<int N>
 class HyperFluid : public HyperFieldBase<N>
 {
@@ -314,8 +348,9 @@ public:
   virtual bool allocated() const override
   { return (HyperFieldBase<N>::allocated() && vel.allocated() && d.allocated() && p.allocated() && div.allocated() && wv.allocated()); }
 
-  virtual void pullData() override { vel.pullData(); d.pullData(); p.pullData(); div.pullData(); wv.pullData(); }
-  virtual void pushData() override { vel.pushData(); d.pushData(); p.pushData(); div.pushData(); wv.pushData(); }
+  void copyTo(HyperFluid<N> &other) { vel.copyTo(other.vel); d.copyTo(other.d); p.copyTo(other.p); div.copyTo(other.div); wv.copyTo(other.wv); }
+  virtual void pullData() override  { vel.pullData(); d.pullData(); p.pullData(); div.pullData(); wv.pullData(); }
+  virtual void pushData() override  { vel.pushData(); d.pushData(); p.pushData(); div.pushData(); wv.pushData(); }
   virtual FieldType type() const override { return FIELDTYPE_FLOAT; }
 };
 
@@ -332,7 +367,7 @@ extern "C" void updateVelHyper    (HyperFluid<2> src, HyperFluid<2> dst);
 extern "C" void renderHFluid2     (HyperFluid<2> src, CudaFieldTex  dst);
 
 extern "C" void clearHFluid3      (HyperFluid<3> fluid);
-extern "C" void fillHFluidCircle3 (HyperFluid<3> fluid);
+extern "C" void fillHFluidCircle3 (HyperFluid<3> fluid, bool bounded=true);
 extern "C" void fillHFluidPattern3(HyperFluid<3> fluid);
 extern "C" void advectHyper3      (HyperFluid<3> src, HyperFluid<3> dst);
 extern "C" void diffuseHyper3     (HyperFluid<3> src, HyperFluid<3> dst);
@@ -340,9 +375,11 @@ extern "C" void projectHyper3     (HyperFluid<3> src, HyperFluid<3> dst);
 extern "C" void addForcesHyper3   (HyperFluid<3> src, HyperFluid<3> dst);
 //extern "C" void updateVelHyper3   (HyperFluid<3> src, HyperFluid<3> dst);
 extern "C" void renderHFluid3     (HyperFluid<3> src, CudaFieldTex  dst, double3 fPos, double3 fSize,
-                                   double3 camPos, double3 camDir, double3 up, double3 right, double fov);
+                                   double3 camPos, double3 camDir, double3 up, double3 right, double fov,
+                                   FluidRenderType r, FluidRenderType g, FluidRenderType b);
 extern "C" void renderHFluid3Slice(HyperFluid<3> src, CudaFieldTex  dst, double3 fPos, double3 fSize,
                                    double3 camPos, double3 camDir, double3 up, double3 right, double fov,
+                                   FluidRenderType r, FluidRenderType g, FluidRenderType b,
                                    int sdim, int si);
 
 

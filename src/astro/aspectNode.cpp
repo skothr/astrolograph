@@ -106,7 +106,9 @@ void AspectNode::onDraw()
             ChartAspect asp = mAspects[i];
             if(asp.type < 0 || asp.type >= ASPECT_COUNT) { continue; }
             if(!(asp.obj1 && asp.obj2 && asp.obj1->type > 0 && asp.obj1->type < OBJ_END && asp.obj2->type > 0 && asp.obj2->type < OBJ_END)) { continue; }
-            std::cout << asp.type << " / " << asp.obj1->type << " / " << asp.obj2->type << "\n";
+
+            // std::cout << asp.type << " / " << asp.obj1->type << " / " << asp.obj2->type << "\n";
+            
             // skip north/south node opposition, and non-visible aspects
             if(!(asp.obj1 && asp.obj2) || (asp.obj1->type == OBJ_NORTHNODE && asp.obj2->type == OBJ_SOUTHNODE) ||
                asp.obj1->type < 0 || asp.obj1->type >= OBJ_END || asp.obj2->type < 0 || asp.obj2->type >= OBJ_END ||

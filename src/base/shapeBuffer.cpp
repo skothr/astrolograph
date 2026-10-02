@@ -1,5 +1,4 @@
 #include "shapeBuffer.hpp"
-using namespace astro;
 
 ShapeBuffer::ShapeBuffer()
 {

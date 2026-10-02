@@ -1,8 +1,9 @@
 #include "cutools.hpp"
-
 #include "cudaField.hpp"
 #include <iostream>
 
+#define STB_IMAGE_WRITE_STATIC
+// #define STBIW_ZLIB_COMPRESS
 #define STB_IMAGE_WRITE_IMPLEMENTATION
 #include "stb_image_write.h"
 
@@ -51,10 +52,16 @@ bool initDevice(int devId)
 
 bool writeTexture(const std::string &path, CudaFieldTex *tex)
 {
-  if(tex->size.x >0 && tex->size.y > 0)
+  stbi_write_png_compression_level = 6;
+  
+  if(tex->size.x > 0 && tex->size.y > 0)
     {
-      if(!stbi_write_hdr(path.c_str(), tex->size.x, tex->size.y, 4, (const float*)tex->hData))//, sizeof(float4)*tex->size.x))
-        { std::cout << "====> ERROR: Could not write CudaFieldTex data to file '" << path << "'!\n";  return false; }
+      if(path.find(".png") != std::string::npos && !stbi_write_png(path.c_str(), tex->size.x, tex->size.y, 4, (const float*)tex->hData, 4*tex->size.x))
+        { std::cout << "====> ERROR: Could not write CudaFieldTex data to PNG file '" << path << "'!\n";  return false; }
+      else if(path.find(".bmp") != std::string::npos && !stbi_write_bmp(path.c_str(), tex->size.x, tex->size.y, 4, (const float*)tex->hData))
+        { std::cout << "====> ERROR: Could not write CudaFieldTex data to BMP file '" << path << "'!\n";  return false; }
+      else if(path.find(".hdr") != std::string::npos && !stbi_write_hdr(path.c_str(), tex->size.x, tex->size.y, 4, (const float*)tex->hData))
+        { std::cout << "====> ERROR: Could not write CudaFieldTex data to HDR file '" << path << "'!\n";  return false; }
       else { return true; }
     }
   else { return false; }

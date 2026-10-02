@@ -14,14 +14,15 @@ CompareNode::CompareNode()
   : Node(CONNECTOR_INPUTS(), CONNECTOR_OUTPUTS(), "Compare Node"),
     mCompare(new ChartCompare()), mView(new ChartView()), mParams(new ChartParams())
 {
-  mWidget = new ChartParamWidget(mParams);
-  //mOrbWidget = new ChartOrbWidget();
+  mParamWidget = new ChartParamWidget(mParams);
+  mOrbWidget = new ChartOrbWidget();
   
-  mSettings.push_back(new Setting<bool> ("Settings Open",          "settingsOpen", &mWidget->settingsOpen()));
-  mSettings.push_back(new Setting<bool> ("Object Display Open",    "objDispOpen",  &mWidget->objDisplayOpen()));
-  mSettings.push_back(new Setting<bool> ("Object Orbs Open",       "objOrbsOpen",  &mWidget->objOrbsOpen()));
-  mSettings.push_back(new Setting<bool> ("Aspect Display Open",    "aspDispOpen",  &mWidget->aspDisplayOpen()));
-  mSettings.push_back(new Setting<bool> ("Aspect Orbs Open",       "aspOrbsOpen",  &mWidget->aspOrbsOpen()));
+  mSettings.push_back(new Setting<bool> ("Settings Open",          "settingsOpen", &mParamWidget->settingsOpen()));
+  mSettings.push_back(new Setting<bool> ("Object Display Open",    "objDispOpen",  &mParamWidget->objDisplayOpen()));
+  mSettings.push_back(new Setting<bool> ("Aspect Display Open",    "aspDispOpen",  &mParamWidget->aspDisplayOpen()));
+  // mSettings.push_back(new Setting<bool> ("Object Orbs Open",       "objOrbsOpen",  &mParamWidget->objOrbsOpen()));
+  // mSettings.push_back(new Setting<bool> ("Aspect Orbs Open",       "aspOrbsOpen",  &mParamWidget->aspOrbsOpen()));
+  mSettings.push_back(new Setting<bool> ("Orbs Open",              "orbsOpen",     &mParamWidget->orbsOpen()));
   
   mSettings.push_back(new Setting<float>("Chart Width",     "width",        &mParams->chartWidth));
   mSettings.push_back(new Setting<bool> ("Align Ascendant", "alignAsc",     &mParams->alignAsc));
@@ -30,20 +31,21 @@ CompareNode::CompareNode()
   SettingGroup *group = nullptr;
   group = makeSettingGroup<BoolStruct, (OBJ_COUNT+OBJ_END-ANGLE_OFFSET)> ("Visible Objects", "objVisible", &mParams->objVisible);
   if(group) { mSettings.push_back(group); }
-  // group = makeSettingGroup<double,     (OBJ_COUNT+OBJ_END-ANGLE_OFFSET)> ("Object Orbs",     "orbs",    &mParams->orbs);
-  // if(group) { mSettings.push_back(group); }
   group = makeSettingGroup<BoolStruct, ASPECT_COUNT>                     ("Visible Aspects", "aspVisible", &mParams->aspVisible);
   if(group) { mSettings.push_back(group); }
+  // group = makeSettingGroup<double,     (OBJ_COUNT+OBJ_END-ANGLE_OFFSET)> ("Object Orbs",     "orbs",    &mParams->orbs);
+  // if(group) { mSettings.push_back(group); }
   // group = makeSettingGroup<double,     ASPECT_COUNT>                     ("Aspect Orbs",     "aspOrbs",    &mParams->aspOrbs);
   // if(group) { mSettings.push_back(group); }
 }
 
 CompareNode::~CompareNode()
 {
-  if(mWidget)  { delete mWidget; }
-  if(mView)    { delete mView; }
-  if(mParams)  { delete mParams; }
-  if(mCompare) { delete mCompare; }
+  if(mParamWidget) { delete mParamWidget; }
+  if(mOrbWidget)   { delete mOrbWidget; }
+  if(mView)        { delete mView; }
+  if(mParams)      { delete mParams; }
+  if(mCompare)     { delete mCompare; }
 }
 
 Chart* CompareNode::outerChart() { return mCompare->getOuterChart(); }
@@ -117,12 +119,34 @@ void CompareNode::onDraw()
     { changed = true; }
   
   if(changed) { mCompare->update(); changed = false; }
+
+  bool visible = isBodyVisible();
+  bool blocked = isBlocked();
   
   mParams->alpha = mColorMask.w;
-  //drawSettings();
-  mWidget->setChart(mCompare->getOuterChart());
-  mWidget->draw(scale, isBlocked(), isBodyVisible());
+  mParamWidget->setChart(mCompare->getOuterChart());
   
+  ImGuiTreeNodeFlags flags = (ImGuiTreeNodeFlags_FramePadding | ImGuiTreeNodeFlags_SpanAvailWidth);
+  ImGui::SetNextTreeNodeOpen(mSettingsOpen);
+  if(ImGui::CollapsingHeader("Settings", nullptr, flags))
+    {
+      if(!blocked) { mSettingsOpen = true; }
+      ImGui::Indent();
+      
+      mParamWidget->draw(scale, blocked, visible);
+
+      ImGuiTreeNodeFlags flags = (ImGuiTreeNodeFlags_FramePadding | ImGuiTreeNodeFlags_SpanAvailWidth);
+      ImGui::SetNextTreeNodeOpen(mParamWidget->orbsOpen());
+      if(ImGui::CollapsingHeader("Orbs", nullptr, flags))
+        {
+          mParamWidget->orbsOpen() = true;
+          mOrbWidget->draw(scale);
+        }
+      else if(visible) { mParamWidget->orbsOpen() = false; }
+    }
+  else if(visible) { mSettingsOpen = false; }
+  
+  mParams->orbs = mOrbWidget->getOrbs();
   mView->setAlignAsc(mParams->alignAsc);
   mView->setShowHouses(mParams->showHouses);
 
@@ -135,7 +159,7 @@ void CompareNode::onDraw()
     }
   
   // draw chart view
-  mView->draw(mCompare, scale, isBlocked(), *mParams);
+  mView->draw(mCompare, scale, blocked, *mParams);
 }
 
 

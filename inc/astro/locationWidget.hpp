@@ -4,11 +4,12 @@
 #include "astro.hpp"
 // #include <bits/stdc++.h>
 
+// forward declarations
+class NodeGraph;
+class FileDialog;
+
 namespace astro
 {
-  // forward declarations
-  class NodeGraph;
-  class FileDialog;
   
 #define LOCATION_SAVE_DIR "locations/"
 // #define LOCATION_SAVE_PATH LOCATION_SAVE_DIR "locations.txt"
@@ -52,10 +53,7 @@ namespace astro
     void setName(const std::string &n) { mName = n; }
     void setExpanded(bool expanded)    { mExpanded = expanded; }
 
-#ifndef ENABLE_CUDA // not needed for building CUDA files (std::quoted undefined)
     bool checkFileDialog();
-#endif // ENABLE_CUDA
-    
     void update();
     void draw(float scale, bool blocked);
   };

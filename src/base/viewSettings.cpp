@@ -1,5 +1,4 @@
 #include "viewSettings.hpp"
-using namespace astro;
 
 #include <iostream>
 #include <fstream>
@@ -7,7 +6,6 @@ using namespace astro;
 #include "nlohmann/json.hpp"
 #include "imgui.h"
 #include "glfwKeys.hpp"
-#include "astro.hpp"
 #include "setting.hpp"
 #include "settingForm.hpp"
 

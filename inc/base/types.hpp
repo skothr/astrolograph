@@ -8,7 +8,6 @@
 #include <cstdint>
 
 #include "vector.hpp"
-//#include "astro.hpp"
 #include "dateTime.hpp"
 #include "location.hpp"
 
@@ -52,8 +51,8 @@ inline static std::unordered_map<std::type_index, std::string> TYPE_NAMES =
    // other types                                         
    { std::type_index(typeid(bool)),            "bool"     },
    { std::type_index(typeid(std::string)),     "string"   },
-   { std::type_index(typeid(astro::DateTime)), "DateTime" },
-   { std::type_index(typeid(astro::Location)), "Location" },
+   { std::type_index(typeid(DateTime)),        "DateTime" },
+   { std::type_index(typeid(Location)),        "Location" },
   };
 
 // maps type index to number of command-line arguments that must follow
@@ -91,8 +90,8 @@ inline static std::unordered_map<std::type_index, int> TYPE_NARGS =
    // other types
    { std::type_index(typeid(bool)),            0 }, // no arguments -- presence/absence indicated true/false
    { std::type_index(typeid(std::string)),     1 },
-   { std::type_index(typeid(astro::DateTime)), 2 },
-   { std::type_index(typeid(astro::Location)), 3 },
+   { std::type_index(typeid(DateTime)), 2 },
+   { std::type_index(typeid(Location)), 3 },
   };
 
 template<typename T>

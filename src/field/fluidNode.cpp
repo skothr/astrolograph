@@ -1,5 +1,4 @@
 #include "fluidNode.hpp"
-using namespace astro;
 
 #include <imgui.h>
 
@@ -27,24 +26,25 @@ FluidNode::FluidNode()
   mSettings.push_back(new Setting<Vec2f>("Display Size",  "dispSize",     &mDisplaySize));
 
   // physics settings
-  mSettings.push_back(new Setting<bool> ("Fill Circle",       "fillCircle",   &mFillCircle,  mFillCircle));
+  mSettings.push_back(new Setting<bool> ("Fill Circle",       "fillCircle",   &mFillCircle,     mFillCircle));
   mSettings.push_back(new Setting<bool> ("Density Pattern",   "dPattern",     &mDensityPattern, mDensityPattern));
-  mSettings.push_back(new Setting<bool> ("Physics",           "physics",      &mPhysics,     mPhysics   ));
-  mSettings.push_back(new Setting<float>("Time Step",         "timeStep",     &mTimeStep,    mTimeStep  ));
-  mSettings.push_back(new Setting<float>("MForce Radius",     "forceRadius",  &mMForceRad,   mMForceRad ));
-  mSettings.push_back(new Setting<float>("Push VMult",        "vfPush",       &mPushVMult,   mPushVMult ));
-  mSettings.push_back(new Setting<float>("Out VMult",         "vfOut",        &mOutVMult,    mOutVMult  ));
-  mSettings.push_back(new Setting<float>("In VMult",          "vfIn",         &mInVMult,     mInVMult   ));
-  mSettings.push_back(new Setting<float>("Cw VMult",          "vfCw",         &mCwVMult,     mCwVMult   ));
-  mSettings.push_back(new Setting<float>("Ccw VMult",         "vfCcw",        &mCcwVMult,    mCcwVMult  ));
-  mSettings.push_back(new Setting<float>("MForce DMult",      "df",           &mDMult,       mDMult     ));
-  mSettings.push_back(new Setting<float>("MForce PMult",      "pf",           &mPMult,       mPMult     ));
-  mSettings.push_back(new Setting<float>("MForce WVMult",     "wvf",          &mWVMult,      mWVMult    ));
-  mSettings.push_back(new Setting<float>("Gravity",           "gravity",      &mGravity,     mGravity   ));
-  mSettings.push_back(new Setting<bool> ("Apply Chaos",       "applyChaos",   &mApplyChaos,  mApplyChaos));
-  
-  mSettings.push_back(new Setting<float>("Chaos",             "chaos",        &mChaos,       mChaos     ));
-  mSettings.push_back(new Setting<float>("Viscosity",         "viscosity",    &mViscosity,   mViscosity ));
+  mSettings.push_back(new Setting<bool> ("Physics",           "physics",      &mPhysics,        mPhysics   ));
+  mSettings.push_back(new Setting<float>("Time Step",         "timeStep",     &mTimeStep,       mTimeStep  ));
+  mSettings.push_back(new Setting<float>("MForce Radius",     "forceRadius",  &mMForceRad,      mMForceRad ));
+  mSettings.push_back(new Setting<float>("Push VMult",        "vfPush",       &mPushVMult,      mPushVMult ));
+  mSettings.push_back(new Setting<float>("Out VMult",         "vfOut",        &mOutVMult,       mOutVMult  ));
+  mSettings.push_back(new Setting<float>("In VMult",          "vfIn",         &mInVMult,        mInVMult   ));
+  mSettings.push_back(new Setting<float>("Cw VMult",          "vfCw",         &mCwVMult,        mCwVMult   ));
+  mSettings.push_back(new Setting<float>("Ccw VMult",         "vfCcw",        &mCcwVMult,       mCcwVMult  ));
+  mSettings.push_back(new Setting<float>("MForce DMult",      "df",           &mDMult,          mDMult     ));
+  mSettings.push_back(new Setting<float>("MForce PMult",      "pf",           &mPMult,          mPMult     ));
+  mSettings.push_back(new Setting<float>("MForce WVMult",     "wvf",          &mWVMult,         mWVMult    ));
+  mSettings.push_back(new Setting<float>("Gravity",           "gravity",      &mGravity,        mGravity   ));
+  mSettings.push_back(new Setting<bool> ("Apply Chaos",       "applyChaos",   &mApplyChaos,     mApplyChaos));
+  mSettings.push_back(new Setting<bool> ("Apply Viscosity",   "applyVisc",    &mApplyVisc,      mApplyVisc ));
+
+  mSettings.push_back(new Setting<float>("Chaos",             "chaos",        &mChaos,          mChaos     ));
+  mSettings.push_back(new Setting<float>("Viscosity",         "viscosity",    &mViscosity,      mViscosity ));
   // force settings
   mSettings.push_back(new Setting<bool> ("Push",     "pushForce",     &mFPush,     mFPush    ));
   mSettings.push_back(new Setting<bool> ("Out",      "outForce",      &mFOut,      mFOut     ));
@@ -61,13 +61,12 @@ FluidNode::FluidNode()
   mSettings.push_back(new Setting<float>("VectorW",           "vWidth",       &mVWidth,          mVWidth          ));
   mSettings.push_back(new Setting<float>("BorderW",           "bWidth",       &mVBWidth,         mVBWidth         ));
   mSettings.push_back(new Setting<float>("VOpacity",          "vOpacity",     &mVOpacity,        mVOpacity        ));
-  
+
   // initialize fluid resources
   mFluid1 = new CudaFluid<float>();
   mFluid2 = new CudaFluid<float>();
   resizeField(mFieldSize);
 
-  //mField.create(mFieldSize);
   outputs()[FLUIDNODE_OUTPUT_VXFIELD]->set(&mFluid1->vx);
   outputs()[FLUIDNODE_OUTPUT_VYFIELD]->set(&mFluid1->vy);
   outputs()[FLUIDNODE_OUTPUT_DFIELD ]->set(&mFluid1->d);
@@ -81,8 +80,9 @@ FluidNode::FluidNode()
 FluidNode::~FluidNode()
 {
   //cudaDeviceSynchronize();
-  if(mFluid1) { mFluid1->destroy(); delete mFluid1; }
-  if(mFluid2) { mFluid2->destroy(); delete mFluid2; }
+  if(mFluid1)    { mFluid1->destroy();    delete mFluid1; }
+  if(mFluid2)    { mFluid2->destroy();    delete mFluid2; }
+  if(mFluidLast) { mFluidLast->destroy(); delete mFluidLast; }
   mFluidTex.destroy();
 }
 
@@ -92,14 +92,15 @@ void FluidNode::resizeField(const Vec2i &fSize)
     {
       //cudaDeviceSynchronize();
       mFieldSize = fSize;
-      if(!mFluid1) { mFluid1 = new CudaFluid<float>(); } mFluid1->create(mFieldSize);
-      if(!mFluid2) { mFluid2 = new CudaFluid<float>(); } mFluid2->create(mFieldSize);
+      if(!mFluid1)    { mFluid1    = new CudaFluid<float>(); } mFluid1->create(mFieldSize);
+      if(!mFluid2)    { mFluid2    = new CudaFluid<float>(); } mFluid2->create(mFieldSize);
+      if(!mFluidLast) { mFluidLast = new CudaFluid<float>(); } mFluidLast->create(mFieldSize);
       mFluidTex.create(mFieldSize);
-      
+
       //cudaDeviceSynchronize();
       clearField(Vec4f(0, 0, 0, 1));
       //cudaDeviceSynchronize();
-      
+
       //mDisplaySize.x = mDisplaySize.y * ((float)fSize.x / (float)fSize.y);
     }
 }
@@ -107,14 +108,15 @@ void FluidNode::resizeField(const Vec2i &fSize)
 void FluidNode::clearField(const Vec4f &color)
 {
   if(mFillCircle)
-    { fillFluidCircle(*mFluid1); fillFluidCircle(*mFluid2); }
+    { fillFluidCircle(*mFluid1); fillFluidCircle(*mFluid2); fillFluidCircle(*mFluidLast); }
   else
     {
       if(mFluid1)         { clearFluid(*mFluid1); }
       if(mFluid2)         { clearFluid(*mFluid2); }
+      if(mFluidLast)      { clearFluid(*mFluidLast); }
       if(mFluidTex.map()) { fillTex(mFluidTex.dData, mFluidTex.size.x, mFluidTex.size.y, float4{color.x,color.y,color.z,color.w}); mFluidTex.unmap(); }
     }
-  if(mDensityPattern) { fillFluidPattern(*mFluid1); fillFluidPattern(*mFluid2);  }
+  if(mDensityPattern) { fillFluidPattern(*mFluid1); fillFluidPattern(*mFluid2); fillFluidPattern(*mFluidLast); }
 }
 
 bool FluidNode::handleIO(const Vec2f &p0)
@@ -127,17 +129,19 @@ bool FluidNode::handleIO(const Vec2f &p0)
   Vec2f mp = ImGui::GetMousePos();
   Vec2f gp = screenToField(mp, &p0);
 
-  mFieldHovered &= !blocked && !mPlacing;
-  
+  mFieldHovered &= !blocked && !mPlacing && !mClicked;
+
   if(mFieldHovered && (mFieldClicked || !ImGui::IsKeyDown(GLFW_KEY_LEFT_CONTROL)) && ImGui::IsMouseDown(ImGuiMouseButton_Left))
     {
       mFieldClicked = true;  mFluid1->params.mdown = true;
       Vec2f fmp = (mp - p0) / (mDisplaySize*scale);
-      mFluid1->params.mp     = float2{fmp.x, fmp.y};
-      mFluid1->params.mpLast = mFluid1->params.mp;
+      mFluid1->params.mp        = float2{fmp.x, fmp.y};
+      mFluid1->params.mpLast    = float2{fmp.x, fmp.y};
+      mFluid1->params.movedLast = false;
+      mFluid1->params.lastMv    = float2{0.0f, 0.0f};
     }
   else if(ImGui::IsMouseReleased(ImGuiMouseButton_Left))
-    { mFieldClicked = false; mFluid1->params.mdown = false; mFluid2->params.mdown = false; }
+    { mFieldClicked = false; mFluid1->params.mdown = false; mFluid2->params.mdown = false; mFluid1->params.movedLast = false; mFluid2->params.movedLast = false; }
 
   // dragging
   if(mFieldClicked && ImGui::IsMouseDragging(ImGuiMouseButton_Left))
@@ -145,20 +149,25 @@ bool FluidNode::handleIO(const Vec2f &p0)
       Vec2f dmp = -Vec2f(ImGui::GetMouseDragDelta(ImGuiMouseButton_Left));
       ImGui::ResetMouseDragDelta(ImGuiMouseButton_Left);
       //mFluid1->params.offset += dmp / mFluid1->vx.size / scale * 4.0f*mFluid1->params.scale;
-      
+
       Vec2f fmp  = (mp - p0) / (mDisplaySize*scale);
-      Vec2f fdmp = (dmp) / (mDisplaySize*scale);
+      Vec2f fdmp = (dmp)     / (mDisplaySize*scale);
+
+      if(mFluid1->params.mp.x != mFluid1->params.mpLast.x || mFluid1->params.mp.y != mFluid1->params.mpLast.y)
+        { mFluid1->params.movedLast = true; }
+      
+      mFluid1->params.lastMv = mFluid1->params.mp - mFluid1->params.mpLast; // previous move vector
       mFluid1->params.mpLast = float2{fmp.x+fdmp.x, fmp.y+fdmp.y};
       mFluid1->params.mp     = float2{fmp.x, fmp.y};
       changed = true;
     }
   // else
-  //   {      
+  //   {
   //     Vec2f fmp  = (mp - p0) / (mDisplaySize*scale);
   //     mFluid.params.mpLast = float2{fmp.x-0.1f, fmp.y+};
   //     mFluid.params.mp     = float2{fmp.x, fmp.y};
   //   }
-  
+
   // reset fluid with ESCAPE
   if(mFieldHovered && ImGui::IsKeyPressed(GLFW_KEY_ESCAPE) && !io.KeyCtrl)
     {
@@ -201,6 +210,7 @@ bool FluidNode::handleIO(const Vec2f &p0)
   //       }
   //   }
 
+  mFluid2->params = mFluid1->params;
   return changed;
 }
 
@@ -226,6 +236,7 @@ void FluidNode::onUpdate()
   mFluid1->params.dt          = mTimeStep;
   mFluid1->params.gravity     = mGravity;
   mFluid1->params.applyChaos  = mApplyChaos;
+  mFluid1->params.applyVisc   = mApplyVisc;
   mFluid1->params.chaos       = mChaos;
   mFluid1->params.viscosity   = mViscosity;
   mFluid1->params.forceRad    = mMForceRad;
@@ -240,7 +251,7 @@ void FluidNode::onUpdate()
   if(mFDensity) { ftype |= FLUIDFORCE_DENSITY; } if(mFPressure) { ftype |= FLUIDFORCE_PRESSURE; }
   if(mFWv)      { ftype |= FLUIDFORCE_WV; }
 
-  mFluid1->params.forceRad = mMForceRad;  
+  mFluid1->params.forceRad = mMForceRad;
   mFluid1->params.ftype    = ftype;
   mFluid1->params.vfPush   = mPushVMult;
   mFluid1->params.vfOut    = mOutVMult;
@@ -271,7 +282,7 @@ void FluidNode::onUpdate()
 
   if((!mManualStep || mPhysics) && mFieldHovered) { } //mFluid1->params.dt *= keyMult; }
   else if(mManualStep)                            { delay /= keyMult; }
-  
+
   if(mManualStep && shiftDown)
     {
       auto now  = CLOCK::now();
@@ -283,14 +294,14 @@ void FluidNode::onUpdate()
       mLastStepT = CLOCK::now();
       if(mManualStep) { repeat = true; }
     }
-  
+
   mFluid2->params = mFluid1->params;
-  
+
   bool stepping = mPhysics || mStepOnce || repeat;
   if(stepping)
     {
       mStepOnce = false;
-      fluidAddForces(*mFluid1, *mFluid2);                       std::swap(mFluid2, mFluid1);
+      fluidAddForces(*mFluid1, *mFluid2, *mFluidLast);          std::swap(mFluid2, mFluid1);
       if(mDiffuseRad > 0) { fluidDiffusion(*mFluid1, *mFluid2); std::swap(mFluid2, mFluid1); }
       if(mIncompressible) { fluidProject(*mFluid1, *mFluid2);   std::swap(mFluid2, mFluid1); }
       fluidAdvection(*mFluid1, *mFluid2);                       std::swap(mFluid2, mFluid1);
@@ -299,11 +310,14 @@ void FluidNode::onUpdate()
   else
     { // add manual mouse forces, but prevent gravity
       mFluid1->params.dt = 0.0;       mFluid2->params.dt = 0.0;
-      fluidAddForces(*mFluid1, *mFluid2); std::swap(mFluid2, mFluid1);
+      fluidAddForces(*mFluid1, *mFluid2, *mFluidLast); std::swap(mFluid2, mFluid1);
       mFluid1->params.dt = mTimeStep; mFluid2->params.dt = mTimeStep;
     }
   if(stepping) { fluidUpdateVel(*mFluid1, *mFluid2); std::swap(mFluid2, mFluid1); }
   renderFluid(*mFluid1, mFluidTex);
+
+  //mFluid1->copyTo(*mFluidLast);
+  
   outputs()[FLUIDNODE_OUTPUT_VXFIELD]->set(&mFluid1->vx);
   outputs()[FLUIDNODE_OUTPUT_VYFIELD]->set(&mFluid1->vy);
   outputs()[FLUIDNODE_OUTPUT_DFIELD ]->set(&mFluid1->d);
@@ -312,13 +326,12 @@ void FluidNode::onUpdate()
   outputs()[FLUIDNODE_OUTPUT_WVFIELD]->set(&mFluid1->wv);
 }
 
-
 void FluidNode::onDraw()
 {
   bool  blocked = isBlocked();
   float scale   = getScale();
   float inputW  = 150.0f*scale;
-  
+
   ImGui::BeginGroup();
   {
     ImGui::BeginGroup();
@@ -342,7 +355,7 @@ void FluidNode::onDraw()
             ImGui::Unindent();
           }
           ImGui::EndGroup();
-      
+
           ImGui::BeginGroup();
           {
             ImGui::TextUnformatted("Physics");
@@ -356,21 +369,22 @@ void FluidNode::onDraw()
             if(ImGui::InputFloat("Time Step", &mTimeStep, 0.01f, 0.1f, "%.8f")) { mFluid1->params.dt = mTimeStep; }
             ImGui::SetNextItemWidth(inputW);
             if(ImGui::InputFloat("Chaos##mult",     &mChaos,    0.01f, 0.1f, "%.8f"))  { mFluid1->params.chaos = mChaos; }
-            ImGui::SameLine(); if(ImGui::Checkbox("Chaos##apply", &mApplyChaos))       { mFluid1->params.applyChaos = mApplyChaos; }
+            ImGui::SameLine(); if(ImGui::Checkbox("##chaosApply", &mApplyChaos))       { mFluid1->params.applyChaos = mApplyChaos; }
             ImGui::SetNextItemWidth(inputW);
             if(ImGui::InputFloat("Viscosity##mult",     &mViscosity,    0.01f, 0.1f, "%.8f"))  { mFluid1->params.viscosity = mViscosity; }
+            ImGui::SameLine(); if(ImGui::Checkbox("##viscApply", &mApplyVisc))  { mFluid1->params.applyVisc = mApplyVisc; }
             ImGui::SetNextItemWidth(inputW);
             if(ImGui::InputInt("Diffuse Radius", &mDiffuseRad, 1, 2))  { mFluid1->params.diffuseRad = mDiffuseRad; }
-            
+
             ImGui::SetNextItemWidth(inputW);
             ImGui::Checkbox("Incompressible", &mIncompressible);
-            ImGui::SameLine(); 
+            ImGui::SameLine();
             ImGui::SetNextItemWidth(inputW);
             if(ImGui::InputInt("Iter##project", &mProjectIter, 1, 2))  { mFluid1->params.projectIter = mProjectIter; }
             ImGui::Unindent();
           }
           ImGui::EndGroup();
-      
+
           ImGui::BeginGroup();
           {
             ImGui::TextUnformatted("Forces");
@@ -436,7 +450,7 @@ void FluidNode::onDraw()
           { mActive = true; mVColor.w = mVBColor.w; }
 
 
-        
+
 
         ImGui::SetNextItemWidth(100.0f*scale);
         if(ImGui::InputFloat("VMult",    &mVMult,  0.01f, 0.1f, "%.4f"))      { mVMult = std::max(0.0f, mVMult); }
@@ -451,14 +465,14 @@ void FluidNode::onDraw()
       }
     else if(mBodyVisible) { mSettingsOpen = false; }
     ImGui::EndGroup();
-    
+
     Vec2f settingsSize = (Vec2f(ImGui::GetItemRectMax()) - ImGui::GetItemRectMin())/scale;
     if(mDisplaySize.x <= settingsSize.x || mDisplaySize.y <= 512.0f)
       { ImGui::SetCursorScreenPos(Vec2f(ImGui::GetCursorScreenPos()) + Vec2f((std::max(settingsSize.x, 512.0f)-mDisplaySize.x)/2.0f, 0.0f)*scale); }
-    
+
     Vec2f p0 = ImGui::GetCursorScreenPos(); // top-left point after settings
     handleIO(p0);
-    
+
     // draw cuda texture on screen
     mFluidTex.bind();
 
@@ -466,9 +480,9 @@ void FluidNode::onDraw()
     //Vec2f tpos = Vec2f(ImGui::GetItemRectMax()) - ImGui::GetItemRectMin();
     mFluidTex.release();
     mFieldHovered = ImGui::IsItemHovered() && !blocked;
-    
+
     // disable node interaction while interacting with field
-    if(ImGui::IsMouseDown(ImGuiMouseButton_Left) && (mFieldHovered || mFieldClicked)) { mActive = true; } // && !ImGui::GetIO().KeyCtrl) { mActive = true; }
+    if(ImGui::IsMouseDown(ImGuiMouseButton_Left) && !mClicked && (mFieldHovered || mFieldClicked)) { mActive = true; }
 
     if(mDrawVectorField && mFluid1->allocated())
       {
@@ -479,8 +493,8 @@ void FluidNode::onDraw()
         Vec2f  vs  = mGraph->viewSize();
         Vec2f  vp  = mGraph->viewPos() - Vec2f(vs.x, vs.y)/2.0f;
         Rect2f gRect(vp, vp+vs);
-        Rect2f tRect(p0, p0+(Vec2f(ImGui::GetItemRectMax())-ImGui::GetItemRectMin()));        
-        
+        Rect2f tRect(p0, p0+(Vec2f(ImGui::GetItemRectMax())-ImGui::GetItemRectMin()));
+
         // only sample on-screen texels
         for(int sx = 0; sx <= mVSamples.x; sx++)
           for(int sy = 0; sy <= mVSamples.y; sy++)
@@ -496,10 +510,10 @@ void FluidNode::onDraw()
               Vec2f sp1 = p0 + scale*(t1 * mDisplaySize);
               Vec2f sp2 = p0 + scale*(t2 * mDisplaySize);
               // if(tRect.contains(sp1) || tRect.contains(sp2) || intersects(tRect, sp1, sp2))
-                {
-                  drawLine(drawList, sp1, sp2, mVColor, mVWidth, mVBColor, mVBWidth,
-                           0.5f/std::max(0.5f, (sp2-sp1).length()), 2.0f);
-                }
+              {
+                drawLine(drawList, sp1, sp2, mVColor, mVWidth, mVBColor, mVBWidth,
+                         0.5f/std::max(0.5f, (sp2-sp1).length()), 2.0f);
+              }
             }
       }
   }

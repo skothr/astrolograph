@@ -1,5 +1,4 @@
 #include "fftNode.hpp"
-using namespace astro;
 // using namespace quantum;
 
 #include "cutools.hpp"

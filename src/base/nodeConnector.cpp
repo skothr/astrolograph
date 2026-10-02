@@ -1,5 +1,4 @@
 #include "nodeConnector.hpp"
-using namespace astro;
 
 #include <string>
 #include "imgui.h"
@@ -14,11 +13,12 @@ using json = nlohmann::json;
 #include "viewSettings.hpp"
 #include "setting.hpp"
 #include "cudaField.hpp"
+#include "hyper-field.hpp"
 
-static std::unordered_map<std::string, Vec4f> CONNECTOR_COLORS =
+const std::unordered_map<std::string, Vec4f> ConnectorBase::CONNECTOR_COLORS =
   {{std::string(typeid(DateTime).name()),                          Vec4f(0.2f, 0.2f, 1.0f, 1.0f)},
    {std::string(typeid(Location).name()),                          Vec4f(0.2f, 1.0f, 0.2f, 1.0f)},
-   {std::string(typeid(Chart).name()),                             Vec4f(1.0f, 0.2f, 0.2f, 1.0f)},
+   {std::string(typeid(astro::Chart).name()),                      Vec4f(1.0f, 0.2f, 0.2f, 1.0f)},
    {std::string(typeid(MarketData).name()).substr(0, 26),          Vec4f(1.0f, 1.0f, 0.2f, 1.0f)},
    {std::string(typeid(CudaFieldBase).name()).substr(0, 26),       Vec4f(0.2f, 1.0f, 1.0f, 1.0f)},
    {std::string(typeid(CudaField<int>).name()).substr(0, 26),      Vec4f(0.2f, 1.0f, 1.0f, 1.0f)},
@@ -28,19 +28,26 @@ static std::unordered_map<std::string, Vec4f> CONNECTOR_COLORS =
    {std::string(typeid(CudaField<float>).name()).substr(0, 26),    Vec4f(0.2f, 1.0f, 1.0f, 1.0f)},
    {std::string(typeid(CudaField<float2>).name()).substr(0, 26),   Vec4f(0.2f, 1.0f, 1.0f, 1.0f)},
    {std::string(typeid(CudaField<float3>).name()).substr(0, 26),   Vec4f(0.2f, 1.0f, 1.0f, 1.0f)},
-   //{std::string(typeid(CudaField<float4>).name()).substr(0, 26),   Vec4f(0.2f, 1.0f, 1.0f, 1.0f)},
+   //{std::string(typeid(CudaField<float4>).name()).substr(0, 26), { Vec4f(0.2f, 1.0f, 1.0f, 1.0f)},
    {std::string(typeid(CudaField<double>).name()).substr(0, 26),   Vec4f(0.2f, 1.0f, 1.0f, 1.0f)},
    {std::string(typeid(CudaField<double2>).name()).substr(0, 26),  Vec4f(0.2f, 1.0f, 1.0f, 1.0f)},
    {std::string(typeid(CudaField<double3>).name()).substr(0, 26),  Vec4f(0.2f, 1.0f, 1.0f, 1.0f)},
    {std::string(typeid(CudaField<double4>).name()).substr(0, 26),  Vec4f(0.2f, 1.0f, 1.0f, 1.0f)},
    {std::string(typeid(CudaFieldTex).name()).substr(0, 26),        Vec4f(1.0f, 0.2f, 1.0f, 1.0f)},
-   {std::string(typeid(CudaFluid<float>).name()).substr(0, 26),    Vec4f(1.0f, 1.0f, 1.0f, 1.0f)}};
-
+   {std::string(typeid(CudaFluid<float>).name()).substr(0, 26),    Vec4f(1.0f, 1.0f, 1.0f, 1.0f)},
+    
+   {std::string(typeid(HyperFieldBase<2>).name()).substr(0, 26),   Vec4f(1.0f, 1.0f, 1.0f, 1.0f)},
+   {std::string(typeid(HyperFieldBase<3>).name()).substr(0, 26),   Vec4f(1.0f, 1.0f, 1.0f, 1.0f)}};
 
 std::string ConnectorBase::conType() const
 {
   std::string typeStr = type(); // field connections standardized as base type
-  if(typeStr.find("CudaField") != std::string::npos) { typeStr = std::string(typeid(CudaFieldBase).name()).substr(0, 26); }
+  if(typeStr.find("CudaField")   != std::string::npos) { typeStr = std::string(typeid(CudaFieldBase).name()).substr(0, 26); }
+  if(typeStr.find("HyperField<") != std::string::npos)
+    {
+      if     (typeStr.find("2>")) { typeStr = std::string(typeid(HyperFieldBase<2>).name()).substr(0, 26); }
+      else if(typeStr.find("3>")) { typeStr = std::string(typeid(HyperFieldBase<3>).name()).substr(0, 26); }
+    }
   return typeStr;
 }
 
@@ -137,8 +144,45 @@ void ConnectorBase::sendSignal(NodeSignal signal)
   for(auto con : mConnected) { con->sendSignal(signal); }
 }
 
+Vec4f ConnectorBase::getLineColor()
+{
+  Vec4f mask  = parent()->getColorMask();
+  Vec4f cColor = Vec4f(0.5f, 0.5f, 0.5f, 1.0f);
+  auto iter = ConnectorBase::CONNECTOR_COLORS.find(type());
+  if(iter != ConnectorBase::CONNECTOR_COLORS.end()) { cColor = iter->second; }
+  Vec4f connectingColor = Vec4f(cColor.x, cColor.y, cColor.z, cColor.w*0.8f)*mask;              // color when making connection 
+  Vec4f connectedColor  = Vec4f(cColor.x*0.75f, cColor.y*0.75f, cColor.z*0.75f, cColor.w)*mask; // color when fully connected
+  // Vec4f dotColor        = Vec4f(connectorColor.x*0.4f, connectorColor.y*0.4f,   // color of connector dot
+  //                               connectorColor.z*0.4f, 1.0f)*mask;
+  // Vec4f connectDotColor = Vec4f(connectorColor.x*0.65f, connectorColor.y*0.65f, // color of connection dot
+  //                               connectorColor.z*0.65f, 1.0f)*mask;
+
+  if(isConnecting()) { return connectingColor; }
+  else               { return connectedColor; }
+}
+
+Vec4f ConnectorBase::getDotColor()
+{
+  Vec4f mask  = parent()->getColorMask();
+  Vec4f connectorColor = Vec4f(0.5f, 0.5f, 0.5f, 1.0f);
+  auto iter = ConnectorBase::CONNECTOR_COLORS.find(type());
+  if(iter != ConnectorBase::CONNECTOR_COLORS.end()) { connectorColor = iter->second; }
+  // Vec4f connectingColor = Vec4f(connectorColor.x, connectorColor.y,             // color when making connection
+  //                               connectorColor.z, connectorColor.w*0.8f)*mask;
+  // Vec4f connectedColor  = Vec4f(connectorColor.x*0.75f, connectorColor.y*0.75f, // color when fully connected
+  //                               connectorColor.z*0.75f, connectorColor.w)*mask;
+  Vec4f dotColor        = Vec4f(connectorColor.x*0.4f, connectorColor.y*0.4f,   // color of connector dot
+                                connectorColor.z*0.4f, 1.0f)*mask;
+  Vec4f connectDotColor = Vec4f(connectorColor.x*0.65f, connectorColor.y*0.65f, // color of connection dot
+                                connectorColor.z*0.65f, 1.0f)*mask;
+
+  if(isConnecting()) { return connectDotColor; }
+  else               { return dotColor; }
+}
+
 bool ConnectorBase::draw(bool blocked, bool clicked)
 {
+  ImGuiStyle &style = ImGui::GetStyle();
   float scale = mParent->getScale();
   Vec4f mask = mParent->getColorMask();
   Vec2f conPadding = CONNECTOR_PADDING*scale;
@@ -227,12 +271,14 @@ bool ConnectorBase::draw(bool blocked, bool clicked)
                                        typeValid(connectingFrom) && connectingFrom->direction() != direction()));
   
   // draw visible button
-  ImGui::SetCursorScreenPos(p0);  
-  ImGui::PushStyleColor(ImGuiCol_Button, connectorColor);
-  if(mHovered || highlight) { ImGui::PushStyleColor(ImGuiCol_Button, ImGui::GetStyleColorVec4(ImGuiCol_ButtonHovered)); }
-  ImGui::Button(("##"+mName).c_str(), conSize);
-  ImGui::PopStyleColor(mHovered || highlight ? 2 : 1);
-  Vec2f p1 = ImGui::GetCursorScreenPos();
+  ImGui::SetCursorScreenPos(p0);
+  // ImGui::PushStyleColor(ImGuiCol_Button, connectorColor);
+  // if(mHovered || highlight) { ImGui::PushStyleColor(ImGuiCol_Button, ImGui::GetStyleColorVec4(ImGuiCol_ButtonHovered)); }
+  // ImGui::Button(("##"+mName).c_str(), conSize);
+  // ImGui::PopStyleColor(mHovered || highlight ? 2 : 1);
+  Vec4f color = ((mHovered || highlight) ? Vec4f(ImGui::GetStyleColorVec4(ImGuiCol_ButtonHovered)) : connectorColor);
+  ImGui::GetWindowDrawList()->AddRectFilled(p0, p0+conSize, ImColor(color));
+  Vec2f p1 = p0 + Vec2f(0.0f, conSize.y + style.ItemInnerSpacing.y); //ImGui::GetCursorScreenPos();
   
   ImGui::PushStyleVar(ImGuiStyleVar_WindowPadding,    Vec2f(ImGui::GetStyle().WindowPadding)/scale);
   ImGui::PushStyleVar(ImGuiStyleVar_FramePadding,     Vec2f(ImGui::GetStyle().FramePadding)/scale);
@@ -331,10 +377,6 @@ void ConnectorBase::drawConnections(ImDrawList *nodeDrawList, ImDrawList *graphD
             { graphDrawList->AddCircleFilled(graph->graphToScreen(connectLines[i]), 3.0f*scale, ImColor(connectDotColor), 32); }
         }
     }
-  // else
-  //   {
-  //     connectLines.push_back()
-  //   }
   
   if(isConnecting() || (mConnected.size() > 0)) // && connectLines.size() > 1))
     { // draw first and last lines over node window

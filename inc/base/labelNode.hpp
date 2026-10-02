@@ -3,24 +3,21 @@
 
 #include "node.hpp"
 
-namespace astro
+class LabelNode : public Node
 {
-  class LabelNode : public Node
-  {
-  private:
-    static std::vector<ConnectorBase*> CONNECTOR_INPUTS()  { return {}; }
-    static std::vector<ConnectorBase*> CONNECTOR_OUTPUTS() { return {}; }
+private:
+  static std::vector<ConnectorBase*> CONNECTOR_INPUTS()  { return {}; }
+  static std::vector<ConnectorBase*> CONNECTOR_OUTPUTS() { return {}; }
 
-    std::string mText = "";
-    bool mEditing = false;
+  std::string mText = "";
+  bool mEditing = false;
     
-    virtual void onUpdate() override { }
-    virtual void onDraw() override;
+  virtual void onUpdate() override { }
+  virtual void onDraw() override;
     
-  public:
-    LabelNode(const std::string &text="");
-    virtual std::string type() const { return "LabelNode"; }       
-  };
-}
+public:
+  LabelNode(const std::string &text="");
+  virtual std::string type() const { return "LabelNode"; }       
+};
 
 #endif // LABEL_NODE_HPP

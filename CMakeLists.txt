@@ -7,9 +7,12 @@ project(astrolograph VERSION 0.7) # project name and version
 configure_file(inc/version/version.hpp.in ../inc/version/version.hpp)
 
 set(TARGET astrolograph)
-set(ASTRO_ENABLE_CUDA TRUE)                        # set to TRUE to enable CUDA
-set(CUDA_TOOLKIT_ROOT_DIR "/usr/local/cuda-11.2/") # set to location of CUDA source
-set(ASTRO_CUDA_ARCH       "sm_75")                 # set for specific graphics card
+set(ASTRO_ENABLE_CUDA TRUE)                         # set to TRUE to enable CUDA
+set(CUDA_TOOLKIT_ROOT_DIR "/usr/local/cuda-12/")  # set to location of CUDA source
+set(ASTRO_CUDA_ARCHITECTURES "75")                  # set for specific graphics card(s) [e.g. "35;50;72" for sm_35, sm_50, and sm_72]
+
+set(CMAKE_CUDA_ARCHITECTURES ${ASTRO_CUDA_ARCHITECTURES})
+
 
 set(CMAKE_CXX_FLAGS_DEBUG_INIT "-O0 -g -Wall -pg")             # debug
 set(CMAKE_CXX_FLAGS_RELEASE_INIT "-O2 -Wall -ftree-vectorize") # release
@@ -29,7 +32,7 @@ include_directories(
   )
 add_library(astro STATIC
   # base
-  src/base/astroWindow.cpp
+  src/base/mainWindow.cpp
   src/base/fileDialog.cpp
   src/base/groupNode.cpp
   src/base/imtools.cpp
@@ -43,6 +46,7 @@ add_library(astro STATIC
   src/base/plotWidget.cpp
   src/base/settingForm.cpp
   src/base/shapeBuffer.cpp
+  src/base/tabMenu.cpp
   src/base/viewSettings.cpp
   # astro
   src/astro/aspectNode.cpp
@@ -96,7 +100,7 @@ if(ASTRO_ENABLE_CUDA) # enable CUDA
   enable_language(CUDA)
   if(NOT DEFINED CMAKE_CUDA_STANDARD)
     set(CMAKE_CUDA_STANDARD 11)
-    set(CMAKE_CUDA_STANDARD_REQUIRED ON)
+    # set(CMAKE_CUDA_STANDARD_REQUIRED ON)
   endif()
   
   # build cuda lib
@@ -122,9 +126,13 @@ if(ASTRO_ENABLE_CUDA) # enable CUDA
     src/cuda/field-gradient.cu
     src/cuda/field-negate.cu  
     )
-  set_target_properties(astrocuda PROPERTIES CXX_STANDARD 17)
+  set_target_properties (astrocuda PROPERTIES CXX_STANDARD 17)
+  set_target_properties (astrocuda PROPERTIES CUDA_ARCHITECTURES ${ASTRO_CUDA_ARCHITECTURES})
+  target_compile_options(astrocuda PRIVATE -fPIE)
+  
   set(CUDA_LIBRARIES astrocuda)
   target_link_libraries(astro ${CUDA_LIBRARIES} cufft)
+  
 endif()
 
 
@@ -219,9 +227,10 @@ target_link_libraries(astro
 # link executable
 message(STATUS "Building Astrolograph...")
 add_executable(${TARGET} src/main.cpp)
-set_target_properties(${TARGET} PROPERTIES CXX_STANDARD 17)
+set_target_properties (${TARGET} PROPERTIES CXX_STANDARD 17)
+set_target_properties (${TARGET} PROPERTIES CUDA_ARCHITECTURES ${ASTRO_CUDA_ARCHITECTURES})
 target_compile_options(${TARGET} PRIVATE -static -Wno-deprecated)
-target_link_libraries(${TARGET}
+target_link_libraries (${TARGET} PRIVATE
   astro
   imgui
   glfw
@@ -232,3 +241,5 @@ target_link_libraries(${TARGET}
   ${CUDA_LIBRARIES}
   # ${LIB_SSL} ${LIB_ZLIB} # <-- for Windows?
   )
+
+

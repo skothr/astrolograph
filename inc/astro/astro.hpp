@@ -45,8 +45,10 @@ namespace astro
   enum ObjType_
     {
      OBJ_INVALID = -1,
-     // cardinal
-     OBJ_SUN = 0, 
+     OBJ_START = 0,
+     
+     // luminaries
+     OBJ_SUN = OBJ_START,
      OBJ_MOON,
      // planets
      OBJ_MERCURY,
@@ -58,8 +60,10 @@ namespace astro
      OBJ_NEPTUNE,
      OBJ_PLUTO,
      OBJ_QUAOAR,
+     OBJ_LACHESIS,
      // asteroids/comets
      OBJ_CHIRON,
+     OBJ_PHOLUS,
      OBJ_CERES,
      OBJ_JUNO,
      OBJ_PALLAS,
@@ -67,6 +71,7 @@ namespace astro
      OBJ_LILITH,    // (sweID = SE_AST_OFFSET + 1181)
      OBJ_FORTUNA,   // (sweID = SE_AST_OFFSET + 19)
      OBJ_ERIS,      // (sweID = SE_AST_OFFSET + 136199(?))
+     
      // lunar nodes
      OBJ_NORTHNODE, // (sweID = SE_TRUE_NODE) TODO: differentiate from true node?
      OBJ_SOUTHNODE,
@@ -75,8 +80,9 @@ namespace astro
      ///////////////////////////////////////////////////////
      // angles
      ANGLE_OFFSET = OBJ_COUNT,
-      
-     ANGLE_ASC = ANGLE_OFFSET,
+     ANGLE_START = ANGLE_OFFSET,
+
+     ANGLE_ASC = ANGLE_START,
      ANGLE_MC,
      ANGLE_DSC,
      ANGLE_IC,
@@ -227,13 +233,13 @@ namespace astro
   // object and angle names (order must match enum above)
   static const std::vector<std::string> OBJECT_NAMES =
     { "sun", "moon",
-      "mercury", "venus", "mars", "jupiter", "saturn", "uranus", "neptune", "pluto", "quaoar",
-      "chiron", "ceres", "juno", "pallas", "vesta", "lilith", "fortuna", "eris",
+      "mercury", "venus", "mars", "jupiter", "saturn", "uranus", "neptune", "pluto", "quaoar", "lachesis",
+      "chiron", "pholus", "ceres", "juno", "pallas", "vesta", "lilith", "fortuna", "eris",
       "north-node", "south-node" };
   static const std::vector<std::string> OBJECT_NAMES_LONG =
     { "Sun", "Moon",
-      "Mercury", "Venus", "Mars", "Jupiter", "Saturn", "Uranus", "Neptune", "Pluto", "Quaoar",
-      "Chiron", "Ceres", "Juno", "Pallas-Athene", "Vesta", "Lilith", "Fortuna", "Eris",
+      "Mercury", "Venus", "Mars", "Jupiter", "Saturn", "Uranus", "Neptune", "Pluto", "Quaoar", "Lachesis",
+      "Chiron", "Pholus", "Ceres", "Juno", "Pallas-Athene", "Vesta", "Lilith", "Fortuna", "Eris",
       "North Node", "South Node" };
   static const std::vector<std::string> OBJECT_SYMBOLS_U8 =
     { u8"☉", u8"☽", u8"☿", u8"♀", u8"♂", u8"♃", u8"♄", u8"♅", u8"♆", u8"♇", u8"Q", u8"⚷", u8"⚳", u8"⚵", u8"⚴", u8"⚶", u8"⚸", u8"福", u8"?", u8"☊", u8"☋" };
@@ -715,23 +721,6 @@ namespace astro
     ObjType type      = OBJ_INVALID;
     bool    valid     = false; // valid data
   };
-
-  struct BoolStruct
-  {
-    bool data;
-    BoolStruct(bool val = false) : data(val) { }
-    operator bool() const { return data; }
-    friend std::ostream& operator<<(std::ostream &os, const BoolStruct &b);
-    friend std::istream& operator>>(std::istream &is, BoolStruct &b);
-  };
-  inline std::ostream& operator<<(std::ostream &os, const BoolStruct &b)
-  { os << (b.data ? "1" : "0") << " "; return os; }
-  inline std::istream& operator>>(std::istream &is, BoolStruct &b)
-  {
-    std::string str;
-    is >> str; b.data = (str != "0");
-    return is;
-  }
 
   struct ChartOrbs
   {

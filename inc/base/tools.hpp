@@ -11,7 +11,7 @@
 // General tools/helpers
 
 
-#ifndef ENABLE_CUDA // not needed for building CUDA files (std::quoted undefined)
+#ifndef __NVCC__ // not needed for building CUDA files (std::quoted undefined)
 
 // returns name (first token in str) and removes it from original
 // TODO: better solution -- confusing
@@ -26,7 +26,7 @@ inline std::string popName(std::string &str)
   return name;
 }
 
-#endif // ENABLE_CUDA
+#endif // __NVCC__
 
 
 
@@ -128,5 +128,30 @@ inline bool makeDirectory(const std::string &path)
 #endif
   return (err == 0);
 }
+
+
+
+
+
+// structure for storing vectors of booleans normally
+struct BoolStruct
+{
+  bool data;
+  BoolStruct(bool val = false) : data(val) { }
+  operator bool() const { return data; }
+  friend std::ostream& operator<<(std::ostream &os, const BoolStruct &b);
+  friend std::istream& operator>>(std::istream &is, BoolStruct &b);
+};
+inline std::ostream& operator<<(std::ostream &os, const BoolStruct &b)
+{ os << (b.data ? "1" : "0") << " "; return os; }
+inline std::istream& operator>>(std::istream &is, BoolStruct &b)
+{
+  std::string str;
+  is >> str; b.data = (str != "0");
+  return is;
+}
+
+
+
 
 #endif // TOOLS_HPP

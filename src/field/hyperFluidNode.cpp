@@ -1,11 +1,11 @@
 #include "hyperFluidNode.hpp"
-using namespace astro;
 
 #include <imgui.h>
 
 #include "matrix.hpp"
 #include "setting.hpp"
 #include "settingForm.hpp"
+#include "fileDialog.hpp"
 #include "glfwKeys.hpp"
 #include "complex.hpp"
 #include "imtools.hpp"
@@ -17,7 +17,8 @@ using namespace astro;
 
 
 HyperFluidNode::HyperFluidNode()
-  : Node(CONNECTOR_INPUTS(), CONNECTOR_OUTPUTS(), "HyperFluid Node", true)
+  : Node(CONNECTOR_INPUTS(), CONNECTOR_OUTPUTS<3>(), "HyperFluid Node", true)
+    //, mFileDialog(new FileDialog())
 {
   // settings
   mSettings.push_back(new Setting<bool>           ("Settings Open", "settingsOpen", &mSettingsOpen));
@@ -46,6 +47,7 @@ HyperFluidNode::HyperFluidNode()
   mSettings.push_back(new Setting<float>("MForce WVMult",     "wvf",          &mWVMult,      mWVMult    ));
   mSettings.push_back(new Setting<float>("Gravity",           "gravity",      &mGravity,     mGravity   ));
   mSettings.push_back(new Setting<bool> ("Apply Chaos",       "applyChaos",   &mApplyChaos,  mApplyChaos));
+  mSettings.push_back(new Setting<bool> ("Apply Viscosity",   "applyVisc",    &mApplyVisc,   mApplyVisc ));
   
   mSettings.push_back(new Setting<float>("Chaos",             "chaos",        &mChaos,       mChaos     ));
   mSettings.push_back(new Setting<float>("Viscosity",         "viscosity",    &mViscosity,   mViscosity ));
@@ -65,20 +67,18 @@ HyperFluidNode::HyperFluidNode()
   mSettings.push_back(new Setting<float>("VectorW",           "vWidth",       &mVWidth,          mVWidth          ));
   mSettings.push_back(new Setting<float>("BorderW",           "bWidth",       &mVBWidth,         mVBWidth         ));
   mSettings.push_back(new Setting<float>("VOpacity",          "vOpacity",     &mVOpacity,        mVOpacity        ));
-  
-  // initialize hyperfluid resources
-  // m2Fluid1 = new HyperFluid<2>();
-  // m2Fluid2 = new HyperFluid<2>();
-  // m3Fluid1 = new HyperFluid<3>();
-  // m3Fluid2 = new HyperFluid<3>();
-  resizeField(mFluidSize);
-  mFluidTex.create(mTexSize);
 
-  // outputs()[HYPERFLUIDNODE_OUTPUT_VXFIELD]->set(&mHyperFluid1->vx);
-  // outputs()[HYPERFLUIDNODE_OUTPUT_VYFIELD]->set(&mHyperFluid1->vy);
-  // outputs()[HYPERFLUIDNODE_OUTPUT_DFIELD ]->set(&mHyperFluid1->d);
-  // outputs()[HYPERFLUIDNODE_OUTPUT_PFIELD ]->set(&mHyperFluid1->p);
-  // outputs()[HYPERFLUIDNODE_OUTPUT_WVFIELD]->set(&mHyperFluid1->wv);
+  resizeField(mFluidSize);
+  {
+    //std::lock_guard<std::mutex> lock(mTexLock);
+    mFluidTex.create(mTexSize); mDisplayTex.create(mTexSize);
+    outputs()[HFLUIDNODE_OUTPUT_VELFIELD]->set(&m3Fluid1->vel);
+    outputs()[HFLUIDNODE_OUTPUT_WVFIELD ]->set(&m3Fluid1->div);
+    outputs()[HFLUIDNODE_OUTPUT_DFIELD  ]->set(&m3Fluid1->d);
+    outputs()[HFLUIDNODE_OUTPUT_PFIELD  ]->set(&m3Fluid1->p);
+    outputs()[HFLUIDNODE_OUTPUT_WVFIELD ]->set(&m3Fluid1->wv);
+    outputs()[HFLUIDNODE_OUTPUT_TEXTURE ]->set(&mFluidTex);
+  }
 
   setTitle("Hyper Fluid");
   setMinSize(Vec2f(512, 512));
@@ -91,7 +91,40 @@ HyperFluidNode::~HyperFluidNode()
   if(m3Fluid1) { m3Fluid1->destroy(); delete m3Fluid1; }
   if(m3Fluid2) { m3Fluid2->destroy(); delete m3Fluid2; }
   mFluidTex.destroy();
+  
+  //if(mFileDialog) { delete mFileDialog; }
 }
+
+bool HyperFluidNode::setDims(int dims)
+{
+  if(dims != mDims)
+    {
+      mDims = dims;
+      Node::clearOutputs();
+      Node::addOutputs((mDims == 2) ? CONNECTOR_OUTPUTS<2>() : CONNECTOR_OUTPUTS<3>());
+      
+      if(mDims == 2)
+        {
+          outputs()[HFLUIDNODE_OUTPUT_VELFIELD]->set(&m2Fluid1->vel);
+          outputs()[HFLUIDNODE_OUTPUT_DIVFIELD]->set(&m2Fluid1->div);
+          outputs()[HFLUIDNODE_OUTPUT_DFIELD  ]->set(&m2Fluid1->d);
+          outputs()[HFLUIDNODE_OUTPUT_PFIELD  ]->set(&m2Fluid1->p);
+          outputs()[HFLUIDNODE_OUTPUT_WVFIELD ]->set(&m2Fluid1->wv);
+        }
+      else if(mDims == 3)
+        {
+          outputs()[HFLUIDNODE_OUTPUT_VELFIELD]->set(&m3Fluid1->vel);
+          outputs()[HFLUIDNODE_OUTPUT_DIVFIELD]->set(&m3Fluid1->div);
+          outputs()[HFLUIDNODE_OUTPUT_DFIELD  ]->set(&m3Fluid1->d);
+          outputs()[HFLUIDNODE_OUTPUT_PFIELD  ]->set(&m3Fluid1->p);
+          outputs()[HFLUIDNODE_OUTPUT_WVFIELD ]->set(&m3Fluid1->wv);
+        }
+      return true;
+    }
+  else
+    { return false; }
+}
+
 
 void HyperFluidNode::resizeField(const Vec3i &fSize)
 {
@@ -103,9 +136,12 @@ void HyperFluidNode::resizeField(const Vec3i &fSize)
           Vec2i old(mFluidSize.x, mFluidSize.y);
           if(!m2Fluid1 || !m2Fluid2 || fSize2 != old || fSize2 != m2Fluid1->size || fSize2 != m2Fluid2->size)
             {
-              mFluidSize = fSize;
-              if(!m2Fluid1) { m2Fluid1 = new HyperFluid<2>(); } m2Fluid1->create(fSize2); // TODO: other dimensionalities
-              if(!m2Fluid2) { m2Fluid2 = new HyperFluid<2>(); } m2Fluid2->create(fSize2);
+              {
+                //std::lock_guard<std::mutex> lock(mTexLock);
+                mFluidSize = fSize;
+                if(!m2Fluid1) { m2Fluid1 = new HyperFluid<2>(); } m2Fluid1->create(fSize2); // TODO: other dimensionalities
+                if(!m2Fluid2) { m2Fluid2 = new HyperFluid<2>(); } m2Fluid2->create(fSize2);
+              }
               clearField(Vec4f(0, 0, 0, 1));
             }
         }
@@ -116,9 +152,12 @@ void HyperFluidNode::resizeField(const Vec3i &fSize)
         {
           if(!m3Fluid1 || !m3Fluid2 || fSize != mFluidSize || fSize != m3Fluid1->size || fSize != m3Fluid2->size)
             {
-              mFluidSize = fSize;
-              if(!m3Fluid1) { m3Fluid1 = new HyperFluid<3>(); } m3Fluid1->create(mFluidSize); // TODO: other dimensionalities
-              if(!m3Fluid2) { m3Fluid2 = new HyperFluid<3>(); } m3Fluid2->create(mFluidSize);
+              {
+                //std::lock_guard<std::mutex> lock(mTexLock);
+                mFluidSize = fSize;
+                if(!m3Fluid1) { m3Fluid1 = new HyperFluid<3>(); } m3Fluid1->create(mFluidSize); // TODO: other dimensionalities
+                if(!m3Fluid2) { m3Fluid2 = new HyperFluid<3>(); } m3Fluid2->create(mFluidSize);
+              }
               clearField(Vec4f(0, 0, 0, 1));
             }
         }
@@ -128,6 +167,7 @@ void HyperFluidNode::resizeField(const Vec3i &fSize)
 
 void HyperFluidNode::clearField(const Vec4f &color)
 {
+  //std::lock_guard<std::mutex> lock(mTexLock);
   
   if(mDims == 2)      { if(m2Fluid1) { clearHFluid2(*m2Fluid1); } if(m2Fluid2) { clearHFluid2(*m2Fluid2); } }
   else if(mDims == 3) { if(m3Fluid1) { clearHFluid3(*m3Fluid1); } if(m3Fluid2) { clearHFluid3(*m3Fluid2); } }
@@ -135,18 +175,17 @@ void HyperFluidNode::clearField(const Vec4f &color)
   if(mFillCircle)
     {
       if(mDims == 2)      { if(m2Fluid1) { fillHFluidCircle2(*m2Fluid1); } }
-      else if(mDims == 3) { if(m3Fluid1) { fillHFluidCircle3(*m3Fluid1); } }
+      else if(mDims == 3) { if(m3Fluid1) { fillHFluidCircle3(*m3Fluid1, mCircleBounded); } }
     }
   if(mDensityPattern)
     {
       if(mDims == 2)      { if(m2Fluid1) { fillHFluidPattern2(*m2Fluid1); } }
       else if(mDims == 3) { if(m3Fluid1) { fillHFluidPattern3(*m3Fluid1); } }
     }
-  
-  if(mTexSize != mFluidTex.size)  { mFluidTex.create(mTexSize); }
-  mFluidTex.map();
-  fillTex(mFluidTex.dData, mFluidTex.size.x, mFluidTex.size.y, float4{color.x,color.y,color.z,color.w});
-  mFluidTex.unmap();
+
+  if(mTexSize != mFluidTex.size) { mFluidTex.create(mTexSize); mDisplayTex.create(mTexSize); }
+  mFluidTex.map();   fillTex(mFluidTex.dData,   mFluidTex.size.x,   mFluidTex.size.y,   float4{color.x,color.y,color.z,color.w}); mFluidTex.unmap();
+  mDisplayTex.map(); fillTex(mDisplayTex.dData, mDisplayTex.size.x, mDisplayTex.size.y, float4{color.x,color.y,color.z,color.w}); mDisplayTex.unmap();
 }
 
 bool HyperFluidNode::handleIO(const Vec2f &p0)
@@ -156,20 +195,68 @@ bool HyperFluidNode::handleIO(const Vec2f &p0)
   float scale  = getScale();
   bool blocked = isBlocked();
   bool changed = false;
+  bool ctrlDown = io.KeyCtrl;
   Vec2f mp = ImGui::GetMousePos();
   Vec2f gp = screenToField(mp, &p0);
 
-  mFieldHovered &= !blocked && !mPlacing;
+  mFieldHovered &= !blocked && !mPlacing && !mClicked;
   
-  if((mFieldLeftClicked || (mFieldHovered && !ImGui::IsKeyDown(GLFW_KEY_LEFT_CONTROL))) && ImGui::IsMouseDown(ImGuiMouseButton_Left))
+  if((mFieldLeftClicked || (mFieldHovered && !ctrlDown)) && ImGui::IsMouseDown(ImGuiMouseButton_Left))
     { mFieldLeftClicked = true; mActive = true; }
   else if(ImGui::IsMouseReleased(ImGuiMouseButton_Left))
     { mFieldLeftClicked = false; mActive = true; }
 
-  if((mFieldRightClicked || (mFieldHovered && !ImGui::IsKeyDown(GLFW_KEY_LEFT_CONTROL))) && ImGui::IsMouseDown(ImGuiMouseButton_Right))
+  if((mFieldRightClicked || (mFieldHovered && !ctrlDown)) && ImGui::IsMouseDown(ImGuiMouseButton_Right))
     { mFieldRightClicked = true; mActive = true; }
   else if(ImGui::IsMouseReleased(ImGuiMouseButton_Right))
     { mFieldRightClicked = false; mActive = true; }
+
+  
+  if(mFieldHovered)
+    {
+      // reset hyperfluid with ESCAPE
+      if(ImGui::IsKeyPressed(GLFW_KEY_ESCAPE) && !ctrlDown) { clearField(Vec4f(0.0f, 0.0f, 0.0f, 1.0f)); }
+      // toggle physics with SPACE 
+      if(ImGui::IsKeyPressed(GLFW_KEY_SPACE)) { mPhysics = !mPhysics; }
+
+      //// TODO: Context menu
+      // std::string contextName = "##plotContext";
+      // if(BeginContext(contextName, CONTEXT_WINDOW_RCLICK, mFieldHovered))
+      //   {
+      //     mActive = true;
+      //     mContextForm->draw(1.0f, false);
+      //     EndContext(true);
+      //   }
+      // else
+      //   {
+      //     EndContext(false);
+      //     if(mFieldHovered)
+      //       {
+      //         // draw tooltip
+      //         BeginTooltip();
+      //         {
+      //           Vec2f tp = (mp - p0) / scale + Vec2f(0.5, 0.5); // position in texture
+      //           if(tp.x >= 0.0 && tp.x < mFluid.vx.x && tp.y >= 0.0 && tp.y < mFluid.size.y)
+      //             {
+      //               int i = ((int)tp.y)*mFluid.vx.size.x + (int)tp.x;
+      //               Vec2f lp(f.hData[i].x, mField.hData[i].y);
+      //               ImGui::Text("Position:    < %s%.8f + %s%.8f i >", (gp.x < 0.0 ? "-" : " "), abs(gp.x), (gp.y < 0.0 ? "-" : " "), abs(gp.y));
+      //               ImGui::Text("Final Value: < %s%.8f + %s%.8f i >", (lp.x < 0.0 ? "-" : " "), abs(lp.x), (lp.y < 0.0 ? "-" : " "), abs(lp.y));
+      //             }
+      //           else
+      //             { ImGui::Text("< N/A >"); }
+      //         }
+      //         EndTooltip();
+      //       }
+      //   }
+
+      // scroll
+      if(!io.KeyCtrl && io.MouseWheel != 0.0f)
+        { // CAMERA DISTANCE
+          double dist = mCamPos.length();
+          mCamPos *= (1.0f - io.MouseWheel/20.0f);
+        }
+    }
 
   // dragging
   if(mFieldRightClicked && ImGui::IsMouseDragging(ImGuiMouseButton_Right))
@@ -199,85 +286,18 @@ bool HyperFluidNode::handleIO(const Vec2f &p0)
       Vec3d up(0,0,1);
       Vec3d newDir = normalize(lrRotate == 0.0 ? mCamDir : rotate(normalize(mCamDir), Vec3d(0,0,1), lrRotate));
       Vec3d right  = normalize(cross(newDir, up));
-      up     = normalize(cross(right, newDir));
-      newDir = normalize(upRotate == 0.0 ? newDir : rotate(newDir, right, upRotate));
+      up           = normalize(cross(right, newDir));
+      newDir       = normalize(upRotate == 0.0 ? newDir  : rotate(newDir, right, upRotate));
       
       Vec3d newPos = normalize(lrRotate == 0.0 ? mCamPos : rotate(normalize(mCamPos), Vec3d(0,0,1), lrRotate));
       Vec3d r      = normalize(cross(newPos, Vec3d(0,0,1)));
-      newPos       = normalize(upRotate == 0.0 ? newPos : rotate(newPos, r, -upRotate));
+      newPos       = normalize(upRotate == 0.0 ? newPos  : rotate(newPos, r, -upRotate));
       mCamDir   = newDir;
       mCamRight = right;
       mCamUp    = up;
       mCamPos   = newPos*length(mCamPos);
       changed = true;
     }
-  
-  if(!io.KeyCtrl && io.MouseWheel != 0.0f)
-    { // adjust distance
-      double dist = mCamPos.length();
-      mCamPos *= (1.0f - io.MouseWheel/20.0f);
-    }
-  
-  // if(mFieldHovered && (mFieldClicked || !ImGui::IsKeyDown(GLFW_KEY_LEFT_CONTROL)) && ImGui::IsMouseDown(ImGuiMouseButton_Left))
-  //   {
-  //     mFieldClicked = true;  mFluid1->params.mdown = true;
-  //     Vec2f fmp = (mp - p0) / (mDisplaySize*scale);
-  //     mFluid1->params.mp     = float2{fmp.x, fmp.y};
-  //     mFluid1->params.mpLast = mFluid1->params.mp;
-  //   }
-  // else if(ImGui::IsMouseReleased(ImGuiMouseButton_Left))
-  //   { mFieldClicked = false; mFluid1->params.mdown = false; mFluid2->params.mdown = false; }
-
-  // // dragging
-  // if(mFieldClicked && ImGui::IsMouseDragging(ImGuiMouseButton_Left))
-  //   {
-  //     Vec2f dmp = -Vec2f(ImGui::GetMouseDragDelta(ImGuiMouseButton_Left));
-  //     ImGui::ResetMouseDragDelta(ImGuiMouseButton_Left);
-  //     //mFluid1->params.offset += dmp / mFluid1->vx.size / scale * 4.0f*mFluid1->params.scale;
-      
-  //     Vec2f fmp  = (mp - p0) / (mDisplaySize*scale);
-  //     Vec2f fdmp = (dmp) / (mDisplaySize*scale);
-  //     mFluid1->params.mpLast = float2{fmp.x+fdmp.x, fmp.y+fdmp.y};
-  //     mFluid1->params.mp     = float2{fmp.x, fmp.y};
-  //     changed = true;
-  //   }
-  // reset hyperfluid with ESCAPE
-  if(mFieldHovered && ImGui::IsKeyPressed(GLFW_KEY_ESCAPE) && !io.KeyCtrl)
-    { clearField(Vec4f(0.0f, 0.0f, 0.0f, 1.0f)); }
-  // reset hyperfluid with ESCAPE
-  if(mFieldHovered && ImGui::IsKeyPressed(GLFW_KEY_SPACE))
-    { mPhysics = !mPhysics; }
-
-  // std::string contextName = "##plotContext";
-  // if(BeginContext(contextName, CONTEXT_WINDOW_RCLICK, mFieldHovered))
-  //   {
-  //     mActive = true;
-  //     mContextForm->draw(1.0f, false);
-  //     EndContext(true);
-  //   }
-  // else
-  //   {
-  //     EndContext(false);
-  //     if(mFieldHovered)
-  //       {
-  //         // draw tooltip
-  //         BeginTooltip();
-  //         {
-  //           Vec2f tp = (mp - p0) / scale + Vec2f(0.5, 0.5); // position in texture
-  //           if(tp.x >= 0.0 && tp.x < mFluid.vx.x && tp.y >= 0.0 && tp.y < mFluid.size.y)
-  //             {
-  //               d
-  //               int i = ((int)tp.y)*mFluid.vx.size.x + (int)tp.x;
-  //               Vec2f lp(f.hData[i].x, mField.hData[i].y);
-  //               ImGui::Text("Position:    < %s%.8f + %s%.8f i >", (gp.x < 0.0 ? "-" : " "), abs(gp.x), (gp.y < 0.0 ? "-" : " "), abs(gp.y));
-  //               ImGui::Text("Final Value: < %s%.8f + %s%.8f i >", (lp.x < 0.0 ? "-" : " "), abs(lp.x), (lp.y < 0.0 ? "-" : " "), abs(lp.y));
-  //             }
-  //           else
-  //             { ImGui::Text("< N/A >"); }
-  //         }
-  //         EndTooltip();
-  //       }
-  //   }
 
   return changed;
 }
@@ -299,9 +319,10 @@ Vec2f HyperFluidNode::screenToField(const Vec2f &sp, const Vec2f *p0)
 
 void HyperFluidNode::onUpdate()
 {
-  bool ctrlDown  = (ImGui::IsKeyDown(GLFW_KEY_LEFT_CONTROL) || ImGui::IsKeyDown(GLFW_KEY_RIGHT_CONTROL));
-  bool shiftDown = (ImGui::IsKeyDown(GLFW_KEY_LEFT_SHIFT)   || ImGui::IsKeyDown(GLFW_KEY_RIGHT_SHIFT));
-  bool altDown   = (ImGui::IsKeyDown(GLFW_KEY_LEFT_ALT)     || ImGui::IsKeyDown(GLFW_KEY_RIGHT_ALT));
+  ImGuiIO &io = ImGui::GetIO();
+  bool ctrlDown  = io.KeyCtrl;  // (ImGui::IsKeyDown(GLFW_KEY_LEFT_CONTROL) || ImGui::IsKeyDown(GLFW_KEY_RIGHT_CONTROL));
+  bool shiftDown = io.KeyShift; // (ImGui::IsKeyDown(GLFW_KEY_LEFT_SHIFT)   || ImGui::IsKeyDown(GLFW_KEY_RIGHT_SHIFT));
+  bool altDown   = io.KeyAlt;   // (ImGui::IsKeyDown(GLFW_KEY_LEFT_ALT)     || ImGui::IsKeyDown(GLFW_KEY_RIGHT_ALT));
 
   // step physics or set time direction with arrow keys
   bool   firstPress = !mManualStep;
@@ -311,12 +332,13 @@ void HyperFluidNode::onUpdate()
   double keyMult    = (ctrlDown ? CTRL_SPEED_MULT : 1.0f) * (altDown ? ALT_SPEED_MULT : 1.0f);
 
   mManualStep = false;
-  if(mFieldHovered      && ImGui::IsKeyDown(GLFW_KEY_RIGHT)) { mManualStep = true; }
-  else if(mFieldHovered && ImGui::IsKeyDown(GLFW_KEY_LEFT))  { mManualStep = true; }
+  float tsMult = 1.0f;
+  if(mFieldHovered      && ImGui::IsKeyDown(GLFW_KEY_RIGHT)) { mManualStep = true; tsMult = 1.0f;  }
+  else if(mFieldHovered && ImGui::IsKeyDown(GLFW_KEY_LEFT))  { mManualStep = true; tsMult = -1.0f; }
   else if(!mManualStep) { repeat = false; firstPress = false; }
 
-  if((!mManualStep || mPhysics) && mFieldHovered) { }
-  else if(mManualStep)                            { delay /= keyMult; }
+  if(mManualStep && (mFieldHovered && mPhysics)) { } //tsMult *= keyMult; }
+  else if(mManualStep)                           { delay  /= keyMult; }
   
   if(mManualStep && shiftDown)
     {
@@ -329,132 +351,224 @@ void HyperFluidNode::onUpdate()
       mLastStepT = CLOCK::now();
       if(mManualStep) { repeat = true; }
     }
-
-  bool stepping = mPhysics || mStepOnce || repeat;
-  if(mTexSize != mFluidTex.size)  { mFluidTex.create(mTexSize); }
   
+  bool stepping = mPhysics || mStepOnce || repeat;
+  
+  {
+    //std::lock_guard<std::mutex> lock(mTexLock);
+    if(mTexSize != mFluidTex.size) { mFluidTex.create(mTexSize); mDisplayTex.create(mTexSize); }
+  }
+
   // RENDER TO TEXTURE //
   if(mDims == 2 && m2Fluid1)
     {
-      m2Fluid1->params.dt          = mTimeStep;
-      m2Fluid1->params.gravity     = mGravity;
-      m2Fluid1->params.applyChaos  = mApplyChaos;
-      m2Fluid1->params.chaos       = mChaos;
-      m2Fluid1->params.viscosity   = mViscosity;
-      m2Fluid1->params.forceRad    = mMForceRad;
-      m2Fluid1->params.diffuseRad  = mDiffuseRad;
-      m2Fluid1->params.projectIter = mProjectIter;
+      {
+        //std::lock_guard<std::mutex> lock(mTexLock);
+        
+        m2Fluid1->params.dt          = mTimeStep*tsMult;
+        m2Fluid1->params.gravity     = mGravity;
+        m2Fluid1->params.applyChaos  = mApplyChaos;
+        m2Fluid1->params.applyChaos  = mApplyVisc;
+        m2Fluid1->params.chaos       = mChaos;
+        m2Fluid1->params.viscosity   = mViscosity;
+        m2Fluid1->params.forceRad    = mMForceRad;
+        m2Fluid1->params.diffuseRad  = mDiffuseRad;
+        m2Fluid1->params.projectIter = mProjectIter;
 
-      m2Fluid1->params.mdown = mFieldClicked;
-      ForceType ftype = FLUIDFORCE_NONE;
-      if(mFPush   ) { ftype |= FLUIDFORCE_PUSH;    }
-      if(mFOut    ) { ftype |= FLUIDFORCE_OUT;     } if(mFIn      ) { ftype |= FLUIDFORCE_IN;       }
-      if(mFCW     ) { ftype |= FLUIDFORCE_CW;      } if(mFCCW     ) { ftype |= FLUIDFORCE_CCW;      }
-      if(mFDensity) { ftype |= FLUIDFORCE_DENSITY; } if(mFPressure) { ftype |= FLUIDFORCE_PRESSURE; }
-      if(mFWv)      { ftype |= FLUIDFORCE_WV; }
+        m2Fluid1->params.mdown = mFieldClicked;
+        ForceType ftype = FLUIDFORCE_NONE;
+        if(mFPush   ) { ftype |= FLUIDFORCE_PUSH;    }
+        if(mFOut    ) { ftype |= FLUIDFORCE_OUT;     } if(mFIn      ) { ftype |= FLUIDFORCE_IN;       }
+        if(mFCW     ) { ftype |= FLUIDFORCE_CW;      } if(mFCCW     ) { ftype |= FLUIDFORCE_CCW;      }
+        if(mFDensity) { ftype |= FLUIDFORCE_DENSITY; } if(mFPressure) { ftype |= FLUIDFORCE_PRESSURE; }
+        if(mFWv)      { ftype |= FLUIDFORCE_WV; }
 
-      m2Fluid1->params.forceRad = mMForceRad;  
-      m2Fluid1->params.ftype    = ftype;
-      m2Fluid1->params.vfPush   = mPushVMult;
-      m2Fluid1->params.vfOut    = mOutVMult;
-      m2Fluid1->params.vfIn     = mInVMult;
-      m2Fluid1->params.vfCw     = mCwVMult;
-      m2Fluid1->params.vfCcw    = mCcwVMult;
-      m2Fluid1->params.df       = mDMult;
-      m2Fluid1->params.pf       = mPMult;
-      m2Fluid1->params.wvf      = mWVMult;
-
-      if(m2Fluid1->size != Vec2f(mFluidSize.x, mFluidSize.y)) { resizeField(mFluidSize); }
+        m2Fluid1->params.forceRad = mMForceRad;  
+        m2Fluid1->params.ftype    = ftype;
+        m2Fluid1->params.vfPush   = mPushVMult;
+        m2Fluid1->params.vfOut    = mOutVMult;
+        m2Fluid1->params.vfIn     = mInVMult;
+        m2Fluid1->params.vfCw     = mCwVMult;
+        m2Fluid1->params.vfCcw    = mCcwVMult;
+        m2Fluid1->params.df       = mDMult;
+        m2Fluid1->params.pf       = mPMult;
+        m2Fluid1->params.wvf      = mWVMult;
       
-      if(stepping)
-        {
-          mStepOnce = false;
-          addForcesHyper(*m2Fluid1, *m2Fluid2);                     std::swap(m2Fluid2, m2Fluid1);
-          diffuseHyper(*m2Fluid1, *m2Fluid2);                       std::swap(m2Fluid2, m2Fluid1);
-          if(mIncompressible) { projectHyper(*m2Fluid1, *m2Fluid2); std::swap(m2Fluid2, m2Fluid1); }
-          advectHyper(*m2Fluid1, *m2Fluid2);                        std::swap(m2Fluid2, m2Fluid1);
-          if(mIncompressible) { projectHyper(*m2Fluid1, *m2Fluid2); std::swap(m2Fluid2, m2Fluid1); }
-        }
-      else
-        { // add manual mouse forces, but prevent gravity
-          m2Fluid1->params.dt = 0.0;       m2Fluid2->params.dt = 0.0;
-          addForcesHyper(*m2Fluid1, *m2Fluid2); std::swap(m2Fluid2, m2Fluid1);
-          m2Fluid1->params.dt = mTimeStep; m2Fluid2->params.dt = mTimeStep;
-        }
-      //if(stepping) { updateVelHyper(*m2Fluid1, *m2Fluid2); std::swap(m2Fluid2, m2Fluid1); }
-      renderHFluid2(*m2Fluid1, mFluidTex);
+        m2Fluid2->params = m2Fluid1->params;
+        if(m2Fluid1->size != Vec2f(mFluidSize.x, mFluidSize.y)) { resizeField(mFluidSize); }
+      
+        if(stepping)
+          {
+            mStepOnce = false;
+            addForcesHyper(*m2Fluid1, *m2Fluid2);                     std::swap(m2Fluid2, m2Fluid1);
+            diffuseHyper(*m2Fluid1, *m2Fluid2);                       std::swap(m2Fluid2, m2Fluid1);
+            // if(mIncompressible) { projectHyper(*m2Fluid1, *m2Fluid2); std::swap(m2Fluid2, m2Fluid1); }
+            advectHyper(*m2Fluid1, *m2Fluid2);                        std::swap(m2Fluid2, m2Fluid1);
+            if(mIncompressible) { projectHyper(*m2Fluid1, *m2Fluid2); std::swap(m2Fluid2, m2Fluid1); }
+          }
+        else
+          { // add manual mouse forces, but prevent gravity
+            m2Fluid1->params.dt = 0.0;       m2Fluid2->params.dt = 0.0;
+            addForcesHyper(*m2Fluid1, *m2Fluid2); std::swap(m2Fluid2, m2Fluid1);
+            m2Fluid1->params.dt = mTimeStep*tsMult; m2Fluid2->params.dt = mTimeStep*tsMult;
+          }
+        // renderHFluid2(*m2Fluid1, mFluidTex);
+        //}
+
+        //cudaDeviceSynchronize();
+      //{
+      //std::lock_guard<std::mutex> lock(mTexLock);
+        // mFluidTex.copyTo(mDisplayTex);
+        mTexUpdate = true;
+        
+        outputs()[HFLUIDNODE_OUTPUT_VELFIELD]->set(&m2Fluid1->vel);
+        outputs()[HFLUIDNODE_OUTPUT_DIVFIELD]->set(&m2Fluid1->div);
+        outputs()[HFLUIDNODE_OUTPUT_DFIELD  ]->set(&m2Fluid1->d);
+        outputs()[HFLUIDNODE_OUTPUT_PFIELD  ]->set(&m2Fluid1->p);
+        outputs()[HFLUIDNODE_OUTPUT_WVFIELD ]->set(&m2Fluid1->wv);
+        // outputs()[HFLUIDNODE_OUTPUT_TEXTURE ]->set(&mDisplayTex);
+      }
     }
   else if(mDims == 3 && m3Fluid1)
     {
-      m3Fluid1->params.dt          = mTimeStep;
-      m3Fluid1->params.gravity     = mGravity;
-      m3Fluid1->params.applyChaos  = mApplyChaos;
-      m3Fluid1->params.chaos       = mChaos;
-      m3Fluid1->params.viscosity   = mViscosity;
-      m3Fluid1->params.forceRad    = mMForceRad;
-      m3Fluid1->params.diffuseRad  = mDiffuseRad;
-      m3Fluid1->params.projectIter = mProjectIter;
+      {
+        //std::lock_guard<std::mutex> lock(mTexLock);
+        m3Fluid1->params.dt          = mTimeStep*tsMult;
+        m3Fluid1->params.gravity     = mGravity;
+        m3Fluid1->params.applyChaos  = mApplyChaos;
+        m3Fluid1->params.chaos       = mChaos;
+        m3Fluid1->params.viscosity   = mViscosity;
+        m3Fluid1->params.forceRad    = mMForceRad;
+        m3Fluid1->params.diffuseRad  = mDiffuseRad;
+        m3Fluid1->params.projectIter = mProjectIter;
 
-      m3Fluid1->params.mdown = mFieldClicked;
-      ForceType ftype = FLUIDFORCE_NONE;
-      if(mFPush   ) { ftype |= FLUIDFORCE_PUSH;    }
-      if(mFOut    ) { ftype |= FLUIDFORCE_OUT;     } if(mFIn      ) { ftype |= FLUIDFORCE_IN;       }
-      if(mFCW     ) { ftype |= FLUIDFORCE_CW;      } if(mFCCW     ) { ftype |= FLUIDFORCE_CCW;      }
-      if(mFDensity) { ftype |= FLUIDFORCE_DENSITY; } if(mFPressure) { ftype |= FLUIDFORCE_PRESSURE; }
-      if(mFWv)      { ftype |= FLUIDFORCE_WV; }
+        m3Fluid1->params.mdown = mFieldClicked;
+        ForceType ftype = FLUIDFORCE_NONE;
+        if(mFPush   ) { ftype |= FLUIDFORCE_PUSH;    }
+        if(mFOut    ) { ftype |= FLUIDFORCE_OUT;     } if(mFIn      ) { ftype |= FLUIDFORCE_IN;       }
+        if(mFCW     ) { ftype |= FLUIDFORCE_CW;      } if(mFCCW     ) { ftype |= FLUIDFORCE_CCW;      }
+        if(mFDensity) { ftype |= FLUIDFORCE_DENSITY; } if(mFPressure) { ftype |= FLUIDFORCE_PRESSURE; }
+        if(mFWv)      { ftype |= FLUIDFORCE_WV; }
 
-      m3Fluid1->params.forceRad = mMForceRad;  
-      m3Fluid1->params.ftype    = ftype;
-      m3Fluid1->params.vfPush   = mPushVMult;
-      m3Fluid1->params.vfOut    = mOutVMult;
-      m3Fluid1->params.vfIn     = mInVMult;
-      m3Fluid1->params.vfCw     = mCwVMult;
-      m3Fluid1->params.vfCcw    = mCcwVMult;
-      m3Fluid1->params.df       = mDMult;
-      m3Fluid1->params.pf       = mPMult;
-      m3Fluid1->params.wvf      = mWVMult;
+        m3Fluid1->params.forceRad = mMForceRad;  
+        m3Fluid1->params.ftype    = ftype;
+        m3Fluid1->params.vfPush   = mPushVMult;
+        m3Fluid1->params.vfOut    = mOutVMult;
+        m3Fluid1->params.vfIn     = mInVMult;
+        m3Fluid1->params.vfCw     = mCwVMult;
+        m3Fluid1->params.vfCcw    = mCcwVMult;
+        m3Fluid1->params.df       = mDMult;
+        m3Fluid1->params.pf       = mPMult;
+        m3Fluid1->params.wvf      = mWVMult;
 
-      if(m3Fluid1->size != mFluidSize) { resizeField(mFluidSize); }
+        m3Fluid2->params = m3Fluid1->params;
+        if(m3Fluid1->size != mFluidSize) { resizeField(mFluidSize); }
       
-      if(stepping)
-        {
-          mStepOnce = false;
-          addForcesHyper3(*m3Fluid1, *m3Fluid2);                     std::swap(m3Fluid2, m3Fluid1);
-          diffuseHyper3(*m3Fluid1, *m3Fluid2);                       std::swap(m3Fluid2, m3Fluid1);
-          if(mIncompressible) { projectHyper3(*m3Fluid1, *m3Fluid2); std::swap(m3Fluid2, m3Fluid1); }
-          advectHyper3(*m3Fluid1, *m3Fluid2);                        std::swap(m3Fluid2, m3Fluid1);
-          if(mIncompressible) { projectHyper3(*m3Fluid1, *m3Fluid2); std::swap(m3Fluid2, m3Fluid1); }
-        }
-      else
-        { // add manual mouse forces, but prevent gravity
-          m3Fluid1->params.dt = 0.0;       m3Fluid2->params.dt = 0.0;
-          addForcesHyper3(*m3Fluid1, *m3Fluid2); std::swap(m3Fluid2, m3Fluid1);
-          m3Fluid1->params.dt = mTimeStep; m3Fluid2->params.dt = mTimeStep;
-        }
-      //if(stepping) { updateVelHyper3(*m3Fluid1, *m3Fluid2); std::swap(m3Fluid2, m3Fluid1); }
+        if(stepping)
+          {
+            mStepOnce = false;
+            if(mIncompressible) { projectHyper3(*m3Fluid1, *m3Fluid2); std::swap(m3Fluid2, m3Fluid1); }
+            advectHyper3(*m3Fluid1, *m3Fluid2);                        std::swap(m3Fluid2, m3Fluid1);
+            if(mIncompressible) { projectHyper3(*m3Fluid1, *m3Fluid2); std::swap(m3Fluid2, m3Fluid1); }
+            
+            diffuseHyper3(*m3Fluid1, *m3Fluid2);                       std::swap(m3Fluid2, m3Fluid1);
+            addForcesHyper3(*m3Fluid1, *m3Fluid2);                     std::swap(m3Fluid2, m3Fluid1);
+          }
+        else
+          { // add manual mouse forces, but prevent gravity
+            m3Fluid1->params.dt = 0.0; m3Fluid2->params.dt = 0.0;
+            addForcesHyper3(*m3Fluid1, *m3Fluid2); std::swap(m3Fluid2, m3Fluid1);
+            m3Fluid1->params.dt = mTimeStep*tsMult; m3Fluid2->params.dt = mTimeStep*tsMult;
+          }
+
+        // if(mRenderSlice)
+        //   {
+        //     renderHFluid3Slice(*m3Fluid1, mFluidTex, to_cuda(mFPos), to_cuda(mFSize),
+        //                        to_cuda(mCamPos), to_cuda(mCamDir), to_cuda(mCamUp), to_cuda(mCamRight), mCamFov*(M_PI/180),
+        //                        mRenderR, mRenderG, mRenderB,
+        //                        mSliceDim, mSliceIndex);
+        //   }
+        // else
+        //   {
+        //     renderHFluid3(*m3Fluid1, mFluidTex, to_cuda(mFPos), to_cuda(mFSize),
+        //                   to_cuda(mCamPos), to_cuda(mCamDir), to_cuda(mCamUp), to_cuda(mCamRight), mCamFov*(M_PI/180),
+        //                   mRenderR, mRenderG, mRenderB);
+        //   }
+        //}
+
+        // cudaDeviceSynchronize();
+        //std::lock_guard<std::mutex> lock(mTexLock);
+        mTexUpdate = true;
+        
+        //mFluidTex.copyTo(mDisplayTex);
+        //std::swap(mFluidTex.dData, mDisplayTex.dData);
+        // mDisplayTex.map(); mFluidTex.map();
+        // cudaMemcpy(mDisplayTex.dData, mFluidTex.dData, mFluidTex.dataSize, cudaMemcpyDeviceToDevice);
+        // mDisplayTex.unmap(); mFluidTex.unmap();
       
-      if(mRenderSlice)
-        {
-          renderHFluid3Slice(*m3Fluid1, mFluidTex, to_cuda(mFPos), to_cuda(mFSize),
-                             to_cuda(mCamPos), to_cuda(mCamDir), to_cuda(mCamUp), to_cuda(mCamRight), mCamFov*(M_PI/180),
-                             mSliceDim, mSliceIndex);
-        }
-      else
-        {
-          renderHFluid3(*m3Fluid1, mFluidTex, to_cuda(mFPos), to_cuda(mFSize),
-                        to_cuda(mCamPos), to_cuda(mCamDir), to_cuda(mCamUp), to_cuda(mCamRight), mCamFov*(M_PI/180));
-        }
+        outputs()[HFLUIDNODE_OUTPUT_VELFIELD]->set(&m3Fluid1->vel);
+        outputs()[HFLUIDNODE_OUTPUT_DIVFIELD]->set(&m3Fluid1->div);
+        outputs()[HFLUIDNODE_OUTPUT_DFIELD  ]->set(&m3Fluid1->d);
+        outputs()[HFLUIDNODE_OUTPUT_PFIELD  ]->set(&m3Fluid1->p);
+        outputs()[HFLUIDNODE_OUTPUT_WVFIELD ]->set(&m3Fluid1->wv);
+        // outputs()[HFLUIDNODE_OUTPUT_TEXTURE ]->set(&mDisplayTex);
+      }
     }
-  
-  // outputs()[HYPERFLUIDNODE_OUTPUT_VXFIELD]->set(&mFluid1->vx);
-  // outputs()[HYPERFLUIDNODE_OUTPUT_VYFIELD]->set(&mFluid1->vy);
-  // outputs()[HYPERFLUIDNODE_OUTPUT_DFIELD ]->set(&mFluid1->d);
-  // outputs()[HYPERFLUIDNODE_OUTPUT_PFIELD ]->set(&mFluid1->p);
-  // outputs()[HYPERFLUIDNODE_OUTPUT_WVFIELD]->set(&mFluid1->wv);
+
+  if(mTexUpdate)
+    {
+      // std::lock_guard<std::mutex> lock(mTexLock);
+      mTexUpdate = false;
+      
+      if(mDims == 2 && m2Fluid1)
+        { renderHFluid2(*m2Fluid1, mFluidTex); }
+      else if(mDims == 3 && m3Fluid1)
+        {
+          if(mRenderSlice)
+            {
+              renderHFluid3Slice(*m3Fluid1, mFluidTex, to_cuda(mFPos), to_cuda(mFSize),
+                                 to_cuda(mCamPos), to_cuda(mCamDir), to_cuda(mCamUp), to_cuda(mCamRight), mCamFov*(M_PI/180),
+                                 mRenderR, mRenderG, mRenderB,
+                                 mSliceDim, mSliceIndex);
+            }
+          else
+            {
+              renderHFluid3(*m3Fluid1, mFluidTex, to_cuda(mFPos), to_cuda(mFSize),
+                            to_cuda(mCamPos), to_cuda(mCamDir), to_cuda(mCamUp), to_cuda(mCamRight), mCamFov*(M_PI/180),
+                            mRenderR, mRenderG, mRenderB);
+            }
+        }
+      
+      if(mOfflineRender)
+        {
+          std::cout << "Frame " << mSaveFrame << "...\n";
+          
+          std::stringstream ss;
+          ss << mSavePath << "-" << std::setfill('0') << std::setw(4) << mSaveFrame << ".hdr";
+          std::cout << std::setfill(' ');
+          std::string savePath = ss.str();
+
+          // pull data from GPU
+          auto t0 = std::chrono::high_resolution_clock::now();
+          mFluidTex.pullData();
+          auto t1 = std::chrono::high_resolution_clock::now();
+          std::cout << " --> Pull Time: " << (std::chrono::duration_cast<std::chrono::nanoseconds>(t1 - t0).count() / 1000000000.0) << "\n";
+
+          // write to file
+          t0 = std::chrono::high_resolution_clock::now();
+          writeTexture(savePath, &mFluidTex);
+          t1 = std::chrono::high_resolution_clock::now();
+          mSaveTime = (std::chrono::duration_cast<std::chrono::nanoseconds>(t1 - t0).count() / 1000000000.0);
+          std::cout << " --> Save Time: " << (std::chrono::duration_cast<std::chrono::nanoseconds>(t1 - t0).count() / 1000000000.0) << "\n";
+          
+          mSaveFrame++;
+          if(mSaveFrame >= mTotalFrames) { mOfflineRender = false; }
+        }      
+    }
 }
 
 void HyperFluidNode::onDraw()
-{
+{  
   bool  blocked = isBlocked();
   float scale   = getScale();
   float inputW  = 150.0f*scale;
@@ -478,34 +592,60 @@ void HyperFluidNode::onDraw()
 
             ImGui::TextUnformatted("Dimensions"); ImGui::SameLine();
             ImGui::SetNextItemWidth(75.0f*scale);
-            if(ImGui::InputInt("##fDims", &mDims, 1, 1)) { resizeField(mFluidSize); }
+            if(ImGui::InputInt("##fDims", &mDims, 1, 1) && setDims(mDims)) { resizeField(mFluidSize); }
             ImGui::Spacing();
+
+            int maxFluidSize = 256*256*256;
             
             ImGui::TextUnformatted("FX"); ImGui::SameLine();
             ImGui::SetNextItemWidth(100.0f*scale);
-            if(ImGui::InputInt("##fieldSX", &mFluidSize.x, 1, 8)) { resizeField(mFluidSize); }
+            if(ImGui::InputInt("##fieldSX", &mFluidSize.x, 8, 32))
+              {
+                mFluidSize.x = std::max(0, mFluidSize.x);
+                if(mFluidSize.x*mFluidSize.y*mFluidSize.z > maxFluidSize) { mFluidSize.x = maxFluidSize / (mFluidSize.y*mFluidSize.z); }
+                resizeField(mFluidSize);
+              }
             if(mDims >= 2)
               {
                 ImGui::SameLine(); ImGui::TextUnformatted("FY"); ImGui::SameLine();
                 ImGui::SetNextItemWidth(100.0f*scale);
-                if(ImGui::InputInt("##fieldSY", &mFluidSize.y, 1, 8)) { resizeField(mFluidSize); }
+                if(ImGui::InputInt("##fieldSY", &mFluidSize.y, 8, 32))
+                  {
+                    mFluidSize.y = std::max(0, mFluidSize.y);
+                    if(mFluidSize.x*mFluidSize.y*mFluidSize.z > maxFluidSize) { mFluidSize.y = maxFluidSize / (mFluidSize.x*mFluidSize.z); }
+                    resizeField(mFluidSize);
+                  }
               }
             if(mDims >= 3)
               {
                 ImGui::SameLine(); ImGui::TextUnformatted("FZ"); ImGui::SameLine();
                 ImGui::SetNextItemWidth(100.0f*scale);
-                if(ImGui::InputInt("##fieldSZ", &mFluidSize.z, 1, 8)) { resizeField(mFluidSize); }
+                if(ImGui::InputInt("##fieldSZ", &mFluidSize.z, 8, 32))
+                  {
+                    mFluidSize.z = std::max(0, mFluidSize.z);
+                    if(mFluidSize.x*mFluidSize.y*mFluidSize.z > maxFluidSize) { mFluidSize.z = maxFluidSize / (mFluidSize.x*mFluidSize.y); }
+                    resizeField(mFluidSize);
+                  }
               }
 
             // display size
             ImGui::TextUnformatted("TX"); ImGui::SameLine();
             ImGui::SetNextItemWidth(100.0f*scale);
-            if(ImGui::InputInt("##viewX", &mTexSize.x, 1, 8)) { mFluidTex.create(mTexSize); }
+            if(ImGui::InputInt("##viewX", &mTexSize.x, 128, 256))
+              {
+                //std::lock_guard<std::mutex> lock(mTexLock);
+                mTexSize.x = std::max(1, std::min(4096, mTexSize.x));
+                mFluidTex.create(mTexSize); mDisplayTex.create(mTexSize);
+              }
             ImGui::SameLine(); 
             ImGui::TextUnformatted("TY"); ImGui::SameLine();
             ImGui::SetNextItemWidth(100.0f*scale);
-            if(ImGui::InputInt("##viewY", &mTexSize.y, 1, 8)) { mFluidTex.create(mTexSize); }
-            
+            if(ImGui::InputInt("##viewY", &mTexSize.y, 128, 256))
+              {
+                //std::lock_guard<std::mutex> lock(mTexLock);
+                mTexSize.y = std::max(1, std::min(4096, mTexSize.y));
+                mFluidTex.create(mTexSize); mDisplayTex.create(mTexSize);
+              }
             
             if(mDims == 3)
               { // 3D camera
@@ -539,13 +679,18 @@ void HyperFluidNode::onDraw()
             ImGui::Unindent();
           }
           ImGui::EndGroup();
-      
+          
           ImGui::BeginGroup();
           {
             ImGui::TextUnformatted("Physics");
             ImGui::Indent();
             if(ImGui::Button("Reset")) { clearField(Vec4f(0.0f, 0.0f, 0.0f, 1.0f)); }
-            ImGui::SameLine(); ImGui::Checkbox("Fill With Circle", &mFillCircle);
+            ImGui::SameLine(); ImGui::BeginGroup();
+            {
+              ImGui::Checkbox("Circle",         &mFillCircle);
+              ImGui::Checkbox("Circle Bounded", &mCircleBounded);
+            }
+            ImGui::EndGroup();
             ImGui::SameLine(); ImGui::Checkbox("Checker", &mDensityPattern);
             if(ImGui::Button("Step")) { mStepOnce = true; }
             ImGui::SameLine(); ImGui::Checkbox("Physics", &mPhysics);
@@ -553,11 +698,13 @@ void HyperFluidNode::onDraw()
             if(ImGui::InputFloat("Time Step", &mTimeStep, 0.01f, 0.1f, "%.8f")) { if(mDims == 3) { m3Fluid1->params.dt = mTimeStep; } }
             ImGui::SetNextItemWidth(inputW);
             if(ImGui::InputFloat("Chaos##mult",     &mChaos,    0.01f, 0.1f, "%.8f"))  { if(mDims == 3) { m3Fluid1->params.chaos = mChaos; } }
-            ImGui::SameLine(); if(ImGui::Checkbox("Chaos##apply", &mApplyChaos))       { if(mDims == 3) { m3Fluid1->params.applyChaos = mApplyChaos; } }
+            ImGui::SameLine(); if(ImGui::Checkbox("##chaosApply", &mApplyChaos))       { if(mDims == 3) { m3Fluid1->params.applyChaos = mApplyChaos; } }
             ImGui::SetNextItemWidth(inputW);
             if(ImGui::InputFloat("Viscosity##mult",     &mViscosity,    0.01f, 0.1f, "%.8f"))  { if(mDims == 3) { m3Fluid1->params.viscosity = mViscosity; } }
+            ImGui::SameLine(); if(ImGui::Checkbox("##viscApply", &mApplyVisc)) { if(mDims == 3) { m3Fluid1->params.applyVisc = mApplyVisc; } }
             ImGui::SetNextItemWidth(inputW);
-            if(ImGui::InputInt("Diffuse Radius", &mDiffuseRad, 1, 2)) { if(mDims == 3) { m3Fluid1->params.diffuseRad = mDiffuseRad; } }
+            if(ImGui::InputInt("Diffuse Radius", &mDiffuseRad, 1, 2))
+              { mDiffuseRad = std::max(0, mDiffuseRad); if(mDims == 3) { m3Fluid1->params.diffuseRad = mDiffuseRad; } }
             
             ImGui::TextUnformatted("Incompressible");
             ImGui::SameLine(); ImGui::SetNextItemWidth(inputW);
@@ -565,7 +712,8 @@ void HyperFluidNode::onDraw()
             ImGui::SameLine();
             ImGui::TextUnformatted("Iterations");
             ImGui::SameLine(); ImGui::SetNextItemWidth(100.0f*scale);
-            if(ImGui::InputInt("##projectIter", &mProjectIter, 1, 2))  { if(mDims == 3) { m3Fluid1->params.projectIter = mProjectIter; } }
+            if(ImGui::InputInt("##projectIter", &mProjectIter, 1, 2))
+             { mProjectIter = std::max(0, mProjectIter); if(mDims == 3) { m3Fluid1->params.projectIter = mProjectIter; } }
             ImGui::Unindent();
           }
           ImGui::EndGroup();
@@ -594,13 +742,12 @@ void HyperFluidNode::onDraw()
                     ImGui::SameLine(); bool checked = (mSliceDim == 0); if(ImGui::Checkbox("X", &checked) && checked) { mSliceDim = 0; }
                     ImGui::SameLine(); checked      = (mSliceDim == 1); if(ImGui::Checkbox("Y", &checked) && checked) { mSliceDim = 1; }
                     ImGui::SameLine(); checked      = (mSliceDim == 2); if(ImGui::Checkbox("Z", &checked) && checked) { mSliceDim = 2; }
-                    ImGui::SameLine(); ImGui::SetNextItemWidth(100.0f*scale);
-                    if(ImGui::InputInt("Index", &mSliceIndex, 1, 8))
-                      {
-                        mSliceIndex = std::max(0, std::min((mSliceDim == 0 ? mFluidSize.x :
-                                                            (mSliceDim == 1 ? mFluidSize.y :
-                                                             mFluidSize.z)) - 1, mSliceIndex));
-                      }
+                    ImGui::SameLine(); ImGui::TextUnformatted("Index");
+                    ImGui::SameLine();
+                    ImGui::SetNextItemWidth(100.0f*scale);
+                    int maxIndex = (mSliceDim == 0 ? mFluidSize.x : (mSliceDim == 1 ? mFluidSize.y : mFluidSize.z)) - 1;
+                    if(ImGui::InputInt("##sliceIndex", &mSliceIndex, 1, maxIndex/8))
+                      { mSliceIndex = std::max(0, std::min(maxIndex, mSliceIndex)); }
                   }
                 ImGui::TextUnformatted("Draw Axes");
                 ImGui::SameLine(); ImGui::Checkbox("##drawAxes", &mDrawAxes);
@@ -671,6 +818,41 @@ void HyperFluidNode::onDraw()
         // if(ImGui::InputFloat("Border",  &mVBWidth, 0.1f, 0.5f, "%.3f"))    { mVBWidth = std::max(0.0f, std::min(5.0f, mVBWidth)); }
         // ImGui::Text("     MPos: %1.4f, %1.4f", mFluid1->params.mp.x,     mFluid1->params.mp.y);
         // ImGui::Text("Last MPos: %1.4f, %1.4f", mFluid1->params.mpLast.x, mFluid1->params.mpLast.y);
+
+        
+        static char prefix[256] = "";
+        strcpy(prefix, mPrefix.c_str());
+        ImGuiInputTextFlags flags = ImGuiInputTextFlags_EnterReturnsTrue;
+        if(!mOfflineRender && ImGui::InputText("Prefix", prefix, 256, flags))
+          {
+            mPrefix   = prefix;
+            mSavePath = "./rendered/" + mPrefix; // (rest of path added during update)
+          }
+        if(ImGui::InputInt("Number of Frames", &mTotalFrames, 1, 24)) { mTotalFrames = std::max(0, mTotalFrames); }
+
+        if(mTotalFrames > 0 && ImGui::Button("Render Offline")) { mSaveFrame = 0; mOfflineRender = true; }
+
+        
+        // mFileDialog->setGraph(mGraph);
+        // std::string savePath = mFileDialog->drawButton("Save##img", mFileDialog, "Save Image", DIALOG_SAVE, ".", {"*.png", "*.raw", "*.jpg", "*.bmp"});
+        // if(!savePath.empty())
+        //   {
+        //     mSavePath = savePath; mSaving = true;
+        //     mFieldTex.pullData();
+        //     mSaveThread = std::thread([&]()
+        //                               {
+        //                               });
+        //   }
+        // else if(mSaveThread.joinable())
+        //   { mSaveThread.join(); mSaving = false; }
+
+        // if(!mSavePath.empty())
+        //   {
+        //     ImGui::SameLine();
+        //     if(mSaving) { ImGui::Text("Writing image to %s...",  mSavePath.c_str()); }
+        //     else        { ImGui::Text("Wrote image to %s (%.2f seconds)", mSavePath.c_str(), mSaveTime); }
+        //   }
+    
       }
     else if(mBodyVisible) { mSettingsOpen = false; }
     ImGui::EndGroup();
@@ -687,11 +869,14 @@ void HyperFluidNode::onDraw()
     ImGui::BeginChild("##fDispChild", mDisplaySize*scale, true, ImGuiWindowFlags_NoDecoration | ImGuiWindowFlags_NoScrollWithMouse);
     {
       Vec2f dpos = ImGui::GetCursorScreenPos();
-      mFluidTex.bind();
-      ImGui::Image(mFluidTex.texId(), mDisplaySize*scale, Vec2f(0.0f, 0.0f), Vec2f(1.0f, 1.0f), ImColor(Vec4f(1,1,1,1)), Vec4f(0,0,0,1));
-      mFluidTex.release();
+      {
+        //std::lock_guard<std::mutex> lock(mTexLock);
+        mFluidTex.bind();
+        ImGui::Image(mFluidTex.texId(), mDisplaySize*scale, Vec2f(0.0f, 0.0f), Vec2f(1.0f, 1.0f), ImColor(Vec4f(1,1,1,1)), Vec4f(0,0,0,1));
+        mFluidTex.release();
+      }
+      
       mFieldHovered = ImGui::IsItemHovered() && !blocked;
-
       if(mDrawAxes)
         {
           // axis points
@@ -748,8 +933,7 @@ void HyperFluidNode::onDraw()
     }
     ImGui::EndChild();
     ImGui::PopStyleVar();
-    
-    
+        
     // disable node interaction while interacting with field
     if(ImGui::IsMouseDown(ImGuiMouseButton_Left) && (mFieldHovered || mFieldLeftClicked || mFieldRightClicked)) { mActive = true; }
 
@@ -787,6 +971,8 @@ void HyperFluidNode::onDraw()
     //   }
   }
   ImGui::EndGroup();
+  
+  // std::cout << "HF DRAW DONE\n";
 }
 
 void HyperFluidNode::onResize(const Vec2f &dSize)

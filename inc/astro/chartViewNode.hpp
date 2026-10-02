@@ -1,8 +1,12 @@
 #ifndef CHART_VIEW_NODE_HPP
 #define CHART_VIEW_NODE_HPP
 
-#include "astro.hpp"
+
 #include "node.hpp"
+#include "astro.hpp"
+
+// forward declarations
+class SettingGroup;
 
 namespace astro
 {
@@ -11,7 +15,6 @@ namespace astro
   class ChartView;
   class ChartParams;
   class ChartParamWidget;
-  class SettingGroup;
   class ChartOrbWidget;
   
   //// node connector indices ////

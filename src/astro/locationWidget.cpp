@@ -43,12 +43,12 @@ bool LocationWidget::saveDirCheck()
   return true;
 }
 
-#ifndef ENABLE_CUDA // not needed for building CUDA files (std::quoted undefined)
 bool LocationWidget::checkFileDialog()
 {
+  bool success = false;
+#ifndef __NVCC__ // not needed for building CUDA files (std::quoted undefined)
   if(!saveDirCheck()) { return false; }
   if(!mGraph) { std::cout << "LocationWidget->mNodeGraph is null!\n"; return false; }
-  bool success = false;
   if(mFileDialog->check())
     {
       std::string path = mFileDialog->getPath();
@@ -95,9 +95,9 @@ bool LocationWidget::checkFileDialog()
         }
       else { std::cout << "Empty path string!\n"; }
     }
+#endif // __NVCC__
   return success;
 }
-#endif // ENABLE_CUDA
 
 void LocationWidget::update()
 {
@@ -111,11 +111,11 @@ void LocationWidget::draw(float scale, bool blocked)
   // steps
   const double latStep        = 0.01; // degrees
   const double lonStep        = 0.01; // degrees
-  const int    altStep        = 10;    // m
+  const int    altStep        = 10;   // m
   // fast steps
   const double latFastStep    = 0.1; // degrees
   const double lonFastStep    = 0.1; // degrees
-  const int    altFastStep    = 100;  // m
+  const int    altFastStep    = 100; // m
 
   double latVal = mLocation.latitude;
   double lonVal = mLocation.longitude;
@@ -203,9 +203,7 @@ void LocationWidget::draw(float scale, bool blocked)
     ImGui::SameLine();
     if(ImGui::Button("Save##loc")) { mFileDialog->open("Save Location", DIALOG_SAVE, LOCATION_SAVE_DIR, {".loc"}); }
 
-#ifndef ENABLE_CUDA // not needed for building CUDA files (std::quoted undefined)
     if(checkFileDialog()) { std::cout << "File dialog success!\n"; }
-#endif // ENABLE_CUDA
     
     // reload button
     if(!mName.empty())

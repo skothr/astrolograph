@@ -5,11 +5,11 @@
 #include "chart.hpp"
 #include "node.hpp"
 
+// forward declarations
+class SettingForm;
+
 namespace astro
 {
-  // forward declarations
-  class SettingForm;
-
   //// node connector indices ////
   // inputs
 #define CHARTNODE_INPUT_DATE        0

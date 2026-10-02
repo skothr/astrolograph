@@ -1,5 +1,4 @@
 #include "fileDialog.hpp"
-using namespace astro;
 
 #include <imgui.h>
 
@@ -23,7 +22,6 @@ FileDialog::FileDialog(NodeGraph *graph)
 
 FileDialog::~FileDialog()
 {
-  
 #if !USE_NATIVE_FILE_DIALOG // imgui_addons::ImGuiFileBrowser
   if(mDialog) { delete mDialog; }
   mDialog = nullptr;
@@ -159,8 +157,7 @@ bool FileDialog::open(const std::string &title, DialogType type, const std::stri
                       else                          { std::cout << "Error: " << NFD_GetError() << "\n"; }
                       mReady = true;
                       mOpen  = false;
-                    });
-      
+                    });      
       
 #else // imgui_addons::ImGuiFileBrowser
       // file extension filters

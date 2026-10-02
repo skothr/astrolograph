@@ -10,7 +10,6 @@ template<typename T> float fieldMax(CudaFieldBase *field, CudaFieldBase *fieldOu
 template<typename T, unsigned int blockSize> __global__ void fieldSum_k(CudaField<T> fieldIn, CudaField<float> fieldOut, unsigned int n);
 template<typename T> float fieldNorm(CudaFieldBase *field, CudaFieldBase *fieldOut, CudaField<float> *dst);
 
-
 void combineChannels(CudaFieldBase *fieldX, CudaFieldBase *dst);
 void combineChannels(CudaFieldBase *fieldX, CudaFieldBase *fieldY, CudaFieldBase *dst);
 void combineChannels(CudaFieldBase *fieldX, CudaFieldBase *fieldY, CudaFieldBase *fieldZ, CudaFieldBase *dst);

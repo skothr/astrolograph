@@ -66,14 +66,19 @@ struct FluidParams : public FieldParams
 
   bool  applyChaos  = true;
   float chaos       = 0.1f; // multiplier for WV chaotic modifier
+  bool  applyVisc   = true;
   float viscosity   = 0.1f; // viscosity constant
   int   diffuseRad  = 2;    // radius of diffusion
   int   projectIter = 20;   // number of iterations in velocity projection
   
-  float gravity = 0.0f;
-  bool   mdown    = false;
-  float2 mp       = float2{0.5f, 0.5f}; // range: [0.0f, 1.0f]
-  float2 mpLast   = float2{0.5f, 0.5f}; // range: [0.0f, 1.0f]
+  float gravity    = 0.0f;
+  bool   mdown     = false;
+  float2 mp        = float2{0.5f, 0.5f}; // range: [0.0f, 1.0f]
+  float2 mpLast    = float2{0.5f, 0.5f}; // range: [0.0f, 1.0f]
+  
+  bool   movedLast = false;              // whether mouse moved last frame
+  float2 lastMv    = float2{0.0f, 0.0f}; // last mouse move vector
+  // float2 lastF     = float2{0.0f, 0.0f}; // forces added last frame
 
   ForceType ftype    = FLUIDFORCE_NONE; // type(s) of forces being applied by the mouse
   float     forceRad = 0.01f;           // radius of force influence -- 0.5 means it would cover the entire field
@@ -86,7 +91,6 @@ struct FluidParams : public FieldParams
   float df     = 1.0f; // mouse force density multiplier  (FLUIDFORCE_DENSITY)
   float pf     = 1.0f; // mouse force pressure multiplier (FLUIDFORCE_PRESSURE)
   float wvf    = 1.0f; // mouse force wave vector multiplier (WV)
-  
 };
 
 
@@ -354,11 +358,22 @@ struct CudaFieldTex : public CudaField<float4>
   
   virtual void create(const Vec2i &sz) override;
   virtual void destroy() override;
-
   virtual void pullData() override { map(); CudaField<float4>::pullData(); unmap(); }
   virtual void pushData() override { map(); CudaField<float4>::pushData(); unmap(); }
   virtual bool isTexture() const override { return true; }
 
+  void copyTo(CudaFieldTex &other)
+  {
+    if(allocated() && other.allocated())
+      { 
+      map();   other.map();
+      cudaMemcpy(dData, other.dData, dataSize, cudaMemcpyDeviceToDevice);
+      unmap(); other.unmap();
+      getLastCudaError("CudaFieldTex::copyTo()\n"); }
+    else
+      { std::cout << "====> WARNING(CudaFieldTex" << type() << "::copyTo()): Field not allocated!\n"; }
+  }
+  
   // GL interop
   void initGL();                  // initialize CUDA-->opengl interop
   void bind();   void release();  // texture data binding for use with opengl
@@ -382,8 +397,8 @@ inline void CudaFieldTex::create(const Vec2i &sz)
       getLastCudaError("CudaFieldTex::create()");
     }
   
-  if(!gCudaInitialized)          { std::cout << "====> WARNING(CudaTexField::create()): CUDA device not initialized!\n"; }
-  if(size.x == 0 || size.y == 0) { std::cout << "====> WARNING(CudaTexField::create()): zero size! " << size << "\n"; }
+  if(!gCudaInitialized)          { std::cout << "====> WARNING(CudaFieldTex::create()): CUDA device not initialized!\n"; }
+  if(size.x == 0 || size.y == 0) { std::cout << "====> WARNING(CudaFieldTex::create()): zero size! " << size << "\n"; }
   if(!mPboResource)              { std::cout << "====> WARNING(CudaFieldTex::map()): PBO resource not initialized!\n"; }
 }
 
@@ -451,8 +466,8 @@ inline void CudaFieldTex::bind()
     }
   else
     {
-      if(!gCudaInitialized)          { std::cout << "====> WARNING(CudaTexField::bind()): CUDA device not initialized!\n"; }
-      if(size.x == 0 || size.y == 0) { std::cout << "====> WARNING(CudaTexField::bind()): zero size! " << size << "\n";    }
+      if(!gCudaInitialized)          { std::cout << "====> WARNING(CudaFieldTex::bind()): CUDA device not initialized!\n"; }
+      if(size.x == 0 || size.y == 0) { std::cout << "====> WARNING(CudaFieldTex::bind()): zero size! " << size << "\n";    }
       if(!mPboResource)              { std::cout << "====> WARNING(CudaFieldTex::bind()): PBO resource not initialized!\n";   }
     }
 }
@@ -467,8 +482,8 @@ inline void CudaFieldTex::release()
     }
   else
     {
-      if(!gCudaInitialized)          { std::cout << "====> WARNING(CudaTexField::release()): CUDA device not initialized!\n";  }
-      if(size.x == 0 || size.y == 0) { std::cout << "====> WARNING(CudaTexField::release()): zero size! " << size << "\n";     }
+      if(!gCudaInitialized)          { std::cout << "====> WARNING(CudaFieldTex::release()): CUDA device not initialized!\n";  }
+      if(size.x == 0 || size.y == 0) { std::cout << "====> WARNING(CudaFieldTex::release()): zero size! " << size << "\n";     }
       if(!mPboResource)              { std::cout << "====> WARNING(CudaFieldTex::release()): PBO resource not initialized!\n"; }
     }
 }
@@ -491,7 +506,7 @@ inline float4* CudaFieldTex::map()
           if(err == CUDA_ERROR_ALREADY_MAPPED)
             {
               std::cout << "====> WARNING: CudaFieldTex already mapped! (" << err << ") --> cudaGraphicsMapResources\n";
-              getLastCudaError("CudaFieldTex::map()\n");
+              getLastCudaError(("CudaFieldTex::map() --> " + std::to_string(err) + "\n").c_str());
               
               return nullptr;
               //mapped = true; return nullptr;
@@ -499,7 +514,7 @@ inline float4* CudaFieldTex::map()
           else if(err)
             {
               std::cout << "====> WARNING: CudaFieldTex failed to map! (" << err << ") --> cudaGraphicsMapResources\n";
-              getLastCudaError("CudaFieldTex::map()\n");
+              getLastCudaError(("CudaFieldTex::map() --> " + std::to_string(err) + "\n").c_str());
               mapped = false; dData = nullptr; return nullptr;
             }
           
@@ -508,18 +523,18 @@ inline float4* CudaFieldTex::map()
           if(err == CUDA_ERROR_ALREADY_MAPPED)
             {
               std::cout << "====> WARNING: CudaFieldTex already mapped! (" << err << ") --> (cudaGraphicsResourceGetMappedPointer)\n";
-              getLastCudaError("CudaFieldTex::map()\n");
+              getLastCudaError(("CudaFieldTex::map() --> " + std::to_string(err) + "\n").c_str());
               mapped = true; return nullptr;
             }
           else if(err)
             {
               std::cout << "====> WARNING: CudaFieldTex failed to map! (" << err << ") --> (cudaGraphicsResourceGetMappedPointer)\n";
-              getLastCudaError("CudaFieldTex::map()\n");
+              getLastCudaError(("CudaFieldTex::map() --> " + std::to_string(err) + "\n").c_str());
               mapped = false; dData = nullptr; return nullptr;
             }
           mapped = true;
           //if(nbytes == 0) { return nullptr; } // TODO: check?
-          getLastCudaError("CudaFieldTex::map()\n");
+          getLastCudaError(("CudaFieldTex::map() -->" + std::to_string(err) + "\n").c_str());
         }
       else { std::cout << "====> WARNING: CudaFieldTex::map() called on mapped texture!\n"; }      
       return dData;
@@ -577,20 +592,38 @@ struct CudaFluid : public CudaFieldBase
   CudaField<VT> p;      // pressure at each point
   CudaField<VT> div;    // divergence at each point
   CudaField<float2> wv; // wave vector
+  CudaField<float2> f;  // added forces
 
-  virtual bool allocated() const override { return (vx.allocated() && vy.allocated() && d.allocated() && p.allocated() && div.allocated() && wv.allocated()); }
+  virtual bool allocated() const override { return (vx.allocated() && vy.allocated() && d.allocated() && p.allocated() && div.allocated() && wv.allocated()
+                                                    && wv.allocated()); }
 
   virtual void create(const Vec2i &sz) override
-  { if(sz.x > 0 && sz.y > 0) { vx.create(sz); vy.create(sz); d.create(sz); p.create(sz); div.create(sz); wv.create(sz); size = sz; } }
+  { if(sz.x > 0 && sz.y > 0) { vx.create(sz); vy.create(sz); d.create(sz); p.create(sz); div.create(sz); wv.create(sz); f.create(sz); size = sz; } }
   virtual void destroy() override
-  { if(allocated()) { vx.destroy(); vy.destroy(); d.destroy(); p.destroy(); div.destroy(); wv.destroy();  size = Vec2i(0,0); } }
+  { if(allocated()) { vx.destroy(); vy.destroy(); d.destroy(); p.destroy(); div.destroy(); wv.destroy(); f.destroy();  size = Vec2i(0,0); } }
 
-  virtual void pullData() override { vx.pullData(); vy.pullData(); d.pullData(); p.pullData(); div.pullData(); wv.pullData(); }
-  virtual void pushData() override { vx.pushData(); vy.pushData(); d.pushData(); p.pushData(); div.pushData(); wv.pushData(); }
+  virtual void pullData() override { vx.pullData(); vy.pullData(); d.pullData(); p.pullData(); div.pullData(); wv.pullData(); f.pullData(); }
+  virtual void pushData() override { vx.pushData(); vy.pushData(); d.pushData(); p.pushData(); div.pushData(); wv.pushData(); f.pushData(); }
 
   virtual bool isFluid() const override { return true; }
   virtual FieldType type() const override;
 
+  void copyTo(CudaFluid &other)
+  {
+    if(allocated() && other.allocated())
+      { 
+        cudaMemcpy(vx.dData,  other.vx.dData,  vx.dataSize,  cudaMemcpyDeviceToDevice);
+        cudaMemcpy(vy.dData,  other.vy.dData,  vy.dataSize,  cudaMemcpyDeviceToDevice);
+        cudaMemcpy(d.dData,   other.d.dData,   d.dataSize,   cudaMemcpyDeviceToDevice);
+        cudaMemcpy(p.dData,   other.p.dData,   p.dataSize,   cudaMemcpyDeviceToDevice);
+        cudaMemcpy(div.dData, other.div.dData, div.dataSize, cudaMemcpyDeviceToDevice);
+        cudaMemcpy(wv.dData,  other.wv.dData,  wv.dataSize,  cudaMemcpyDeviceToDevice);
+        cudaMemcpy(f.dData,   other.f.dData,   f.dataSize,  cudaMemcpyDeviceToDevice);
+        getLastCudaError("CudaFluid::copyTo()\n"); }
+    else
+      { std::cout << "====> WARNING(CudaFieldTex" << type() << "::copyTo()): Fluid not allocated!\n"; }
+  }
+  
   // sample velocity (bilinear interpolation)
   inline Vector<VT, 2> sampleVel(const Vec2f &pos)
   {
@@ -698,7 +731,7 @@ extern "C" void fillFluidPattern(CudaFluid<float> fluid);
 extern "C" void fluidAdvection  (CudaFluid<float> src, CudaFluid<float> dst);
 extern "C" void fluidDiffusion  (CudaFluid<float> src, CudaFluid<float> dst);
 extern "C" void fluidProject    (CudaFluid<float> src, CudaFluid<float> dst);
-extern "C" void fluidAddForces  (CudaFluid<float> src, CudaFluid<float> dst);
+extern "C" void fluidAddForces  (CudaFluid<float> src, CudaFluid<float> dst, CudaFluid<float> prev);
 extern "C" void fluidUpdateVel  (CudaFluid<float> src, CudaFluid<float> dst);
 extern "C" void renderFluid     (CudaFluid<float> src, CudaFieldTex     dst);
 // in mandelbrot.cu

@@ -10,13 +10,11 @@
 #include "types.hpp"
 #include "astro.hpp"
 
-
 // forward declarations
 struct ArgBase;
 // template<typename T, typename Derived> struct ArgInterface;
-template<typename T>       struct ArgType { typedef T type; };
-template<typename T>       struct Argument;
-
+template<typename T> struct ArgType { typedef T type; };
+template<typename T> struct Argument;
 
 
 //// ARGUMENT BASE ////
@@ -90,7 +88,7 @@ struct Argument : public ArgInterface<T, Argument<T>>
 
 // DateTime parsing specialization (for MM/DD/YYYY HH:MM:SS.SS format)
 template<>
-bool Argument<astro::DateTime>::parse_(const std::vector<std::string> &subArgs)
+bool Argument<DateTime>::parse_(const std::vector<std::string> &subArgs)
 {
   if(subArgs.size() != 2) { return false; }
   std::stringstream ss(subArgs[0]+" "+subArgs[1]);
@@ -101,7 +99,7 @@ bool Argument<astro::DateTime>::parse_(const std::vector<std::string> &subArgs)
 
 // Location parsing specialization (for MM/DD/YYYY HH:MM:SS.SS format)
 template<>
-bool Argument<astro::Location>::parse_(const std::vector<std::string> &subArgs)
+bool Argument<Location>::parse_(const std::vector<std::string> &subArgs)
 {
   if(subArgs.size() != 3) { return false; }
   std::stringstream ss(subArgs[0]+" "+subArgs[1]+" "+subArgs[2]);
@@ -252,8 +250,8 @@ public:
         else if(a->type() == "int")      { std::cout << a->getValue<int>();                }
         else if(a->type() == "float")    { std::cout << a->getValue<float>();              }
         else if(a->type() == "double")   { std::cout << a->getValue<double>();             }
-        else if(a->type() == "DateTime") { std::cout << a->getValue<astro::DateTime>();    }
-        else if(a->type() == "Location") { std::cout << a->getValue<astro::Location>();    }
+        else if(a->type() == "DateTime") { std::cout << a->getValue<DateTime>();    }
+        else if(a->type() == "Location") { std::cout << a->getValue<Location>();    }
         else { std::cout << "[???]"; }
         std::cout << "\n";
       }

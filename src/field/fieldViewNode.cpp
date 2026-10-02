@@ -1,5 +1,4 @@
 #include "fieldViewNode.hpp"
-using namespace astro;
 
 #include <imgui.h>
 

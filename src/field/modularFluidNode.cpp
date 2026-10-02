@@ -1,5 +1,4 @@
 #include "modularFluidNode.hpp"
-using namespace astro;
 
 #include <imgui.h>
 
@@ -231,12 +230,12 @@ void FluidStateNode::onUpdate()
       mStepOnce = false;
       fluidAdvection(mFluid, mFluid); //cudaDeviceSynchronize();
       fluidDiffusion(mFluid, mFluid); //cudaDeviceSynchronize();
-      fluidAddForces(mFluid, mFluid); //cudaDeviceSynchronize();
+      fluidAddForces(mFluid, mFluid, mFluid); //cudaDeviceSynchronize();
     }
   else
     { // prevent gravity, but add manual mouse forces
       mFluid.params.dt = 0.0;
-      fluidAddForces(mFluid, mFluid); //cudaDeviceSynchronize();
+      fluidAddForces(mFluid, mFluid, mFluid); //cudaDeviceSynchronize();
       mFluid.params.dt = mTimeStep;
     }
   if(stepping)

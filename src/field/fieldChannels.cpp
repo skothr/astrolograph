@@ -1,5 +1,4 @@
 #include "fieldChannels.hpp"
-using namespace astro;
 
 #include "setting.hpp"
 #include "cudaField.hpp"

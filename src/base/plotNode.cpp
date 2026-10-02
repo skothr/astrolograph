@@ -14,7 +14,7 @@ using namespace astro;
 
 
 #define PLOT_OBJ_START OBJ_SUN
-#define PLOT_OBJ_END   OBJ_PLUTO
+#define PLOT_OBJ_END   OBJ_COUNT
 
 PlotNode::PlotNode()
   : Node(CONNECTOR_INPUTS(), CONNECTOR_OUTPUTS(), "Plot Node", true), mOldStartDate(DateTime::now()), mOldEndDate(DateTime::now())

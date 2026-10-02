@@ -485,7 +485,7 @@ std::vector<DateTime> Chart::findAspects(const DateTime &start, const DateTime &
                                          double maxAngle, double *error, int *stepsTaken)
 {
   int printPrecision = 8;
-  std::cout << std::fixed << std::setprecision(printPrecision);
+  // std::cout << std::fixed << std::setprecision(printPrecision);
 
   DateTime d0    = start;  d0.fix();
   DateTime d1    = end;    d1.fix();

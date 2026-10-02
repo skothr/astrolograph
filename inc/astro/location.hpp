@@ -29,112 +29,109 @@
 #define NYSE_TZNAME   "America/New_York" // NYSE timezone name
 #define NYSE_OFFSET   -5.0               // UTC offset
 
-namespace astro
+class DateTime;
+  
+// LOCATION -- defines a location with latitude, longitude, and altitude //
+struct Location
 {
-  class DateTime;
-  
-  // LOCATION -- defines a location with latitude, longitude, and altitude //
-  struct Location
-  {
-    double      latitude   = NYSE_LAT;    // degrees (+N/-S)
-    double      longitude  = NYSE_LON;    // degrees (+E/-W)
-    double      altitude   = NYSE_ALT;    // meters
-    std::string timezoneId = NYSE_TZNAME; // timezone label
-    double      utcOffset  = NYSE_OFFSET; // timezone UTC offset
-    double      dstOffset  = 0.0;         // timezone DST offset
+  double      latitude   = NYSE_LAT;    // degrees (+N/-S)
+  double      longitude  = NYSE_LON;    // degrees (+E/-W)
+  double      altitude   = NYSE_ALT;    // meters
+  std::string timezoneId = NYSE_TZNAME; // timezone label
+  double      utcOffset  = NYSE_OFFSET; // timezone UTC offset
+  double      dstOffset  = 0.0;         // timezone DST offset
     
-    Location() { }
-    Location(const std::string &saveStr) { fromSaveString(saveStr); }
-    Location(double lat, double lon, double alt);
-    Location(const Location &other);
-    Location& operator=(const Location &other);
+  Location() { }
+  Location(const std::string &saveStr) { fromSaveString(saveStr); }
+  Location(double lat, double lon, double alt);
+  Location(const Location &other);
+  Location& operator=(const Location &other);
 
-    static std::size_t curlCallback(const char* in, std::size_t size, std::size_t num, std::string *out);
-    static std::string getTimezoneCurl(const astro::Location &loc);
+  static std::size_t curlCallback(const char* in, std::size_t size, std::size_t num, std::string *out);
+  static std::string getTimezoneCurl(const Location &loc);
 
-    void updateTimezone(); // updates timezone member via getTimezoneCurl() (NOTE: use sparingly --> ~2500 free queries per username per day)
-    void updateUtcOffset();
+  void updateTimezone(); // updates timezone member via getTimezoneCurl() (NOTE: use sparingly --> ~2500 free queries per username per day)
+  void updateUtcOffset();
     
-    bool valid() const;
-    void fix();
-    Location fixed() const;
+  bool valid() const;
+  void fix();
+  Location fixed() const;
     
-    double getTimezoneOffset(DateTime &dt) const;
+  double getTimezoneOffset(DateTime &dt) const;
 
-    std::string toString() const
-    { // visually formatted
-      std::ostringstream os;
-      os << std::fixed << std::setprecision(6) << latitude << "°" << (latitude < 0 ? "S" : "N") << "  "
-         << longitude << "°" << (longitude < 0 ? "W" : "E") << "  "
-         << std::setprecision(2) << altitude << " m";
-      return os.str();
-    }
-
-    std::string toSaveString() const
-    {
-      std::ostringstream os;
-#ifndef ENABLE_CUDA // not needed for building CUDA files (std::quoted undefined)
-      os << to_string(latitude, 12) << " " << to_string(longitude, 12) << " " << altitude << " " << std::quoted(timezoneId) << " " << utcOffset;
-#endif // ENABLE_CUDA
-      return os.str();
-    }
-    std::string fromSaveString(const std::string &str)
-    {
-      std::istringstream is(str);
-      std::string name;
-#ifndef ENABLE_CUDA // not needed for building CUDA files (std::quoted undefined)
-      is >> latitude; is >> longitude; is >> altitude; is >> std::quoted(timezoneId); is >> utcOffset;
-#endif // ENABLE_CUDA
-      updateUtcOffset();
-      
-      // return remaining string
-      std::stringstream tmp; tmp << is.rdbuf();
-      return tmp.str();
-    }
-    
-    bool operator==(const Location &other) const
-    { return (latitude == other.latitude && longitude == other.longitude && altitude == other.altitude); }
-    bool operator!=(const Location &other) const
-    { return !(*this == other); }
-    
-    friend std::ostream& operator<<(std::ostream &os, const Location &loc);
-    friend std::istream& operator>>(std::istream &is, Location &loc);
-      
-    //friend std::basic_ostream<wchar_t>& operator<<(std::basic_ostream<wchar_t> &os, const Location &loc);
-  };
-
-  inline std::ostream& operator<<(std::ostream &os, const Location &loc)
-  {
-    os << loc.toSaveString();
-    return os;
+  std::string toString() const
+  { // visually formatted
+    std::ostringstream os;
+    os << std::fixed << std::setprecision(6) << latitude << "°" << (latitude < 0 ? "S" : "N") << "  "
+       << longitude << "°" << (longitude < 0 ? "W" : "E") << "  "
+       << std::setprecision(2) << altitude << " m";
+    return os.str();
   }
-  inline std::istream& operator>>(std::istream &is, Location &loc)
-  {
-#ifndef ENABLE_CUDA // not needed for building CUDA files (std::quoted undefined)
-    is >> loc.latitude; is >> loc.longitude; is >> loc.altitude; is >> std::quoted(loc.timezoneId); is >> loc.utcOffset;
-#endif // ENABLE_CUDA
-    loc.updateUtcOffset();
-    return is;
-  }
-  
-  // inline std::basic_ostream<wchar_t>& operator<<(std::basic_ostream<wchar_t> &os, const Location &loc)
-  // {
-  //   os << std::fixed << std::setprecision(6) << loc.latitude << L"°" << (loc.latitude < 0 ? L"S" : L"N") << L" / "
-  //      << loc.longitude << L"°" << (loc.longitude < 0 ? L"W" : L"E") << L" / "
-  //      << std::setprecision(2) << loc.altitude << L"m";
-    
-  //   // os << "[" << loc.latitude << ", " << loc.longitude << ", " << loc.altitude << "]";
-  //   return os;
-  // }
 
-  // inline std::istream& operator>>(std::istream &is, Location &loc)
-  // {
-  //   is >> loc.latitude;
-  //   is >> loc.longitude;
-  //   is >> loc.altitude;
-  //   return is;
-  // }
+  std::string toSaveString() const
+  {
+    std::ostringstream os;
+#ifndef __NVCC__ // not needed for building CUDA files (std::quoted undefined)
+    os << to_string(latitude, 12) << " " << to_string(longitude, 12) << " " << altitude << " " << std::quoted(timezoneId) << " " << utcOffset;
+#endif // __NVCC__
+    return os.str();
+  }
+  std::string fromSaveString(const std::string &str)
+  {
+    std::istringstream is(str);
+    std::string name;
+#ifndef __NVCC__ // not needed for building CUDA files (std::quoted undefined)
+    is >> latitude; is >> longitude; is >> altitude; is >> std::quoted(timezoneId); is >> utcOffset;
+#endif // __NVCC__
+    updateUtcOffset();
+      
+    // return remaining string
+    std::stringstream tmp; tmp << is.rdbuf();
+    return tmp.str();
+  }
+    
+  bool operator==(const Location &other) const
+  { return (latitude == other.latitude && longitude == other.longitude && altitude == other.altitude); }
+  bool operator!=(const Location &other) const
+  { return !(*this == other); }
+    
+  friend std::ostream& operator<<(std::ostream &os, const Location &loc);
+  friend std::istream& operator>>(std::istream &is, Location &loc);
+      
+  //friend std::basic_ostream<wchar_t>& operator<<(std::basic_ostream<wchar_t> &os, const Location &loc);
+};
+
+inline std::ostream& operator<<(std::ostream &os, const Location &loc)
+{
+  os << loc.toSaveString();
+  return os;
 }
+inline std::istream& operator>>(std::istream &is, Location &loc)
+{
+#ifndef __NVCC__ // not needed for building CUDA files (std::quoted undefined)
+  is >> loc.latitude; is >> loc.longitude; is >> loc.altitude; is >> std::quoted(loc.timezoneId); is >> loc.utcOffset;
+#endif // __NVCC__
+  loc.updateUtcOffset();
+  return is;
+}
+  
+// inline std::basic_ostream<wchar_t>& operator<<(std::basic_ostream<wchar_t> &os, const Location &loc)
+// {
+//   os << std::fixed << std::setprecision(6) << loc.latitude << L"°" << (loc.latitude < 0 ? L"S" : L"N") << L" / "
+//      << loc.longitude << L"°" << (loc.longitude < 0 ? L"W" : L"E") << L" / "
+//      << std::setprecision(2) << loc.altitude << L"m";
+    
+//   // os << "[" << loc.latitude << ", " << loc.longitude << ", " << loc.altitude << "]";
+//   return os;
+// }
+
+// inline std::istream& operator>>(std::istream &is, Location &loc)
+// {
+//   is >> loc.latitude;
+//   is >> loc.longitude;
+//   is >> loc.altitude;
+//   return is;
+// }
 
 
 #endif // LOCATION_HPP

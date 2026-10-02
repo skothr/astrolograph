@@ -17,6 +17,10 @@ ChartCompare::~ChartCompare()
   
 }
 
+//// NOTE:
+////   INNER chart --> Natal
+////   OUTER chart --> Transit
+
 std::vector<ChartAspect> ChartCompare::calcAspects(const ChartParams &params)
 {
   mAspects.clear();
@@ -24,15 +28,19 @@ std::vector<ChartAspect> ChartCompare::calcAspects(const ChartParams &params)
   
   for(int o1 = 0; o1 < OBJ_END; o1++)
     {
-      if(!params.objVisible[o1]) { continue; } // skip if switched off
+      if(!params.objVisible[o1])
+        { continue; } // skip if switched off
+      
       int i1 = o1;
       double angle1 = mChartOuter->objects()[o1]->angle;
       std::string name1 = getObjName(o1);
 
       // object aspects
-      for(int o2 = o1; o2 < OBJ_END; o2++)
+      for(int o2 = 0; o2 < OBJ_END; o2++)
         {
-          if(!params.objVisible[o2]) { continue; } // skip if switched off
+          if(!params.objVisible[o2])
+            { continue; } // skip if switched off
+          
           int i2 = o2;
           double angle2 = mChartInner->objects()[o2]->angle;
           std::string name2 = getObjName(o2);
@@ -40,9 +48,14 @@ std::vector<ChartAspect> ChartCompare::calcAspects(const ChartParams &params)
           
           for(auto &iter : astro::ASPECTS)
             {
-              if(!params.aspVisible[iter.second.type]) { continue; } // skip if switched off
+              if(!params.aspVisible[iter.second.type])
+                { continue; } // skip aspect if switched off
+              
               double aDiff = astro::angleDiffDegrees(diff, iter.second.angle);
-              double orb = std::min(params.orbs.objOrbs[o1][iter.second.type], params.orbs.objOrbs[o2][iter.second.type]);
+              // double orb = std::min(params.orbs.objOrbs[o1][iter.second.type], params.orbs.objOrbs[o2][iter.second.type]);
+              double orb = (params.orbs.objOrbs[o1][iter.second.type] + // average object orbs instead of taking minimum (?)
+                            params.orbs.objOrbs[o2][iter.second.type]) / 2.0f;
+              
               if(std::abs(aDiff) <= orb)
                 {
                   // sort aspects from strongest to weakest
@@ -55,7 +68,8 @@ std::vector<ChartAspect> ChartCompare::calcAspects(const ChartParams &params)
                           mAspects.insert(mAspects.begin()+i,
                                           ChartAspect(mChartOuter->objects()[i1], mChartInner->objects()[i2], iter.second.type, aDiff, strength,
                                                       true, params.aspVisible[iter.second.type], params.aspFocused[iter.second.type])); // valid, visible, focused
-                          added = true; break;
+                          added = true;
+                          break;
                         }
                     }
                   if(!added)

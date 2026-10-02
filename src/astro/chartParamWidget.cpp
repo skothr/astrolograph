@@ -24,11 +24,11 @@ void ChartParamWidget::draw(float scale, bool blocked, bool visible)
   
   // options
   ImGuiTreeNodeFlags flags = (ImGuiTreeNodeFlags_FramePadding | ImGuiTreeNodeFlags_SpanAvailWidth);
-  ImGui::SetNextTreeNodeOpen(mSettingsOpen);
-  if(ImGui::CollapsingHeader("Settings", nullptr, flags))
-    {
-      if(!blocked) { mSettingsOpen = true; }
-      ImGui::Indent();
+  // ImGui::SetNextTreeNodeOpen(mSettingsOpen);
+  // if(ImGui::CollapsingHeader("Settings", nullptr, flags))
+  //   {
+  //     if(!blocked) { mSettingsOpen = true; }
+  //     ImGui::Indent();
       
       float columnW = 180.0f*scale;
       
@@ -76,10 +76,10 @@ void ChartParamWidget::draw(float scale, bool blocked, bool visible)
           // ImGui::Indent();
           
           ImGui::BeginTable("##angVis", 4, ImGuiTableFlags_SizingPolicyStretchX | ImGuiTableFlags_NoClip);
-          ImGui::TableSetupColumn("", ImGuiTableColumnFlags_WidthStretch);
-          ImGui::TableSetupColumn("", ImGuiTableColumnFlags_WidthStretch);
-          ImGui::TableSetupColumn("", ImGuiTableColumnFlags_WidthStretch);
-          ImGui::TableSetupColumn("", ImGuiTableColumnFlags_WidthStretch);
+          ImGui::TableSetupColumn("##angVis", ImGuiTableColumnFlags_WidthStretch);
+          ImGui::TableSetupColumn("##angVis", ImGuiTableColumnFlags_WidthStretch);
+          ImGui::TableSetupColumn("##angVis", ImGuiTableColumnFlags_WidthStretch);
+          ImGui::TableSetupColumn("##angVis", ImGuiTableColumnFlags_WidthStretch);
           {
             ImGui::TableNextRow(); ImGui::TableSetColumnIndex(0);
             // angles
@@ -236,96 +236,96 @@ void ChartParamWidget::draw(float scale, bool blocked, bool visible)
         }
       else if(visible) { mObjDisplayOpen = false; }
 
-      // OBJECT ORBS //
-      ImGui::SetNextTreeNodeOpen(mObjOrbsOpen);
-      if(ImGui::CollapsingHeader("Object Orbs", nullptr, flags))
-        {
-          mObjOrbsOpen = true;
-          ImGui::Indent();
-          // ImGui::PushFont(viewSettings->titleFont);
-          // ImGui::TextUnformatted("Orbs");
-          // ImGui::PopFont();
-          ImGui::Separator();
-          // ImGui::Indent();
+      // // OBJECT ORBS //
+      // ImGui::SetNextTreeNodeOpen(mObjOrbsOpen);
+      // if(ImGui::CollapsingHeader("Object Orbs", nullptr, flags))
+      //   {
+      //     mObjOrbsOpen = true;
+      //     ImGui::Indent();
+      //     // ImGui::PushFont(viewSettings->titleFont);
+      //     // ImGui::TextUnformatted("Orbs");
+      //     // ImGui::PopFont();
+      //     ImGui::Separator();
+      //     // ImGui::Indent();
           
-          ImGui::BeginTable("##orbs", 4, ImGuiTableFlags_SizingPolicyStretchX | ImGuiTableFlags_NoClip);
-          ImGui::TableSetupColumn("", ImGuiTableColumnFlags_WidthStretch);
-          ImGui::TableSetupColumn("", ImGuiTableColumnFlags_WidthStretch);
-          ImGui::TableSetupColumn("", ImGuiTableColumnFlags_WidthStretch);
-          ImGui::TableSetupColumn("", ImGuiTableColumnFlags_WidthStretch);
-          {
-            ImGui::TableNextRow(); ImGui::TableSetColumnIndex(0);
+      //     ImGui::BeginTable("##orbs", 2, ImGuiTableFlags_SizingPolicyStretchX | ImGuiTableFlags_NoClip);
+      //     ImGui::TableSetupColumn("##orbs", ImGuiTableColumnFlags_WidthStretch);
+      //     ImGui::TableSetupColumn("##orbs", ImGuiTableColumnFlags_WidthStretch);
+      //     // ImGui::TableSetupColumn("##orbs", ImGuiTableColumnFlags_WidthStretch);
+      //     // ImGui::TableSetupColumn("##orbs", ImGuiTableColumnFlags_WidthStretch);
+      //     {
+      //       ImGui::TableNextRow(); ImGui::TableSetColumnIndex(0);
           
-            // objects
-            int numPerColumn = 5;
-            bool grouping = false;
-            for(int i = OBJ_SUN; i < OBJ_COUNT; i++)
-              {
-                if(i % numPerColumn == 0)
-                  { 
-                    ImGui::BeginGroup();
-                    grouping = true;
-                  }
+      //       // objects
+      //       int numPerColumn = 5;
+      //       bool grouping = false;
+      //       for(int i = OBJ_SUN; i < OBJ_COUNT; i++)
+      //         {
+      //           if(i % numPerColumn == 0)
+      //             { 
+      //               ImGui::BeginGroup();
+      //               grouping = true;
+      //             }
                 
-                std::string name = getObjName(i);
-                std::string longName = getObjNameLong(i);
-                ChartImage *img = getWhiteImage(name);
-                Vec4f color = getObjColor(name);
-                ImVec4 tintCol = ImVec4(color.x, color.y, color.z, color.w);
+      //           std::string name = getObjName(i);
+      //           std::string longName = getObjNameLong(i);
+      //           ChartImage *img = getWhiteImage(name);
+      //           Vec4f color = getObjColor(name);
+      //           ImVec4 tintCol = ImVec4(color.x, color.y, color.z, color.w);
 
-                ImGui::BeginGroup();
-                {
-                  // ImGui::SetNextItemWidth(50*scale);
-                  // ImGui::InputDouble(("##setorb"+std::to_string(i)).c_str(), &mParams->orbs.objOrbs[i], 0.0, 0.0, "%.2f", ImGuiInputTextFlags_None);
-                  ImGui::SetNextItemWidth(symSize+10.0f*scale);
-                  ImGui::SameLine(); ImGui::Image(img->id(), ImVec2(symSize, symSize), ImVec2(0,0), ImVec2(1,1), tintCol, ImVec4(0,0,0,0));
-                  ImGui::SameLine(); ImGui::Text("%s", longName.c_str());
-                }
-                ImGui::EndGroup();
+      //           ImGui::BeginGroup();
+      //           {
+      //             // ImGui::SetNextItemWidth(50*scale);
+      //             // ImGui::InputDouble(("##setorb"+std::to_string(i)).c_str(), &mParams->orbs.objOrbs[i], 0.0, 0.0, "%.2f", ImGuiInputTextFlags_None);
+      //             ImGui::SetNextItemWidth(symSize+10.0f*scale);
+      //             //ImGui::SameLine();
+      //             ImGui::Image(img->id(), ImVec2(symSize, symSize), ImVec2(0,0), ImVec2(1,1), tintCol, ImVec4(0,0,0,0));
+      //             ImGui::SameLine(); ImGui::Text("%s", longName.c_str());
+      //           }
+      //           ImGui::EndGroup();
                 
-                bool hover = !blocked && ImGui::IsItemHovered();
-                if(mChart)
-                  {
-                    if(hover)
-                      { // object tooltip
-                        ChartObject *obj = mChart->getObject(i);
-                        ImGui::PushStyleVar(ImGuiStyleVar_FramePadding,  Vec2f(ImGui::GetStyle().FramePadding)/scale);
-                        ImGui::PushStyleVar(ImGuiStyleVar_ItemSpacing,   Vec2f(ImGui::GetStyle().ItemSpacing)/scale);
-                        ImGui::PushStyleVar(ImGuiStyleVar_WindowPadding, Vec2f(ImGui::GetStyle().WindowPadding)/scale);
-                        ImGui::PushStyleVar(ImGuiStyleVar_IndentSpacing, ImGui::GetStyle().IndentSpacing/scale);
-                        ImGui::SetTooltip("%s - %s %s", name.c_str(), getSignName(mChart->getSign(obj->angle)).c_str(),
-                                          angle_string(fmod(obj->angle, 30.0), false).c_str());
-                        ImGui::PopStyleVar(4);
-                      }
-                    // set focus
-                    bool focused = (hover && io.KeyShift); // focus on this object with SHIFT+hover
-                    if(focused || !mParams->objFocused[i] || (mParams->objFocused[i] && mObjOrbsFocused[i]))
-                      {
-                        mParams->objFocused[i] = focused;
-                        mObjOrbsFocused[i] = focused;
-                      }
-                  }
-                if(i % numPerColumn == (numPerColumn-1))
-                  {
-                    ImGui::EndGroup();
-                    ImGui::TableNextColumn();
-                    grouping = false;
-                  }
-              }
-            if(grouping)
-              {
-                ImGui::EndGroup();
-                grouping = false;
-              }
-            ImGui::Separator();
-          }
-          ImGui::EndTable();
-          ImGui::Unindent();
-        }
-      else if(visible) { mObjOrbsOpen = false; }
+      //           bool hover = !blocked && ImGui::IsItemHovered();
+      //           if(mChart)
+      //             {
+      //               if(hover)
+      //                 { // object tooltip
+      //                   ChartObject *obj = mChart->getObject(i);
+      //                   ImGui::PushStyleVar(ImGuiStyleVar_FramePadding,  Vec2f(ImGui::GetStyle().FramePadding)/scale);
+      //                   ImGui::PushStyleVar(ImGuiStyleVar_ItemSpacing,   Vec2f(ImGui::GetStyle().ItemSpacing)/scale);
+      //                   ImGui::PushStyleVar(ImGuiStyleVar_WindowPadding, Vec2f(ImGui::GetStyle().WindowPadding)/scale);
+      //                   ImGui::PushStyleVar(ImGuiStyleVar_IndentSpacing, ImGui::GetStyle().IndentSpacing/scale);
+      //                   ImGui::SetTooltip("%s - %s %s", name.c_str(), getSignName(mChart->getSign(obj->angle)).c_str(),
+      //                                     angle_string(fmod(obj->angle, 30.0), false).c_str());
+      //                   ImGui::PopStyleVar(4);
+      //                 }
+      //               // set focus
+      //               bool focused = (hover && io.KeyShift); // focus on this object with SHIFT+hover
+      //               if(focused || !mParams->objFocused[i] || (mParams->objFocused[i] && mObjOrbsFocused[i]))
+      //                 {
+      //                   mParams->objFocused[i] = focused;
+      //                   mObjOrbsFocused[i] = focused;
+      //                 }
+      //             }
+      //           if(i % numPerColumn == (numPerColumn-1))
+      //             {
+      //               ImGui::EndGroup();
+      //               ImGui::TableNextColumn();
+      //               grouping = false;
+      //             }
+      //         }
+      //       if(grouping)
+      //         {
+      //           ImGui::EndGroup();
+      //           grouping = false;
+      //         }
+      //       ImGui::Separator();
+      //     }
+      //     ImGui::EndTable();
+      //     ImGui::Unindent();
+      //   }
+      // else if(visible) { mObjOrbsOpen = false; }
 
 
-      
       std::vector<ChartAspect> aspects;
       std::array<int, ASPECT_COUNT> counts = {0};
       if(mChart)
@@ -333,7 +333,6 @@ void ChartParamWidget::draw(float scale, bool blocked, bool visible)
           aspects = mChart->calcAspects(*mParams);
           for(auto asp : aspects) { counts[asp.type]++; }
         }
-
       
       // ASPECT VISIBILITY //
       ImGui::SetNextTreeNodeOpen(mAspDisplayOpen);
@@ -405,65 +404,68 @@ void ChartParamWidget::draw(float scale, bool blocked, bool visible)
       else if(visible) { mAspDisplayOpen = false; }
 
       
-      // ASPECT ORBS //
-      ImGui::SetNextTreeNodeOpen(mAspOrbsOpen);
-      if(ImGui::CollapsingHeader("Aspect Orbs", nullptr, flags))
-        {
-          mAspOrbsOpen = true;
-          ImGui::Indent();
-          // ImGui::PushFont(viewSettings->titleFont);
-          // ImGui::TextUnformatted("Orbs");
-          // ImGui::PopFont();
-          ImGui::Separator();
-          // ImGui::Indent();
+      // // ASPECT ORBS //
+      // ImGui::SetNextTreeNodeOpen(mAspOrbsOpen);
+      // if(ImGui::CollapsingHeader("Aspect Orbs", nullptr, flags))
+      //   {
+      //     mAspOrbsOpen = true;
+      //     ImGui::Indent();
+      //     // ImGui::PushFont(viewSettings->titleFont);
+      //     // ImGui::TextUnformatted("Orbs");
+      //     // ImGui::PopFont();
+      //     ImGui::Separator();
+      //     // ImGui::Indent();
           
-            // objects
-            int numPerColumn = 5;
-            for(int i = 0; i < ASPECT_COUNT; i++)
-              {              
-                std::string name = getAspectName(i);
-                std::string longName = getAspectNameLong(i);
-                ChartImage *img = getImage(name);
-                Vec4f color = getAspectInfo(i)->color;
-                ImVec4 tintCol = ImVec4(color.x, color.y, color.z, color.w);
+      //       // objects
+      //       int numPerColumn = 5;
+      //       for(int i = 0; i < ASPECT_COUNT; i++)
+      //         {              
+      //           std::string name = getAspectName(i);
+      //           std::string longName = getAspectNameLong(i);
+      //           ChartImage *img = getImage(name);
+      //           Vec4f color = getAspectInfo(i)->color;
+      //           ImVec4 tintCol = ImVec4(color.x, color.y, color.z, color.w);
 
-                ImGui::BeginGroup();
-                {
-                  // ImGui::SetNextItemWidth(50*scale);
-                  // ImGui::InputDouble(("##setorb"+std::to_string(i)).c_str(), &mParams->aspOrbs[i], 0.0, 0.0, "%.2f", ImGuiInputTextFlags_None);
-                  ImGui::SetNextItemWidth(symSize+10.0f*scale);
-                  ImGui::SameLine(); ImGui::Image(img->id(), ImVec2(symSize, symSize), ImVec2(0,0), ImVec2(1,1), tintCol, ImVec4(0,0,0,0));
-                  ImGui::SameLine(); ImGui::Text("%s", longName.c_str());
-                }
-                ImGui::EndGroup();
+      //           ImGui::BeginGroup();
+      //           {
+      //             // ImGui::SetNextItemWidth(50*scale);
+      //             // ImGui::InputDouble(("##setorb"+std::to_string(i)).c_str(), &mParams->aspOrbs[i], 0.0, 0.0, "%.2f", ImGuiInputTextFlags_None);
+      //             ImGui::SetNextItemWidth(symSize+10.0f*scale);
+      //             //ImGui::SameLine();
+      //             ImGui::Image(img->id(), ImVec2(symSize, symSize), ImVec2(0,0), ImVec2(1,1), tintCol, ImVec4(0,0,0,0));
+      //             // ImGui::SameLine(); ImGui::Text("%s", longName.c_str());
+      //             Imgui::SameLine(); ImGui::InputFloat(longName.c_str(), mParams->orbs.objOrbs[][i]);
+      //           }
+      //           ImGui::EndGroup();
                 
-                bool hover = !blocked && ImGui::IsItemHovered();
-                if(mChart)
-                  {
-                    if(hover)
-                      { // aspect tooltip
-                      ImGui::PushStyleVar(ImGuiStyleVar_FramePadding,  Vec2f(ImGui::GetStyle().FramePadding)/scale);
-                      ImGui::PushStyleVar(ImGuiStyleVar_ItemSpacing,   Vec2f(ImGui::GetStyle().ItemSpacing)/scale);
-                      ImGui::PushStyleVar(ImGuiStyleVar_WindowPadding, Vec2f(ImGui::GetStyle().WindowPadding)/scale);
-                      ImGui::PushStyleVar(ImGuiStyleVar_IndentSpacing, ImGui::GetStyle().IndentSpacing/scale);
-                      ImGui::SetTooltip("%s (%d)", name.c_str(), counts[i]);
-                      ImGui::PopStyleVar(4);
-                      }
-                    
-                    // set focus
-                    bool focused = (hover && io.KeyShift); // focus on this object with SHIFT+hover
-                    if(focused || !mParams->aspFocused[i] || (mParams->aspFocused[i] && mAspOrbsFocused[i]))
-                    {
-                      mParams->aspFocused[i] = focused;
-                      mAspOrbsFocused[i] = focused;
-                    }
-                  }
-              }
-            ImGui::Separator();
-          ImGui::Unindent();
-        }
-      else if(visible) { mAspOrbsOpen = false; }
-      ImGui::Unindent();
-    } 
-  else if(visible) { mSettingsOpen = false; }
+      //           bool hover = !blocked && ImGui::IsItemHovered();
+      //           if(mChart)
+      //             {
+      //               if(hover)mParams->aspFocused[a]
+      //                 { // aspect tooltip
+      //                   ImGui::PushStyleVar(ImGuiStyleVar_FramePadding,  Vec2f(ImGui::GetStyle().FramePadding)/scale);
+      //                   ImGui::PushStyleVar(ImGuiStyleVar_ItemSpacing,   Vec2f(ImGui::GetStyle().ItemSpacing)/scale);
+      //                   ImGui::PushStyleVar(ImGuiStyleVar_WindowPadding, Vec2f(ImGui::GetStyle().WindowPadding)/scale);
+      //                   ImGui::PushStyleVar(ImGuiStyleVar_IndentSpacing, ImGui::GetStyle().IndentSpacing/scale);
+      //                   ImGui::SetTooltip("%s (%d)", name.c_str(), counts[i]);
+      //                   ImGui::PopStyleVar(4);
+      //                 }
+      
+      //               // set focus
+      //               bool focused = (hover && io.KeyShift); // focus on this object with SHIFT+hover
+      //               if(focused || !mParams->aspFocused[i] || (mParams->aspFocused[i] && mAspOrbsFocused[i]))
+      //               {
+      //                 mParams->aspFocused[i] = focused;
+      //                 mAspOrbsFocused[i] = focused;
+      //               }
+      //             }
+      //         }
+      //       ImGui::Separator();
+      //     ImGui::Unindent();
+      //   }
+      // else if(visible) { mAspOrbsOpen = false; }
+
+  //     ImGui::Unindent();
+  //   } 
+  // else if(visible) { mSettingsOpen = false; }
 }

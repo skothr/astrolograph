@@ -1,5 +1,4 @@
 #include "location.hpp"
-using namespace astro;
 
 #include <curl/curl.h>
 #include "nlohmann/json.hpp"
@@ -41,6 +40,8 @@ bool Location::valid() const
 
 void Location::fix()
 {
+  latitude  = std::fmod(latitude,  180.0f);
+  longitude = std::fmod(longitude, 360.0f);
   while(latitude < -90.0f)    { latitude += 180.0; }
   while(latitude > 90.0f)     { latitude -= 180.0; }
   while(longitude <= -180.0f) { longitude += 360.0; }
@@ -63,7 +64,7 @@ std::size_t Location::curlCallback(const char* in, std::size_t size, std::size_t
 }
 
 // hacky timezone query
-std::string Location::getTimezoneCurl(const astro::Location &loc)
+std::string Location::getTimezoneCurl(const Location &loc)
 {
   std::string timezone = "";
   CURL *curl = curl_easy_init();
@@ -122,7 +123,7 @@ void Location::updateUtcOffset()
       auto sysTime = date::sys_time<date::days>{date::year(dt.year()) / date::month(dt.month()) / date::day(dt.day())};
       date::sys_info info = tz->get_info(sysTime);
       utcOffset = ((info.offset).count()/60.0 + info.save.count())/60.0;
-      dstOffset = (info.save.count())/60.0;
+      dstOffset = (-info.save.count())/60.0;
     }
 }
 

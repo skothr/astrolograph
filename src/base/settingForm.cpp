@@ -1,5 +1,4 @@
 #include "settingForm.hpp"
-using namespace astro;
 
 #include <algorithm>
 #include "imgui.h"

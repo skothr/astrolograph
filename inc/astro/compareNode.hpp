@@ -4,6 +4,9 @@
 #include "astro.hpp"
 #include "node.hpp"
 
+// forward declarations
+class SettingGroup;
+
 namespace astro
 {
   // forward declarations
@@ -13,7 +16,6 @@ namespace astro
   class ChartParams;
   class ChartParamWidget;
   class ChartOrbWidget;
-  class SettingGroup;
   
   //// node connector indices ////
   // inputs
@@ -27,12 +29,15 @@ namespace astro
     static std::vector<ConnectorBase*> CONNECTOR_INPUTS()  { return {new Connector<Chart>("Inner Chart"), new Connector<Chart>("Outer Chart")}; }
     static std::vector<ConnectorBase*> CONNECTOR_OUTPUTS() { return {}; }
 
-    ChartView        *mView      = nullptr;
-    ChartCompare     *mCompare   = nullptr;
-    ChartParamWidget *mWidget    = nullptr;
-    ChartParams      *mParams    = nullptr;
-    ChartOrbWidget   *mOrbWidget = nullptr;
+    bool mSettingsOpen = false;
+    
+    ChartView        *mView        = nullptr;
+    ChartCompare     *mCompare     = nullptr;
+    ChartParams      *mParams      = nullptr;
+    ChartParamWidget *mParamWidget = nullptr;
+    ChartOrbWidget   *mOrbWidget   = nullptr;
 
+    // bool mOrbsOpen = false;
     // bool mSettingsOpen = false;
 
     DateTime mDateOuter;

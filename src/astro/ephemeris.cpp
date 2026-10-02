@@ -7,10 +7,12 @@ using namespace astro;
 #include <fstream>
 
 
-const std::vector<int> Ephemeris::SWE_IDS = { SE_SUN, SE_MOON,
-                                              SE_MERCURY, SE_VENUS, SE_MARS, SE_JUPITER, SE_SATURN, SE_URANUS, SE_NEPTUNE, SE_PLUTO,
-                                              (SE_AST_OFFSET+50000),    // (Quaoar)
-                                              SE_CHIRON, SE_CERES, SE_JUNO, SE_PALLAS, SE_VESTA,
+const std::vector<int> Ephemeris::SWE_IDS = { SE_SUN, SE_MOON, SE_MERCURY, SE_VENUS, SE_MARS,
+                                              SE_JUPITER, SE_SATURN, SE_URANUS, SE_NEPTUNE, SE_PLUTO,
+                                              (SE_AST_OFFSET+50000), // (Quaoar)
+                                              (SE_AST_OFFSET+120),   // (Lachesis)
+                                              
+                                              SE_CHIRON, SE_PHOLUS, SE_CERES, SE_JUNO, SE_PALLAS, SE_VESTA,
                                               SE_MEAN_APOG,             // (Lilith)
                                               (SE_AST_OFFSET + 19),     // (Fortuna),
                                               (SE_AST_OFFSET + 136199), // (Eris)
@@ -72,12 +74,30 @@ Ephemeris::Ephemeris()
 
 void Ephemeris::setDate(const DateTime &dt)
 {
+  double jdUT = getJulianDayUT(dt, mLocation);
+  // TEST PRINTOUT
+  if(jdUT != mJulDay_ut)
+    {
+      const DateTime dut0 = getDateFromJUT(mJulDay_ut, mLocation);
+      const DateTime dut1 = getDateFromJUT(jdUT,       mLocation);
+      std::cout << "====> CHANGING EPHEMERIS DATE:  " << dut0 << " (JDUT: " << mJulDay_ut
+                <<                         ")  -->  " << dut1 << " (JDUT: " << jdUT << ")\n";
+    }
+  
   mJulDay_et = getJulianDayET(dt, mLocation);
-  mJulDay_ut = getJulianDayUT(dt, mLocation);
+  mJulDay_ut = jdUT;
 }
 
 void Ephemeris::setDateUT(double jdUT)
 {
+  // TEST PRINTOUT
+  if(jdUT != mJulDay_ut)
+    {
+      const DateTime dut0 = getDateFromJUT(mJulDay_ut, mLocation);
+      const DateTime dut1 = getDateFromJUT(jdUT,       mLocation);
+      std::cout << "====> CHANGING EPHEMERIS DATE (UT):  " << dut0 << " (JDUT: " << mJulDay_ut
+                <<                              ")  -->  " << dut1 << " (JDUT: " << jdUT << ")\n";
+    }
   mJulDay_ut = jdUT;
   mJulDay_et = jdUT + swe_deltat(jdUT);
 }
@@ -92,6 +112,15 @@ void Ephemeris::setDateET(double jdET)
   swe_jdet_to_utc(jdET, GREG_FLAG, &year, &month, &day, &hour, &min, &sec);
   int ret = swe_utc_to_jd(year, month, day, hour, min, sec, GREG_FLAG, dret, serr);
   if(ret < 0) { std::cout << "SWE ERROR: " << serr << "\n"; }
+
+  // TEST PRINTOUT
+  if(jdET != mJulDay_et)
+    {
+      const DateTime det0 = getDateFromJET(mJulDay_et, mLocation);
+      const DateTime det1 = getDateFromJET(jdET,       mLocation);
+      std::cout << "====> CHANGING EPHEMERIS DATE (ET):  " << det0 << " (JDET: " << mJulDay_et
+                <<                              ")  -->  " << det1 << " (JDET: " << jdET << ")\n";
+    }
   
   mJulDay_et = jdET;
   mJulDay_ut = dret[1];
@@ -138,7 +167,7 @@ DateTime Ephemeris::getDateFromJET(double jd_ET, const Location &loc)
 double Ephemeris::getJulianDayUT(const DateTime &dt, const Location &loc)
 {
   // calculate timezone offset
-  double d_timezone = loc.utcOffset+(double)dt.dstOffset();
+  double d_timezone = loc.utcOffset - (double)dt.dstOffset();
   int y, mo, d, h, mi; double s;
   swe_set_topo(loc.longitude, loc.latitude, loc.altitude);
   swe_utc_time_zone(dt.year(), dt.month(), dt.day(), dt.hour(), dt.minute(), dt.second(), d_timezone, &y, &mo, &d, &h, &mi, &s);
@@ -155,7 +184,7 @@ double Ephemeris::getJulianDayUT(const DateTime &dt, const Location &loc)
 double Ephemeris::getJulianDayET(const DateTime &dt, const Location &loc)
 {
   // calculate timezone offset
-  double d_timezone = loc.utcOffset+(double)dt.dstOffset();
+  double d_timezone = loc.utcOffset - (double)dt.dstOffset();
   int y, mo, d, h, mi; double s;
   swe_set_topo(loc.longitude, loc.latitude, loc.altitude);
   swe_utc_time_zone(dt.year(), dt.month(), dt.day(), dt.hour(), dt.minute(), dt.second(), d_timezone, &y, &mo, &d, &h, &mi, &s);
@@ -371,7 +400,7 @@ void Ephemeris::printHouses() const
   std::cout << "\n";
 }
 
-void Ephemeris::printObjects(const astro::DateTime &dt, const astro::Location &loc) const
+void Ephemeris::printObjects(const DateTime &dt, const Location &loc) const
 {
   std::cout << "------------------------------------------------------------------------------------------------------------------------\n";
   std::cout << "|  " << dt << "\n";

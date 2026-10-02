@@ -2,14 +2,15 @@
 #define TIME_WIDGET_HPP
 
 #include "astro.hpp"
+
+// forward declarations
+class NodeGraph;
+class FileDialog;
+
 namespace astro
 {
-  // forward declarations
-  class NodeGraph;
-  class FileDialog;
   
 #define DATE_SAVE_DIR "./dates"
-  //#define DATE_SAVE_PATH DATE_SAVE_DIR "dates.txt"
 #define DATE_NAME_BUFLEN 128
   
   struct DateSave
@@ -49,10 +50,7 @@ namespace astro
 
     void setGraph(NodeGraph *graph) { mGraph = graph; }
     
-#ifndef ENABLE_CUDA // not needed for building CUDA files (std::quoted undefined)
     bool checkFileDialog();
-#endif // ENABLE_CUDA
-    
     bool draw(const std::string &id, float scale, bool blocked);
   };
 }

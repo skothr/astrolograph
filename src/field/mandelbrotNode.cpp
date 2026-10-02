@@ -1,5 +1,4 @@
 #include "mandelbrotNode.hpp"
-using namespace astro;
 // using namespace quantum;
 
 #include <imgui.h>
@@ -18,7 +17,7 @@ using namespace astro;
 #define SETTING_INPUT_W 280.0f
 
 MandelbrotNode::MandelbrotNode()
-  : mFileDialog(new FileDialog()), Node(CONNECTOR_INPUTS(), CONNECTOR_OUTPUTS(), "Mandelbrot Node", true)
+  : Node(CONNECTOR_INPUTS(), CONNECTOR_OUTPUTS(), "Mandelbrot Node", true), mFileDialog(new FileDialog())
 {
   // settings
   mSettings.push_back(new Setting<bool>          ("Settings Open",  "settingsOpen",  &mSettingsOpen, mSettingsOpen));
@@ -37,14 +36,18 @@ MandelbrotNode::MandelbrotNode()
   SettingBase *iterSetting   = new Setting<int>    ("Max Iterations", "mandelMaxIter", &mField.params.maxIter, 64);
   ((Setting<int>*)iterSetting)->setFormat(8, 16, "%d");
   ((Setting<int>*)iterSetting)->setMin(0);
-  SettingBase *hollowSetting = new Setting<bool> ("Hollow",    "mandelHollow", &mHollow,   true, [&]() { mField.params.hollow = mHollow; });
-  SettingBase *pathSetting   = new Setting<bool> ("Draw Path", "drawPath",     &mDrawPath, false);
+  SettingBase *hollowSetting = new Setting<bool> ("Hollow",       "mandelHollow", &mHollow,   true, [&]() { mField.params.hollow = mHollow; });
+  SettingBase *pathSetting   = new Setting<bool> ("Draw Path",    "drawPath",     &mDrawPath, false);
+  SettingBase *pRadSetting   = new Setting<int>  ("Path Radius",  "pathRad",      &mPathRad);
+  ((Setting<int>*)pRadSetting)->setMin(0);
+  SettingBase *pSpaceSetting = new Setting<float>("Path Spacing", "pathSpacing",  &mPathSpacing);
+  ((Setting<float>*)pSpaceSetting)->setFormat(0.01f, 0.1f, "%.4f");
 
   SettingGroup *group = new SettingGroup("Field Settings", "settings",
-                                         { fSizeSetting, scaleSetting, offsetSetting, iterSetting, cutoffSetting, pathSetting, hollowSetting },
+                                         { fSizeSetting, scaleSetting, offsetSetting, iterSetting, cutoffSetting, pathSetting, pRadSetting, pSpaceSetting, hollowSetting },
                                          true, false);
   SettingGroup *contextGroup = new SettingGroup("Context Settings", "contextSettings",
-                                                { fSizeSetting, scaleSetting, offsetSetting, iterSetting, cutoffSetting, pathSetting, hollowSetting },
+                                                { fSizeSetting, scaleSetting, offsetSetting, iterSetting, cutoffSetting, pathSetting, pRadSetting, pSpaceSetting, hollowSetting },
                                                 false, false);
   mSettingForm = new SettingForm(SETTING_LABEL_W, SETTING_INPUT_W);
   mSettingForm->add(group);
@@ -58,6 +61,8 @@ MandelbrotNode::MandelbrotNode()
   mSettings.push_back(iterSetting);
   mSettings.push_back(hollowSetting);
   mSettings.push_back(pathSetting);
+  mSettings.push_back(pRadSetting);
+  mSettings.push_back(pSpaceSetting);
   mSettings.push_back(group);
   mSettings.push_back(contextGroup);
 
@@ -244,16 +249,28 @@ void MandelbrotNode::onDraw()
 
         Vec2f mp = Vec2f(ImGui::GetMousePos());
         Vec2f gp = screenToField(mp, &p0);
-        Vec2f pLast = mp;
-        Complex<double> zLast((double)gp.x, (double)gp.y);
-        Complex<double> c((double)gp.x, (double)gp.y);
-        for(int i = 0; i < mField.params.maxIter; i++)
-          {
-            Complex<double> z = zLast*zLast + c;
-            Vec2f p = fieldToScreen(Vec2f(z.real, z.imag), &p0);
-            drawLine(drawList, pLast, p, Vec4f(1.0f, 0.0f, 0.0f, 1.0f), 2.0f, Vec4f(0.0f, 0.0f, 0.0f, 1.0f), 1.0f);
-            zLast = z; pLast = p;
-          }
+
+        ImGui::PushClipRect(p0, p0+mDisplaySize*scale, true);
+
+        for(int i = -mPathRad; i <= mPathRad; i++)
+          for(int j = -mPathRad; j <= mPathRad; j++)
+            {
+              if((i*i + j*j) <= mPathRad*mPathRad)
+                {
+                  Vec2f ip = gp + Vec2f(i, j)*mPathSpacing;
+                  Vec2f pLast = fieldToScreen(ip, &p0);
+                  Complex<double> zLast((double)ip.x, (double)ip.y);
+                  Complex<double> c((double)ip.x, (double)ip.y);
+                  for(int i = 0; i < mField.params.maxIter; i++)
+                    {
+                      Complex<double> z = zLast*zLast + c;
+                      Vec2f p = fieldToScreen(Vec2f(z.real, z.imag), &p0);
+                      drawLine(drawList, pLast, p, Vec4f(1.0f, 0.0f, 0.0f, 1.0f), 2.0f, Vec4f(0.0f, 0.0f, 0.0f, 1.0f), 1.0f);
+                      zLast = z; pLast = p;
+                    }
+                }
+            }
+        ImGui::PopClipRect();
       }
   }
   ImGui::EndGroup();

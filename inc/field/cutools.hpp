@@ -16,10 +16,8 @@ extern "C" void fillTex(float4 *data, int w, int h, float4 color);
 struct CudaFieldTex;
 extern bool writeTexture(const std::string &path, CudaFieldTex *tex);
 
-
 // device helpers
 
-// currently implements WRAP addressing
 template<typename T> __device__ inline bool isnan(T v)                { return isnan(v); }
 template<>           __device__ inline bool isnan<float2> (float2 v)  { return (isnan(v.x) || isnan(v.y)); }
 template<>           __device__ inline bool isnan<float3> (float3 v)  { return (isnan(v.x) || isnan(v.y) || isnan(v.z)); }
@@ -28,7 +26,6 @@ template<>           __device__ inline bool isnan<double2>(double2 v) { return (
 template<>           __device__ inline bool isnan<double3>(double3 v) { return (isnan(v.x) || isnan(v.y) || isnan(v.z)); }
 template<>           __device__ inline bool isnan<double4>(double4 v) { return (isnan(v.x) || isnan(v.y) || isnan(v.z) || isnan(v.w)); }
 
-// currently implements WRAP addressing
 template<typename T> __device__ T lerp(T x0, T x1, float alpha) { return x1*alpha + x0*(1.0f-alpha); }
 
 // currently implements WRAP addressing

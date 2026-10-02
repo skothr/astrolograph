@@ -1,6 +1,4 @@
 #include "neuralNetNode.hpp"
-using namespace astro;
-
 
 #include <imgui.h>
 #include <imgui_internal.h>

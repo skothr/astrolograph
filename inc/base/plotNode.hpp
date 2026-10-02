@@ -6,11 +6,12 @@
 #include "node.hpp"
 #include "plotWidget.hpp"
 
+// forward declarations
+class FileDialog;
+class SettingForm;
+
 namespace astro
 {
-  // forward declarations
-  class FileDialog;
-  class SettingForm;
 
   //// node connector indices ////
   // inputs

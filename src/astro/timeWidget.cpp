@@ -5,7 +5,7 @@ using namespace astro;
 #include <nfd.h>
 #include "imgui.h"
 #include "tools.hpp"
-#include "astroWindow.hpp"
+#include "mainWindow.hpp"
 #include "nodeGraph.hpp"
 #include "fileDialog.hpp"
 
@@ -45,12 +45,13 @@ bool TimeWidget::saveDirCheck()
   return true;
 }
 
-#ifndef ENABLE_CUDA // not needed for building CUDA files (std::quoted undefined)
 bool TimeWidget::checkFileDialog()
 {
+  bool success = false;
+  
+  #ifndef __NVCC__ // not needed for building CUDA files (std::quoted undefined)
   if(!saveDirCheck()) { return false; }
   if(!mGraph) { std::cout << "TimeWidget->mNodeGraph is null!\n"; return false; }
-  bool success = false;
   //std::cout << "TimeWidget checking FileDialog...\n";
   if(mFileDialog->check())
     {
@@ -99,9 +100,9 @@ bool TimeWidget::checkFileDialog()
         }
       else { std::cout << "Empty path string!\n"; }
     }
+  #endif // __NVCC__
   return success;
 }
-#endif // ENABLE_CUDA
 
 
 bool TimeWidget::draw(const std::string &id, float scale, bool blocked)
@@ -141,7 +142,7 @@ bool TimeWidget::draw(const std::string &id, float scale, bool blocked)
     char   hourVal   = mDate.hour();
     char   minuteVal = mDate.minute();
     double secondVal = mDate.second();
-    double tzVal     = mDate.utcOffset()+mDate.dstOffset();
+    double tzVal     = mDate.utcOffset() + mDate.dstOffset();
     // whether changed from loaded date
     bool compare    = (!mName.empty());
     bool yearDiff   = compare && (yearVal   != mSavedDate.year());
@@ -281,7 +282,7 @@ bool TimeWidget::draw(const std::string &id, float scale, bool blocked)
     ImGui::SameLine();
     ImGui::InputDouble(("##tzOffset"+id).c_str(), &tzVal, 0.0, 0.0, "%+2.2f", flags);
     ImGui::PopItemWidth();
-    mDate.setUtcOffset(tzVal-mDate.dstOffset());
+    mDate.setUtcOffset(tzVal - mDate.dstOffset());
 
     bool dst = (mDate.dstOffset() != 0.0);
     ImGui::SameLine();
@@ -307,11 +308,7 @@ bool TimeWidget::draw(const std::string &id, float scale, bool blocked)
     if(ImGui::Button(("Save##date"+id).c_str()))
       { mFileDialog->open("Save Date File", DIALOG_SAVE, DATE_SAVE_DIR, {".date"}); }
 
-    
-#ifndef ENABLE_CUDA // not needed for building CUDA files (std::quoted undefined)
-    if(checkFileDialog())
-      { std::cout << "File dialog success!\n"; } // update dialog, and apply save/load if it succeeds
-#endif // ENABLE_CUDA
+    if(checkFileDialog()) { std::cout << "File dialog success!\n"; } // update dialog, and apply save/load if it succeeds
     
     if(!mName.empty())
       {
